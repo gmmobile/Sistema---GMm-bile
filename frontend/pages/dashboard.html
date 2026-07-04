@@ -291,6 +291,72 @@
     .aniv-emoji { font-size:14px; }
     .aniv-info strong { display:block; font-size:11px; font-weight:600; }
     .aniv-info span   { font-size:10px; color:var(--text-muted); }
+
+    /* ── Backdrop do painel lateral (drawer no mobile) ──────────────── */
+    .right-panel-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:190; }
+    .right-panel-backdrop.open { display:block; }
+
+    /* ══════════════════════════════════════════════════════════════
+       MOBILE
+    ══════════════════════════════════════════════════════════════ */
+    @media(max-width:900px){
+      /* Header executivo: empilha e permite quebra de linha */
+      .exec-header { flex-wrap:wrap; padding:10px 12px 8px; gap:8px; }
+      .exec-greeting { flex:1; min-width:0; }
+      .exec-greeting h1 { font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .exec-greeting p  { font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .exec-clock { margin-left:0; flex-shrink:0; }
+      .exec-clock .time { font-size:16px; }
+      .exec-clock .date { font-size:9px; }
+      .exec-divider { display:none; }
+      .exec-actions { order:3; width:100%; flex-wrap:wrap; gap:6px; }
+      .qa-btn { flex:1 1 auto; min-width:0; height:30px; padding:0 8px; font-size:10px; justify-content:center; }
+      .qa-btn svg { width:12px; height:12px; }
+      .panel-toggle-btn { flex:0 0 36px; }
+
+      .global-search { margin:8px 12px 0; }
+      .global-search input { height:34px; font-size:12px; }
+
+      .ia-bar { margin:8px 12px 0; padding:8px 10px; min-height:auto; }
+      .ia-messages { gap:8px; }
+
+      .dash-section { padding:0 12px 12px; }
+      .kpi-grid { padding:10px 12px; gap:8px; }
+
+      /* KPI cards compactos (classes próprias do dashboard) */
+      .kpi-card { padding:12px 12px 10px; gap:8px; }
+      .kpi-icon { width:24px; height:24px; border-radius:7px; }
+      .kpi-icon svg { width:11px; height:11px; }
+      .kpi-label { font-size:10.5px; }
+      .kpi-valor { font-size:17px; }
+      .kpi-bottom { font-size:10px; flex-wrap:wrap; }
+
+      .card-header { padding:10px 12px 8px; }
+      .card-title { font-size:11px; }
+      .card-body { padding:12px; }
+
+      /* Painel lateral vira drawer deslizante */
+      .right-panel {
+        position:fixed; top:0; right:0; bottom:0; z-index:200;
+        width:min(82vw,320px) !important; max-width:320px;
+        transform:translateX(100%);
+        transition:transform .25s cubic-bezier(.4,0,.2,1);
+        box-shadow:-10px 0 30px rgba(0,0,0,.45);
+        background:var(--bg-main,#0f1115);
+      }
+      .right-panel:not(.collapsed) { transform:translateX(0); border-left:1px solid var(--border); }
+      .right-panel.collapsed { transform:translateX(100%); }
+
+      /* FAB sempre ancorado no canto, painel agora é overlay */
+      .fab-wrap { right:16px !important; }
+      /* Esconde o FAB enquanto o drawer está aberto (evita sobrepor) */
+      .fab-wrap:not(.panel-closed) { display:none; }
+    }
+
+    @media(max-width:480px){
+      .qa-btn span.qa-label { display:none; }
+      .exec-clock .date { display:none; }
+    }
   </style>
 </head>
 <body>
@@ -330,15 +396,15 @@
           <div class="exec-actions">
             <button class="qa-btn" onclick="location.href='clientes.html'">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
-              Novo Cliente
+              <span class="qa-label">Novo Cliente</span>
             </button>
             <button class="qa-btn" onclick="location.href='comercial.html'">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-              Orçamento
+              <span class="qa-label">Orçamento</span>
             </button>
             <button class="qa-btn qa-btn-primary" onclick="location.href='financeiro.html'">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              Financeiro
+              <span class="qa-label">Financeiro</span>
             </button>
             <button class="qa-btn panel-toggle-btn" onclick="toggleRightPanel()" title="Painel lateral">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
@@ -622,6 +688,7 @@
       </div><!-- /dash-scroll -->
 
       <!-- ── RIGHT PANEL ────────────────────────────────────────── -->
+      <div class="right-panel-backdrop" id="rpBackdrop" onclick="toggleRightPanel()"></div>
       <div class="right-panel" id="rightPanel">
         <div class="right-panel-scroll">
 
@@ -699,9 +766,13 @@ lucide.createIcons();
 checkAuth();
 
 // ── Estado ──────────────────────────────────────────────────────────
-let _panelOpen = true;
+// No mobile o painel lateral é um drawer — começa fechado para não
+// tomar a tela; no desktop começa aberto, como sempre foi.
+let _panelOpen = window.innerWidth > 900;
 let _fabOpen   = false;
 let _charts    = {};
+document.getElementById('rightPanel').classList.toggle('collapsed', !_panelOpen);
+document.getElementById('fabWrap').classList.toggle('panel-closed', !_panelOpen);
 
 // ── Relógio ─────────────────────────────────────────────────────────
 function tickRelogio() {
@@ -731,6 +802,7 @@ function toggleRightPanel() {
   _panelOpen = !_panelOpen;
   document.getElementById('rightPanel').classList.toggle('collapsed', !_panelOpen);
   document.getElementById('fabWrap').classList.toggle('panel-closed', !_panelOpen);
+  document.getElementById('rpBackdrop').classList.toggle('open', _panelOpen && window.innerWidth <= 900);
 }
 
 function toggleFab() {
