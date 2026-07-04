@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Ranking & Performance — GM MÓBILE</title>
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+<link rel="stylesheet" href="../assets/css/global.css">
+<link rel="stylesheet" href="../assets/css/layout.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+/* ── Wrap ── */
+.rk-wrap{display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0}
+/* ── Period bar ── */
+.rk-period-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 20px;background:var(--bg-card2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;gap:8px}
+.rk-period{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rk-period-label{font-size:11px;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.rk-period select{background:var(--bg-card2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;transition:border-color .2s}
+.rk-period select:focus{outline:none;border-color:var(--primary)}
+.period-sep{font-size:11px;color:var(--text-dim);font-weight:600;white-space:nowrap}
+.btn-range-toggle{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--text-dim);cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .2s}
+.btn-range-toggle:hover{background:rgba(255,255,255,.1);color:var(--text)}
+.btn-range-toggle.active{background:rgba(196,162,74,.15);border-color:var(--primary);color:var(--primary)}
+.btn-range-toggle svg{width:13px;height:13px}
+.rk-bar-right{display:flex;align-items:center;gap:8px}
+.btn-pdf{background:rgba(196,162,74,.12);border:1px solid rgba(196,162,74,.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;color:var(--primary);cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .2s}
+.btn-pdf:hover{background:rgba(196,162,74,.22);border-color:var(--primary)}
+.btn-pdf svg{width:13px;height:13px}
+/* ── Tabs ── */
+.rk-tabs{display:flex;gap:4px;padding:12px 20px 0;background:var(--bg-card2);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.rk-tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--text-dim);padding:8px 18px 10px;font-size:13px;font-weight:500;cursor:pointer;transition:color .2s,border-color .2s;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.rk-tab:hover{color:var(--text)}
+.rk-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.rk-tab svg{width:14px;height:14px}
+/* ── Scroll ── */
+.rk-scroll{flex:1;overflow-y:auto;padding:18px 20px;min-height:0}
+
+/* ══════════════════════════════════════
+   ANIMAÇÕES / SKELETON
+══════════════════════════════════════ */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .5s cubic-bezier(.22,1,.36,1) both}
+@keyframes shimmer{to{background-position:-200% 0}}
+.skel{border-radius:16px;border:1px solid var(--border);background:linear-gradient(100deg,var(--bg-card2) 40%,rgba(255,255,255,.045) 50%,var(--bg-card2) 60%);background-size:200% 100%;animation:shimmer 1.4s infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ══════════════════════════════════════
+   KPI CARDS PREMIUM (6)
+══════════════════════════════════════ */
+.kpi-grid6{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:14px}
+@media(max-width:1500px){.kpi-grid6{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:800px){.kpi-grid6{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi6{position:relative;overflow:hidden;border-radius:16px;padding:15px 15px 13px;border:1px solid var(--border);background:var(--bg-card2);background:linear-gradient(165deg,color-mix(in srgb,var(--kc) 8%,var(--bg-card2)) 0%,var(--bg-card2) 58%);transition:transform .28s cubic-bezier(.22,1,.36,1),box-shadow .28s,border-color .28s;cursor:default;box-sizing:border-box}
+.kpi6:hover{transform:translateY(-3px);box-shadow:0 12px 34px rgba(0,0,0,.45),0 0 0 1px color-mix(in srgb,var(--kc) 40%,transparent);border-color:var(--kc)}
+.kpi6::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--kc),transparent 75%)}
+.kpi6::after{content:'';position:absolute;top:-28px;right:-28px;width:96px;height:96px;background:var(--kc);border-radius:50%;filter:blur(44px);opacity:.10;pointer-events:none}
+.kpi6-top{display:flex;align-items:center;gap:8px;margin-bottom:10px;position:relative;z-index:1}
+.kpi6-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:color-mix(in srgb,var(--kc) 16%,transparent)}
+.kpi6-icon i,.kpi6-icon svg{width:15px;height:15px;color:var(--kc)}
+.kpi6-label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi6-value{font-size:22px;font-weight:800;color:var(--text);line-height:1.1;letter-spacing:-.5px;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;z-index:1;font-variant-numeric:tabular-nums}
+.kpi6-cmp{font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:5px;margin-bottom:8px;position:relative;z-index:1;white-space:nowrap;overflow:hidden}
+.kpi-badge{display:inline-flex;align-items:center;gap:2px;font-size:10px;padding:2px 6px;border-radius:5px;font-weight:700;white-space:nowrap}
+.kpi-badge.up{background:rgba(74,222,128,.15);color:#4ade80}
+.kpi-badge.down{background:rgba(248,113,113,.15);color:#f87171}
+.kpi-badge.neutral{background:rgba(148,163,184,.12);color:#94a3b8}
+.kpi6-spark{margin:0 -3px 9px;position:relative;z-index:1}
+.kpi6-prog{height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;margin-bottom:7px;position:relative;z-index:1}
+.kpi6-prog-fill{height:100%;border-radius:2px;background:var(--kc);width:0;transition:width .9s cubic-bezier(.22,1,.36,1)}
+.kpi6-foot{display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--text-dim);position:relative;z-index:1;gap:6px}
+.kpi6-foot span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi6-foot-pct{font-weight:800;color:var(--kc);flex-shrink:0}
+
+/* ══════════════════════════════════════
+   LAYOUT DASHBOARD (main + rail)
+══════════════════════════════════════ */
+.dash-cols{display:grid;grid-template-columns:minmax(0,1fr) 296px;gap:14px;align-items:start}
+@media(max-width:1250px){.dash-cols{grid-template-columns:1fr}}
+.dash-main{display:flex;flex-direction:column;gap:14px;min-width:0}
+.dash-rail{display:flex;flex-direction:column;gap:14px;min-width:0}
+.exec-ia-row{display:grid;grid-template-columns:1.1fr 1fr;gap:14px}
+@media(max-width:1000px){.exec-ia-row{grid-template-columns:1fr}}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:1000px){.charts-row{grid-template-columns:1fr}}
+
+/* ── Painel base ── */
+.pnl{background:var(--bg-card2);border:1px solid var(--border);border-radius:16px;padding:16px 18px;min-width:0;transition:border-color .25s}
+.pnl:hover{border-color:rgba(255,255,255,.14)}
+.pnl-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px}
+.pnl-title{font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.pnl-title i,.pnl-title svg{width:13px;height:13px;opacity:.8}
+.pnl-link{font-size:10px;font-weight:700;color:var(--primary);background:rgba(196,162,74,.1);border:1px solid rgba(196,162,74,.25);border-radius:6px;padding:3px 9px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.pnl-link:hover{background:rgba(196,162,74,.2)}
+
+/* ── Resumo Executivo ── */
+.exec-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+@media(max-width:700px){.exec-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.exec-item{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:11px 12px;display:flex;gap:10px;align-items:center;transition:border-color .2s,transform .2s;min-width:0}
+.exec-item:hover{border-color:var(--ec,var(--primary));transform:translateY(-1px)}
+.exec-ico{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.exec-ico i,.exec-ico svg{width:14px;height:14px}
+.exec-txt{min-width:0}
+.exec-val{font-size:14px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exec-lbl{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ── Insights IA ── */
+.pnl-ia{position:relative;overflow:hidden;background:linear-gradient(150deg,rgba(167,139,250,.07) 0%,var(--bg-card2) 45%)}
+.pnl-ia::before{content:'';position:absolute;top:-30px;right:-30px;width:110px;height:110px;background:#a78bfa;border-radius:50%;filter:blur(52px);opacity:.12;pointer-events:none}
+.ia-illu{position:absolute;top:14px;right:16px;opacity:.9;pointer-events:none}
+.ia-line{display:flex;align-items:flex-start;gap:9px;padding:7px 0;font-size:12px;color:var(--text);line-height:1.45;border-bottom:1px solid rgba(255,255,255,.04)}
+.ia-line:last-child{border-bottom:none}
+.ia-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:5px;box-shadow:0 0 8px currentColor}
+.ia-line b{font-weight:700}
+.ia-line span.msg{color:var(--text-dim)}
+
+/* ── Faturamento por vendedor (barras HTML) ── */
+.fatv-row{display:flex;align-items:center;gap:10px;padding:7px 0}
+.fatv-nome{font-size:12px;font-weight:600;color:var(--text);width:74px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fatv-bar{flex:1;height:14px;border-radius:7px;background:rgba(255,255,255,.05);overflow:hidden;min-width:40px}
+.fatv-fill{height:100%;border-radius:7px;background:linear-gradient(90deg,#8a6f2f,#d4af37 85%);width:0;transition:width .9s cubic-bezier(.22,1,.36,1);box-shadow:0 0 10px rgba(212,175,55,.25)}
+.fatv-val{font-size:12px;font-weight:800;color:var(--primary);width:72px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums}
+
+/* ── Funil ── */
+.funil-row{display:flex;align-items:center;gap:12px;padding:6px 0}
+.funil-lbl{font-size:11px;font-weight:700;color:var(--text);width:98px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.funil-track{flex:1;height:26px;display:flex;min-width:60px}
+.funil-fill{height:100%;border-radius:7px;width:0;transition:width .9s cubic-bezier(.22,1,.36,1);display:flex;align-items:center;justify-content:flex-end;padding-right:8px;box-sizing:border-box;min-width:0}
+.funil-fill b{font-size:11px;font-weight:800;color:#000;opacity:.85}
+.funil-pct{font-size:11px;font-weight:700;color:var(--text-dim);width:64px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums}
+
+/* ── Rail: ações / performers / alertas / conquistas ── */
+.acao-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.acao-item:last-child{border-bottom:none}
+.acao-ico{width:28px;height:28px;border-radius:8px;background:rgba(196,162,74,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.acao-ico i,.acao-ico svg{width:13px;height:13px;color:var(--primary)}
+.acao-txt{min-width:0;flex:1}
+.acao-tit{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acao-sub{font-size:10px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acao-when{font-size:10px;font-weight:700;color:var(--primary);flex-shrink:0;white-space:nowrap}
+.tp-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.tp-row:last-child{border-bottom:none}
+.tp-ico{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tp-ico i,.tp-ico svg{width:13px;height:13px}
+.tp-lbl{font-size:11px;color:var(--text-dim);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tp-nome{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px}
+.alerta-row{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.alerta-row:last-child{border-bottom:none}
+.alerta-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.alerta-lbl{font-size:12px;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alerta-badge{min-width:24px;height:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;padding:0 7px;flex-shrink:0}
+.cq-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.cq-item{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 4px;border-radius:12px;background:var(--bg);border:1px solid var(--border);transition:transform .2s,border-color .2s;cursor:pointer;min-width:0}
+.cq-item:hover{transform:translateY(-2px);border-color:var(--cqc)}
+.cq-ico{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 14px color-mix(in srgb,var(--cqc) 35%,transparent)}
+.cq-ico i,.cq-ico svg{width:15px;height:15px}
+.cq-lbl{font-size:8.5px;font-weight:700;color:var(--text-dim);text-align:center;text-transform:uppercase;letter-spacing:.2px;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
+/* ── Charts ── */
+.chart-wrap{position:relative;height:210px}
+.chart-note{margin-top:10px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:6px}
+.chart-note i,.chart-note svg{width:12px;height:12px}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+.chart-card{background:var(--bg-card2);border:1px solid var(--border);border-radius:16px;padding:20px}
+.chart-card.full{grid-column:1/-1}
+.chart-title{font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:16px;display:flex;align-items:center;gap:7px}
+.chart-title i,.chart-title svg{width:13px;height:13px;opacity:.7}
+
+/* ══════════════════════════════════════
+   TABELA TOP VENDEDORES (premium)
+══════════════════════════════════════ */
+.rank-table-wrap{background:var(--bg-card2);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.tv-scroll{overflow-x:auto}
+.rank-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.rank-table th{text-align:left;padding:10px 14px;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--border);font-weight:700;background:rgba(0,0,0,.2);white-space:nowrap}
+.rank-table td{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text);vertical-align:middle;white-space:nowrap}
+.rank-table tr:last-child td{border-bottom:none}
+.rank-table tbody tr{transition:background .15s}
+.rank-table tbody tr:hover td{background:rgba(255,255,255,.03)}
+.rank-num{font-size:12px;font-weight:800;color:var(--text-dim);text-align:center}
+.rank-user{display:flex;align-items:center;gap:10px}
+.rank-avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#000;flex-shrink:0}
+.rank-nome{font-weight:700;font-size:13px}
+.rank-perfil{font-size:10.5px;color:var(--text-dim);margin-top:1px;text-transform:capitalize}
+.progress-bar-wrap{display:flex;align-items:center;gap:8px}
+.progress-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.08);flex:1;overflow:hidden;min-width:56px}
+.progress-fill{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.22,1,.36,1)}
+.progress-fill.green{background:#4ade80}
+.progress-fill.yellow{background:#fbbf24}
+.progress-fill.red{background:#f87171}
+.progress-fill.gray{background:#64748b}
+.pct-label{font-size:11px;font-weight:700;min-width:36px;text-align:right;font-variant-numeric:tabular-nums}
+.status-chip{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.status-chip .sc-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* ── Section heading ── */
+.rk-section-title{font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.rk-section-title::after{content:'';flex:1;height:1px;background:var(--border);margin-left:8px}
+/* ── Subtabs ── */
+.rank-subtabs{display:flex;gap:6px;margin-bottom:16px}
+.rank-subtab{background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);padding:7px 16px;font-size:13px;cursor:pointer;transition:all .2s}
+.rank-subtab.active{background:rgba(196,162,74,.15);border-color:var(--primary);color:var(--primary);font-weight:600}
+/* ── Podium ── */
+.podium{display:grid;grid-template-columns:1fr 1.12fr 1fr;gap:14px;margin-bottom:20px}
+.podium-card{background:var(--bg-card2);border-radius:16px;padding:20px;text-align:center;position:relative;overflow:hidden;transition:transform .2s}
+.podium-card:hover{transform:translateY(-3px)}
+.podium-card.first{border:2px solid #d4af37;background:linear-gradient(135deg,rgba(212,175,55,.15) 0%,var(--bg-card2) 60%)}
+.podium-card.second{border:1px solid #94a3b8;background:linear-gradient(135deg,rgba(148,163,184,.08) 0%,var(--bg-card2) 60%)}
+.podium-card.third{border:1px solid #b87333;background:linear-gradient(135deg,rgba(184,115,51,.08) 0%,var(--bg-card2) 60%)}
+.podium-rank-badge{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#000;margin:0 auto 8px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.podium-avatar{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:#000;margin:0 auto 10px}
+.podium-nome{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+.podium-total{font-size:18px;font-weight:700;color:var(--primary)}
+.podium-meta{font-size:11px;color:var(--text-dim);margin-top:2px}
+.podium-badges{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin-top:8px}
+.badge-chip{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600}
+.podium-score{font-size:11px;color:var(--text-dim);margin-top:6px;display:flex;align-items:center;justify-content:center;gap:4px}
+.score-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;flex-shrink:0}
+/* ── Metas ── */
+.metas-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.metas-section{margin-bottom:24px}
+.metas-section-title{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);font-weight:700;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.meta-card{background:var(--bg-card2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:8px;transition:border-color .2s}
+.meta-card:hover{border-color:rgba(196,162,74,.3)}
+.meta-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap}
+.meta-user{display:flex;align-items:center;gap:10px}
+.meta-val-real{font-size:16px;font-weight:700;color:var(--text)}
+.meta-val-meta{font-size:11px;color:var(--text-dim)}
+.meta-progress-wrap{display:flex;align-items:center;gap:10px}
+.meta-progress-bar{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}
+.meta-progress-fill{height:100%;border-radius:4px;transition:width .8s ease}
+.meta-pct-label{font-size:13px;font-weight:700;min-width:42px;text-align:right}
+.meta-status{font-size:11px;color:var(--text-dim);margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
+.btn-add-meta{background:var(--primary);color:#000;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px}
+.btn-add-meta:hover{opacity:.85}
+.meta-actions{display:flex;gap:6px}
+.btn-icon{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text-dim);cursor:pointer;font-size:12px;transition:all .2s}
+.btn-icon:hover{background:rgba(255,255,255,.1);color:var(--text)}
+.btn-icon.danger:hover{background:rgba(248,113,113,.12);color:#f87171;border-color:#f87171}
+/* ── Conquistas (aba) ── */
+.conquistas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.conquista-card{background:var(--bg-card2);border-radius:12px;padding:20px;text-align:center;position:relative;overflow:hidden;border:1px solid var(--border);transition:transform .2s}
+.conquista-card:hover{transform:translateY(-3px)}
+.conquista-glow{position:absolute;top:-30px;left:50%;transform:translateX(-50%);width:80px;height:80px;border-radius:50%;filter:blur(30px);opacity:.25}
+.conquista-icon{font-size:36px;margin-bottom:8px;display:block}
+.conquista-tipo{font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:4px}
+.conquista-nome{font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px}
+.conquista-valor{font-size:18px;font-weight:800;margin-bottom:4px}
+.conquista-desc{font-size:11px;color:var(--text-dim)}
+/* ── IA (aba) ── */
+.ia-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.ia-card{background:var(--bg-card2);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden}
+.ia-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.ia-card.sucesso::before{background:#4ade80}
+.ia-card.info::before{background:#60a5fa}
+.ia-card.alerta::before{background:#fbbf24}
+.ia-card.perigo::before{background:#f87171}
+.ia-card.warning::before{background:#fb923c}
+.ia-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.ia-icon-wrap{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ia-card.sucesso .ia-icon-wrap{background:rgba(74,222,128,.12)}
+.ia-card.info .ia-icon-wrap{background:rgba(96,165,250,.12)}
+.ia-card.alerta .ia-icon-wrap{background:rgba(251,191,36,.12)}
+.ia-card.perigo .ia-icon-wrap{background:rgba(248,113,113,.12)}
+.ia-card.warning .ia-icon-wrap{background:rgba(251,146,60,.12)}
+.ia-titulo{font-size:14px;font-weight:700;color:var(--text)}
+.ia-msg{font-size:13px;color:var(--text-dim);line-height:1.5}
+/* ── Modal ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--bg-card2);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:440px;position:relative}
+.modal-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:20px}
+.modal-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px}
+.modal-close:hover{color:var(--text)}
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.form-control{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 12px;font-size:13px;box-sizing:border-box}
+.form-control:focus{outline:none;border-color:var(--primary)}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.btn-modal-save{background:var(--primary);color:#000;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer}
+.btn-modal-save:hover{opacity:.85}
+.btn-modal-cancel{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;padding:9px 16px;font-size:13px;color:var(--text-dim);cursor:pointer}
+.btn-modal-cancel:hover{background:rgba(255,255,255,.1)}
+/* ── Drawer ── */
+.drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999}
+.drawer-overlay.open{display:block}
+.drawer{position:fixed;right:-500px;top:0;bottom:0;width:480px;background:var(--bg-card2);border-left:1px solid var(--border);z-index:1000;transition:right .35s cubic-bezier(.4,0,.2,1);overflow-y:auto;padding:24px}
+.drawer.open{right:0}
+.drawer-close{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--text-dim);font-size:13px}
+.drawer-close:hover{color:var(--text)}
+.drawer-header{display:flex;align-items:center;gap:14px;margin-bottom:24px;padding-right:52px}
+.drawer-avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#000;flex-shrink:0}
+.drawer-nome{font-size:18px;font-weight:700;color:var(--text)}
+.drawer-perfil{font-size:12px;color:var(--text-dim);margin-top:2px}
+.drawer-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.drawer-kpi{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px}
+.drawer-kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);font-weight:600;margin-bottom:4px}
+.drawer-kpi-val{font-size:16px;font-weight:700;color:var(--text)}
+.drawer-section{margin-bottom:18px}
+.drawer-section-title{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);font-weight:700;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.mini-table{width:100%;font-size:12px;border-collapse:collapse}
+.mini-table td{padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text)}
+.mini-table td:last-child{text-align:right}
+.mini-table tr:last-child td{border-bottom:none}
+/* ── Empty ── */
+.empty-state{text-align:center;padding:40px;color:var(--text-dim)}
+.empty-state svg{width:40px;height:40px;margin-bottom:10px;opacity:.4}
+.rail-empty{font-size:11px;color:var(--text-dim);text-align:center;padding:14px 0}
+/* ── Responsive ── */
+@media(max-width:768px){
+  .podium{grid-template-columns:1fr}
+  .charts-grid{grid-template-columns:1fr}
+  .drawer{width:100%;right:-100%}
+}
+/* ══════════════════════════════════════
+   PRINT / PDF
+══════════════════════════════════════ */
+@media print {
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .sidebar,.topbar,.rk-period-bar,.rk-tabs,
+  .btn-pdf,.btn-range-toggle,.btn-add-meta,.meta-actions,.pnl-link,
+  .drawer,.drawer-overlay,.modal-overlay,#toast-container{display:none!important}
+  body,html{background:#fff!important;color:#111!important}
+  .app-layout{display:block!important}
+  .main-content{height:auto!important;overflow:visible!important}
+  .rk-wrap{overflow:visible!important}
+  .rk-scroll{overflow:visible!important;padding:0!important}
+  .dash-cols{grid-template-columns:1fr!important}
+  .kpi6,.pnl,.chart-card,.rank-table-wrap,.meta-card,.conquista-card,.ia-card,.podium-card,.exec-item,.cq-item{break-inside:avoid;border:1px solid #ddd!important;background:#fff!important;color:#111!important}
+  .kpi6-value,.podium-nome,.podium-total,.rank-nome,.meta-val-real,.conquista-nome,.exec-val,.tp-nome,.acao-tit,.alerta-lbl,.ia-line{color:#111!important}
+  .kpi6-label,.pnl-title,.chart-title,.rank-table th,.rank-perfil,.kpi6-cmp,.kpi6-foot,.meta-val-meta,.conquista-desc,.ia-msg,.exec-lbl,.acao-sub{color:#444!important}
+  .rank-table th{background:#f5f5f5!important}
+  .rank-table td{border-bottom:1px solid #eee!important}
+  .pdf-header{display:block!important}
+}
+.pdf-header{display:none;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #C4A24A}
+.pdf-header-title{font-size:22px;font-weight:800;color:#C4A24A}
+.pdf-header-sub{font-size:13px;color:#666;margin-top:2px}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content" style="display:flex;flex-direction:column;overflow:hidden;height:100vh;">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="topbar-breadcrumb">
+          <span class="topbar-module" style="display:flex;align-items:center;gap:6px"><i data-lucide="trophy" style="width:16px;height:16px;color:var(--primary)"></i> Ranking &amp; Performance</span>
+        </div>
+      </div>
+      <div class="topbar-right"></div>
+    </header>
+
+    <div class="rk-wrap">
+      <!-- Barra de período -->
+      <div class="rk-period-bar">
+        <div class="rk-period">
+          <span class="rk-period-label">Período:</span>
+
+          <div id="periodSimple" style="display:flex;align-items:center;gap:6px">
+            <select id="selMes" onchange="loadAll()">
+              <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+              <option value="3">Março</option><option value="4">Abril</option>
+              <option value="5">Maio</option><option value="6">Junho</option>
+              <option value="7">Julho</option><option value="8">Agosto</option>
+              <option value="9">Setembro</option><option value="10">Outubro</option>
+              <option value="11">Novembro</option><option value="12">Dezembro</option>
+            </select>
+            <select id="selAno" onchange="loadAll()"></select>
+          </div>
+
+          <div id="periodRange" style="display:none;align-items:center;gap:6px">
+            <span class="period-sep">De</span>
+            <select id="selMesI" onchange="loadAll()">
+              <option value="1">Jan</option><option value="2">Fev</option><option value="3">Mar</option>
+              <option value="4">Abr</option><option value="5">Mai</option><option value="6">Jun</option>
+              <option value="7">Jul</option><option value="8">Ago</option><option value="9">Set</option>
+              <option value="10">Out</option><option value="11">Nov</option><option value="12">Dez</option>
+            </select>
+            <select id="selAnoI" onchange="loadAll()"></select>
+            <span class="period-sep">até</span>
+            <select id="selMesF" onchange="loadAll()">
+              <option value="1">Jan</option><option value="2">Fev</option><option value="3">Mar</option>
+              <option value="4">Abr</option><option value="5">Mai</option><option value="6">Jun</option>
+              <option value="7">Jul</option><option value="8">Ago</option><option value="9">Set</option>
+              <option value="10">Out</option><option value="11">Nov</option><option value="12">Dez</option>
+            </select>
+            <select id="selAnoF" onchange="loadAll()"></select>
+          </div>
+
+          <button class="btn-range-toggle" id="btnRange" onclick="toggleRange()" title="Selecionar intervalo de meses">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Intervalo
+          </button>
+        </div>
+
+        <div class="rk-bar-right">
+          <button class="btn-pdf" onclick="exportPDF()" title="Exportar relatório como PDF">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Exportar PDF
+          </button>
+        </div>
+      </div>
+
+      <nav class="rk-tabs" id="rkTabs">
+        <button class="rk-tab active" data-tab="dashboard" onclick="setTab('dashboard')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Dashboard
+        </button>
+        <button class="rk-tab" data-tab="ranking" onclick="setTab('ranking')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+          Ranking
+        </button>
+        <button class="rk-tab" data-tab="metas" onclick="setTab('metas')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+          Metas
+        </button>
+        <button class="rk-tab" data-tab="conquistas" onclick="setTab('conquistas')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/></svg>
+          Conquistas
+        </button>
+        <button class="rk-tab" data-tab="ia" onclick="setTab('ia')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M15 20v2M2 15h2M20 15h2M2 9h2M20 9h2M9 2v2M9 20v2"/></svg>
+          IA Performance
+        </button>
+        <button class="rk-tab" onclick="window.location.href='relatorios.html'">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          Relatórios
+        </button>
+      </nav>
+
+      <div class="rk-scroll" id="rkView"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Drawer individual -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <button class="drawer-close" onclick="closeDrawer()">✕ Fechar</button>
+  <div id="drawerContent"></div>
+</div>
+
+<!-- Modal meta -->
+<div class="modal-overlay" id="modalMeta">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeMetaModal()">✕</button>
+    <div class="modal-title" id="modalMetaTitle">Nova Meta</div>
+    <input type="hidden" id="metaId">
+    <div class="form-group">
+      <label class="form-label">Vendedor</label>
+      <select class="form-control" id="metaVendedorId"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Mês</label>
+      <select class="form-control" id="metaMes">
+        <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+        <option value="3">Março</option><option value="4">Abril</option>
+        <option value="5">Maio</option><option value="6">Junho</option>
+        <option value="7">Julho</option><option value="8">Agosto</option>
+        <option value="9">Setembro</option><option value="10">Outubro</option>
+        <option value="11">Novembro</option><option value="12">Dezembro</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Ano</label>
+      <select class="form-control" id="metaAno"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Valor da Meta (R$)</label>
+      <input type="number" class="form-control" id="metaValor" placeholder="Ex: 50000" min="0" step="100">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeMetaModal()">Cancelar</button>
+      <button class="btn-modal-save" onclick="saveMeta()">Salvar Meta</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+/* ── State ── */
+let gTab = 'dashboard';
+let gMes, gAno;
+let gRangeMode = false;
+let gPeriodoLabel = '';
+let gVendedores = [];
+let gCharts = {};
+
+const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const MESES_FULL  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function destroyCharts() {
+  Object.values(gCharts).forEach(c => { try { c.destroy(); } catch(_){} });
+  gCharts = {};
+}
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  gMes = now.getMonth() + 1;
+  gAno = now.getFullYear();
+
+  document.getElementById('selMes').value = gMes;
+
+  ['selAno','selAnoI','selAnoF'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    for (let y = gAno + 1; y >= gAno - 3; y--) {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y;
+      sel.appendChild(o);
+    }
+    sel.value = gAno;
+  });
+  document.getElementById('selMesI').value = gMes;
+  document.getElementById('selMesF').value = gMes;
+
+  const metaAnoSel = document.getElementById('metaAno');
+  for (let y = gAno + 1; y >= gAno - 2; y--) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y;
+    metaAnoSel.appendChild(o);
+  }
+  metaAnoSel.value = gAno;
+  document.getElementById('metaMes').value = gMes;
+
+  loadAll();
+});
+
+/* ── Período ── */
+function getPeriodoParams() {
+  if (gRangeMode) {
+    const mesI = document.getElementById('selMesI').value;
+    const anoI = document.getElementById('selAnoI').value;
+    const mesF = document.getElementById('selMesF').value;
+    const anoF = document.getElementById('selAnoF').value;
+    gMes = parseInt(mesI); gAno = parseInt(anoI);
+    gPeriodoLabel = (mesI===mesF && anoI===anoF)
+      ? `${MESES_FULL[parseInt(mesI)-1]} ${anoI}`
+      : `${MESES_ABREV[parseInt(mesI)-1]}/${anoI} – ${MESES_ABREV[parseInt(mesF)-1]}/${anoF}`;
+    return `mesI=${mesI}&anoI=${anoI}&mesF=${mesF}&anoF=${anoF}`;
+  } else {
+    gMes = parseInt(document.getElementById('selMes').value);
+    gAno = parseInt(document.getElementById('selAno').value);
+    gPeriodoLabel = `${MESES_FULL[gMes-1]} ${gAno}`;
+    return `mes=${gMes}&ano=${gAno}`;
+  }
+}
+
+function toggleRange() {
+  gRangeMode = !gRangeMode;
+  document.getElementById('periodSimple').style.display = gRangeMode ? 'none' : 'flex';
+  document.getElementById('periodRange').style.display  = gRangeMode ? 'flex' : 'none';
+  document.getElementById('btnRange').classList.toggle('active', gRangeMode);
+  if (gRangeMode) {
+    document.getElementById('selMesI').value = gMes;
+    document.getElementById('selAnoI').value = gAno;
+    document.getElementById('selMesF').value = gMes;
+    document.getElementById('selAnoF').value = gAno;
+  }
+  loadAll();
+}
+
+function exportPDF() {
+  let hdr = document.getElementById('_pdfHeader');
+  if (!hdr) {
+    hdr = document.createElement('div');
+    hdr.id = '_pdfHeader';
+    hdr.className = 'pdf-header';
+    document.getElementById('rkView').prepend(hdr);
+  }
+  hdr.innerHTML = `<div class="pdf-header-title">GM MÓBILE — Relatório de Performance</div><div class="pdf-header-sub">${gPeriodoLabel} · Gerado em ${new Date().toLocaleDateString('pt-BR')}</div>`;
+  window.print();
+}
+
+function loadAll() {
+  const params = getPeriodoParams();
+  if      (gTab === 'dashboard')  loadDash(params);
+  else if (gTab === 'ranking')    loadRanking(params);
+  else if (gTab === 'metas')      loadMetas(params);
+  else if (gTab === 'conquistas') loadConquistas(params);
+  else if (gTab === 'ia')         loadIA(params);
+}
+
+function setTab(tab) {
+  gTab = tab;
+  document.querySelectorAll('.rk-tab[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  destroyCharts();
+  loadAll();
+}
+
+/* ── Avatar ── */
+const AC = ['#d4af37','#4ade80','#60a5fa','#a78bfa','#fb923c','#22d3ee','#f87171','#14b8a6'];
+function avatarColor(s) { const h = (s||'?').split('').reduce((a,c) => a + c.charCodeAt(0), 0); return AC[h % AC.length]; }
+function initials(s) { return (s||'?').split(' ').map(p=>p[0]).filter(Boolean).slice(0,2).join('').toUpperCase(); }
+function avatarEl(nome, sz, fs) {
+  return `<div class="rank-avatar" style="width:${sz}px;height:${sz}px;background:${avatarColor(nome)};font-size:${fs}px">${initials(nome)}</div>`;
+}
+
+/* ── Format ── */
+function fmtBRL(v) {
+  v = v||0; const neg = v<0;
+  const abs = Math.round(Math.abs(v)*100);
+  const str = String(abs).padStart(3,'0');
+  const dec = str.slice(-2);
+  const int = str.slice(0,-2).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  return (neg?'-':'') + 'R$ ' + int + ',' + dec;
+}
+function fmtK(v) {
+  v = v||0;
+  if (Math.abs(v)>=1000000) return 'R$ '+(v/1000000).toFixed(1)+'M';
+  if (Math.abs(v)>=1000)    return 'R$ '+(v/1000).toFixed(0)+'K';
+  return fmtBRL(v);
+}
+function varBadge(v) {
+  if (v===null||v===undefined) return '';
+  const cl = v>0?'up':v<0?'down':'neutral';
+  const ic = v>0?'▲':v<0?'▼':'─';
+  return `<span class="kpi-badge ${cl}">${ic} ${Math.abs(v).toFixed(1)}%</span>`;
+}
+function pColor(pct) {
+  if (!pct||pct<0) return 'gray';
+  if (pct>=100) return 'green';
+  if (pct>=70)  return 'yellow';
+  return 'red';
+}
+function medalOrNum(n) {
+  if (n===1) return '<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#d4af37;color:#000;font-size:11px;font-weight:800;box-shadow:0 0 10px rgba(212,175,55,.4)">1</span>';
+  if (n===2) return '<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#94a3b8;color:#000;font-size:11px;font-weight:800">2</span>';
+  if (n===3) return '<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#b87333;color:#000;font-size:11px;font-weight:800">3</span>';
+  return String(n);
+}
+function fmtQuando(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const diff = Math.round((d - hoje) / 86400000);
+  if (diff === 0) return 'Hoje';
+  if (diff === 1) return 'Amanhã';
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+/* ── Sparkline SVG ── */
+let _sgSeq = 0;
+function sparkSVG(data, color, h) {
+  h = h || 32;
+  const w = 120;
+  if (!data || !data.length) data = [0,0];
+  if (data.length === 1) data = [data[0], data[0]];
+  const max = Math.max(...data), min = Math.min(...data);
+  const rng = (max - min) || 1;
+  const pts = data.map((v,idx)=>[idx/(data.length-1)*w, h-3-((v-min)/rng)*(h-8)]);
+  const line = pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  const area = line + ` L ${w} ${h} L 0 ${h} Z`;
+  const gid = 'sg' + (++_sgSeq);
+  const last = pts[pts.length-1];
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:${h}px;display:block">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity=".32"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    <path d="${area}" fill="url(#${gid})"/>
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="2.4" fill="${color}"/>
+  </svg>`;
+}
+
+/* ── Contadores animados ── */
+function countUp(el, target, fmt, dur) {
+  dur = dur || 850;
+  if (!el) return;
+  const t0 = performance.now();
+  function frame(t) {
+    const p = Math.min((t - t0) / dur, 1);
+    const e = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt(target * e);
+    if (p < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ── Barras animadas (width via data-w) ── */
+function animateBars() {
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.querySelectorAll('[data-w]').forEach(el => { el.style.width = el.dataset.w + '%'; });
+  }));
+}
+
+/* ── Skeleton ── */
+function skelDash() {
+  return `
+    <div class="kpi-grid6">${'<div class="skel" style="height:158px"></div>'.repeat(6)}</div>
+    <div class="dash-cols">
+      <div class="dash-main">
+        <div class="exec-ia-row"><div class="skel" style="height:170px"></div><div class="skel" style="height:170px"></div></div>
+        <div class="charts-row"><div class="skel" style="height:250px"></div><div class="skel" style="height:250px"></div></div>
+        <div class="skel" style="height:220px"></div>
+      </div>
+      <div class="dash-rail">
+        <div class="skel" style="height:180px"></div>
+        <div class="skel" style="height:170px"></div>
+        <div class="skel" style="height:190px"></div>
+      </div>
+    </div>`;
+}
+function loadingHtml() {
+  return `<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--text-dim)"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite;margin-right:8px"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Carregando...</div>`;
+}
+function errorHtml(e) {
+  return `<div style="display:flex;align-items:center;justify-content:center;height:180px;color:#f87171;flex-direction:column;gap:8px"><span>Erro: ${escapeHtml(String(e?.message||e))}</span></div>`;
+}
+
+/* ── API helpers ── */
+async function apiFetch(url) {
+  const tk = localStorage.getItem('token');
+  const r  = await fetch(url, { headers:{ Authorization:'Bearer '+tk } });
+  if (!r.ok) { const e = await r.json().catch(()=>{}); throw new Error(e?.erro||r.statusText); }
+  return r.json();
+}
+async function apiPost(url, body) {
+  const tk = localStorage.getItem('token');
+  const r  = await fetch(url, { method:'POST', headers:{ Authorization:'Bearer '+tk, 'Content-Type':'application/json' }, body:JSON.stringify(body) });
+  if (!r.ok) { const e = await r.json().catch(()=>{}); throw new Error(e?.erro||r.statusText); }
+  return r.json();
+}
+async function apiDelete(url) {
+  const tk = localStorage.getItem('token');
+  const r  = await fetch(url, { method:'DELETE', headers:{ Authorization:'Bearer '+tk } });
+  if (!r.ok) { const e = await r.json().catch(()=>{}); throw new Error(e?.erro||r.statusText); }
+  return r.json();
+}
+function showToast(msg, tipo) {
+  const tc = document.getElementById('toast-container');
+  if (!tc) return;
+  const t = document.createElement('div');
+  t.className = 'toast toast-' + (tipo||'info');
+  t.textContent = msg;
+  tc.appendChild(t);
+  setTimeout(()=>t.remove(), 3500);
+}
+
+/* ═══════════════════════════════════════
+   DASHBOARD — Centro de Performance
+═══════════════════════════════════════ */
+async function loadDash(params) {
+  document.getElementById('rkView').innerHTML = skelDash();
+  try {
+    const [ov, vends, ia, conq] = await Promise.all([
+      apiFetch(`/api/ranking/overview?${params}`),
+      apiFetch(`/api/ranking/vendedores?${params}`),
+      apiFetch(`/api/ranking/ia?${params}`).catch(()=>({ insights: [] })),
+      apiFetch(`/api/ranking/conquistas?${params}`).catch(()=>({ conquistas: [] })),
+    ]);
+    gVendedores = vends || [];
+    renderDash(ov, gVendedores, ia.insights || [], conq.conquistas || []);
+  } catch(e) { document.getElementById('rkView').innerHTML = errorHtml(e); }
+}
+
+function statusChipMeta(v) {
+  const meta = parseFloat(v.meta)||0;
+  const real = parseFloat(v.total_vendido)||0;
+  const pct  = parseFloat(v.metaPct)||0;
+  if (meta <= 0) return `<span class="status-chip" style="background:rgba(148,163,184,.1);color:#94a3b8"><span class="sc-dot"></span>Sem meta</span>`;
+  if (pct >= 100) return `<span class="status-chip" style="background:rgba(74,222,128,.12);color:#4ade80"><span class="sc-dot"></span>Meta batida</span>`;
+  // Projeção: só faz sentido no mês corrente em modo simples
+  const now = new Date();
+  if (!gRangeMode && gMes === now.getMonth()+1 && gAno === now.getFullYear() && real > 0) {
+    const diasMes  = new Date(gAno, gMes, 0).getDate();
+    const diaAtual = now.getDate();
+    const ritmo    = real / diaAtual;
+    const diasNec  = Math.ceil((meta - real) / ritmo);
+    if (diaAtual + diasNec <= diasMes) {
+      return `<span class="status-chip" style="background:rgba(212,175,55,.12);color:#d4af37"><span class="sc-dot"></span>Meta em ~${diasNec}d</span>`;
+    }
+  }
+  if (pct >= 70) return `<span class="status-chip" style="background:rgba(251,191,36,.12);color:#fbbf24"><span class="sc-dot"></span>Atenção</span>`;
+  return `<span class="status-chip" style="background:rgba(248,113,113,.12);color:#f87171"><span class="sc-dot"></span>Abaixo da meta</span>`;
+}
+
+function renderDash(ov, vends, insights, conquistas) {
+  const { faturamento:ft, meta, pedidos:ped, conversaoOrc, topVendedor, topProjetista, comissoes } = ov;
+  const sparks  = ov.sparks || {};
+  const funil   = ov.funil || {};
+  const alertas = ov.alertas || {};
+  const acoes   = ov.acoes || [];
+
+  const convPct = parseFloat(conversaoOrc)||0;
+  const fatVal  = parseFloat(ft.val)||0;
+  const comTot  = parseFloat(comissoes.total)||0;
+  const comPend = parseFloat(comissoes.pendente)||0;
+  const ticket  = parseFloat(ped.ticket)||0;
+  const maxOf   = a => Math.max(...(a&&a.length?a:[0]), 1);
+
+  /* ── 6 KPI Cards Premium ── */
+  const cards = [
+    { label:'Faturamento', icon:'dollar-sign', color:'#d4af37',
+      raw: fatVal, fmt: fmtK,
+      badge: varBadge(ft.variacao), cmp:'vs mês anterior',
+      spark: sparks.faturamento,
+      prog: meta.pct !== null ? Math.min(meta.pct,100) : Math.min(fatVal/maxOf(sparks.faturamento)*100,100),
+      foot: meta.total>0 ? `Meta: ${fmtK(meta.total)}` : 'Sem meta definida',
+      footPct: meta.pct !== null ? meta.pct.toFixed(0)+'%' : '' },
+    { label:'Pedidos', icon:'shopping-bag', color:'#60a5fa',
+      raw: parseInt(ped.total)||0, fmt: v=>String(Math.round(v)),
+      badge: varBadge(ped.variacao), cmp:'vs mês anterior',
+      spark: sparks.pedidos,
+      prog: Math.min((parseInt(ped.total)||0)/maxOf(sparks.pedidos)*100,100),
+      foot:`Ticket ${fmtK(ticket)}`, footPct:'' },
+    { label:'Meta Atingida', icon:'target', color:'#a78bfa',
+      raw: meta.pct !== null ? meta.pct : 0, fmt: v => meta.pct !== null ? v.toFixed(0)+'%' : '—',
+      badge: meta.pct !== null ? `<span class="kpi-badge ${meta.pct>=100?'up':meta.pct>=70?'neutral':'down'}">${meta.pct>=100?'▲':'●'} ${meta.pct.toFixed(0)}%</span>` : '',
+      cmp: meta.pct !== null ? 'da meta global' : 'sem meta definida',
+      spark: sparks.faturamento,
+      prog: meta.pct !== null ? Math.min(meta.pct,100) : 0,
+      foot: meta.total>0 ? `Meta: ${fmtK(meta.total)}` : 'Defina metas na aba Metas',
+      footPct: meta.pct !== null ? meta.pct.toFixed(0)+'%' : '' },
+    { label:'Conversão', icon:'percent', color:'#4ade80',
+      raw: convPct, fmt: v=>v.toFixed(0)+'%',
+      badge:'', cmp:'Orçamento → Pedido',
+      spark: sparks.conversao,
+      prog: Math.min(convPct,100),
+      foot:'Referência: 70%', footPct: convPct.toFixed(0)+'%' },
+    { label:'Ticket Médio', icon:'tag', color:'#22d3ee',
+      raw: ticket, fmt: fmtK,
+      badge:'', cmp:`${ped.total} pedido(s)`,
+      spark: sparks.ticket,
+      prog: Math.min(ticket/maxOf(sparks.ticket)*100,100),
+      foot:'média por pedido', footPct:'' },
+    { label:'Comissão Prevista', icon:'credit-card', color:'#fb923c',
+      raw: comTot, fmt: fmtK,
+      badge: comPend>0?`<span class="kpi-badge neutral">${fmtK(comPend)}</span>`:'',
+      cmp: comPend>0?'pendente':'tudo pago',
+      spark: sparks.comissao,
+      prog: comTot>0?Math.min((comTot-comPend)/comTot*100,100):0,
+      foot:'pago vs previsto', footPct: comTot>0?((comTot-comPend)/comTot*100).toFixed(0)+'%':'' },
+  ];
+
+  const kpiHtml = cards.map((k,idx)=>`
+    <div class="kpi6 fade-up" style="--kc:${k.color};animation-delay:${idx*55}ms" title="${k.label}">
+      <div class="kpi6-top">
+        <div class="kpi6-icon"><i data-lucide="${k.icon}"></i></div>
+        <span class="kpi6-label">${k.label}</span>
+      </div>
+      <div class="kpi6-value" id="kv${idx}">${k.fmt(k.raw)}</div>
+      <div class="kpi6-cmp">${k.badge||''}<span>${k.cmp||''}</span></div>
+      <div class="kpi6-spark">${sparkSVG(k.spark, k.color)}</div>
+      <div class="kpi6-prog"><div class="kpi6-prog-fill" data-w="${(k.prog||0).toFixed(1)}"></div></div>
+      <div class="kpi6-foot"><span>${k.foot||''}</span><span class="kpi6-foot-pct">${k.footPct||''}</span></div>
+    </div>`).join('');
+
+  /* ── Resumo Executivo ── */
+  const execItems = [
+    { lbl:'Pedidos vendidos',  val:String(ped.total),                 icon:'shopping-bag', c:'#60a5fa' },
+    { lbl:'Ticket médio',      val:fmtK(ticket),                      icon:'tag',          c:'#22d3ee' },
+    { lbl:'Conversão',         val:convPct.toFixed(0)+'%',            icon:'percent',      c:'#4ade80' },
+    { lbl:'Comissão prevista', val:fmtK(comTot),                      icon:'credit-card',  c:'#fb923c' },
+    { lbl:'Melhor vendedor',   val:topVendedor?.nome?.split(' ')[0]||'—',   icon:'star',   c:'#d4af37' },
+    { lbl:'Melhor projetista', val:topProjetista?.nome?.split(' ')[0]||'—', icon:'pen-tool', c:'#f87171' },
+  ];
+  const execHtml = execItems.map(e=>`
+    <div class="exec-item" style="--ec:${e.c}">
+      <div class="exec-ico" style="background:${e.c}1c"><i data-lucide="${e.icon}" style="color:${e.c}"></i></div>
+      <div class="exec-txt"><div class="exec-val">${escapeHtml(e.val)}</div><div class="exec-lbl">${e.lbl}</div></div>
+    </div>`).join('');
+
+  /* ── Insights IA ── */
+  const dotCor = { sucesso:'#4ade80', info:'#60a5fa', alerta:'#fbbf24', perigo:'#f87171', warning:'#fb923c' };
+  const iaHtml = (insights.slice(0,5).map(ins=>`
+    <div class="ia-line">
+      <span class="ia-dot" style="background:${dotCor[ins.tipo]||'#a78bfa'};color:${dotCor[ins.tipo]||'#a78bfa'}"></span>
+      <span><b>${escapeHtml(ins.titulo)}.</b> <span class="msg">${escapeHtml(ins.msg)}</span></span>
+    </div>`).join('')) || '<div class="rail-empty">Sem insights para o período.</div>';
+
+  const iaIllu = `<svg class="ia-illu" width="46" height="46" viewBox="0 0 64 64" fill="none">
+    <circle cx="32" cy="32" r="13" stroke="#a78bfa" stroke-width="1.4" opacity=".8"/>
+    <circle cx="32" cy="32" r="4.5" fill="#a78bfa" opacity=".9"/>
+    <circle cx="32" cy="10" r="3" fill="#d4af37"/><circle cx="54" cy="32" r="3" fill="#a78bfa"/>
+    <circle cx="32" cy="54" r="3" fill="#d4af37"/><circle cx="10" cy="32" r="3" fill="#a78bfa"/>
+    <circle cx="48" cy="16" r="2.2" fill="#60a5fa"/><circle cx="16" cy="48" r="2.2" fill="#60a5fa"/>
+    <line x1="32" y1="13" x2="32" y2="19" stroke="#d4af37" stroke-width="1.2" opacity=".7"/>
+    <line x1="51" y1="32" x2="45" y2="32" stroke="#a78bfa" stroke-width="1.2" opacity=".7"/>
+    <line x1="32" y1="51" x2="32" y2="45" stroke="#d4af37" stroke-width="1.2" opacity=".7"/>
+    <line x1="13" y1="32" x2="19" y2="32" stroke="#a78bfa" stroke-width="1.2" opacity=".7"/>
+    <line x1="46.4" y1="17.6" x2="41" y2="23" stroke="#60a5fa" stroke-width="1" opacity=".6"/>
+    <line x1="17.6" y1="46.4" x2="23" y2="41" stroke="#60a5fa" stroke-width="1" opacity=".6"/>
+  </svg>`;
+
+  /* ── Faturamento por vendedor (barras HTML) ── */
+  const topFat = vends.filter(v=>parseFloat(v.total_vendido)>0).slice(0,6);
+  const maxFat = maxOf(topFat.map(v=>parseFloat(v.total_vendido)||0));
+  const fatvHtml = topFat.length ? topFat.map(v=>`
+    <div class="fatv-row">
+      ${avatarEl(v.nome,26,10)}
+      <span class="fatv-nome">${escapeHtml(v.nome.split(' ')[0])}</span>
+      <div class="fatv-bar"><div class="fatv-fill" data-w="${(parseFloat(v.total_vendido)/maxFat*100).toFixed(1)}"></div></div>
+      <span class="fatv-val">${fmtK(parseFloat(v.total_vendido))}</span>
+    </div>`).join('')
+    : '<div class="rail-empty" style="padding:40px 0">Sem faturamento no período</div>';
+
+  /* ── Tendência: nota de crescimento ── */
+  const spF = sparks.faturamento || [];
+  let notaHtml = '';
+  if (spF.length === 6) {
+    const p1 = spF[0]+spF[1]+spF[2], p2 = spF[3]+spF[4]+spF[5];
+    if (p1 > 0) {
+      const g = (p2-p1)/p1*100;
+      notaHtml = g >= 0
+        ? `<div class="chart-note" style="color:#4ade80"><i data-lucide="trending-up"></i>Crescimento de ${g.toFixed(0)}% nos últimos 3 meses</div>`
+        : `<div class="chart-note" style="color:#f87171"><i data-lucide="trending-down"></i>Queda de ${Math.abs(g).toFixed(0)}% nos últimos 3 meses</div>`;
+    }
+  }
+
+  /* ── Funil Comercial ── */
+  const stages = [
+    { l:'Novos Leads', v:funil.novos||0,      c:'#60a5fa' },
+    { l:'Em Contato',  v:funil.contato||0,    c:'#22d3ee' },
+    { l:'Orçamentos',  v:funil.orcamentos||0, c:'#4ade80' },
+    { l:'Negociação',  v:funil.negociacao||0, c:'#fbbf24' },
+    { l:'Pedidos',     v:funil.pedidos||0,    c:'#f87171' },
+  ];
+  const funilBase = maxOf(stages.map(s=>s.v));
+  const funilHtml = stages.map(s=>{
+    const pw = Math.max(s.v/funilBase*100, s.v>0?9:2);
+    const pctLbl = stages[0].v>0 ? (s.v/stages[0].v*100).toFixed(0)+'%' : '—';
+    return `<div class="funil-row">
+      <span class="funil-lbl">${s.l}</span>
+      <div class="funil-track"><div class="funil-fill" data-w="${pw.toFixed(1)}" style="background:linear-gradient(90deg,${s.c}99,${s.c})"><b>${s.v}</b></div></div>
+      <span class="funil-pct">${s.v} · ${pctLbl}</span>
+    </div>`;
+  }).join('');
+
+  /* ── Rail: Próximas Ações ── */
+  const acoesHtml = acoes.length ? acoes.slice(0,6).map(a=>`
+    <div class="acao-item">
+      <div class="acao-ico"><i data-lucide="${a.icon}"></i></div>
+      <div class="acao-txt"><div class="acao-tit">${escapeHtml(a.titulo)}</div><div class="acao-sub">${escapeHtml(a.sub||'')}</div></div>
+      <span class="acao-when">${fmtQuando(a.quando)}</span>
+    </div>`).join('') : '<div class="rail-empty">Nenhuma ação agendada</div>';
+
+  /* ── Rail: Top Performers ── */
+  const vComVenda = vends.filter(v=>parseFloat(v.total_vendido)>0);
+  const maiorConv = vComVenda.length ? vComVenda.reduce((a,b)=>parseFloat(b.conversao_pct)>parseFloat(a.conversao_pct)?b:a) : null;
+  const maiorTick = vComVenda.length ? vComVenda.reduce((a,b)=>parseFloat(b.ticket_medio)>parseFloat(a.ticket_medio)?b:a) : null;
+  const tpRows = [
+    { lbl:'Melhor Vendedor',   nome: topVendedor?.nome,   icon:'crown',    c:'#d4af37' },
+    { lbl:'Melhor Projetista', nome: topProjetista?.nome, icon:'pen-tool', c:'#94a3b8' },
+    { lbl:'Maior Conversão',   nome: maiorConv?.nome,     icon:'rocket',   c:'#4ade80' },
+    { lbl:'Maior Ticket Médio',nome: maiorTick?.nome,     icon:'gem',      c:'#22d3ee' },
+  ];
+  const tpHtml = tpRows.map(t=>`
+    <div class="tp-row">
+      <div class="tp-ico" style="background:${t.c}1c"><i data-lucide="${t.icon}" style="color:${t.c}"></i></div>
+      <span class="tp-lbl">${t.lbl}</span>
+      <span class="tp-nome">${escapeHtml(t.nome?.split(' ')[0]||'—')}</span>
+    </div>`).join('');
+
+  /* ── Rail: Alertas ── */
+  const alertaDefs = [
+    { lbl:'Leads sem contato há 7+ dias', v:alertas.leadsSemContato||0,      c:'#f87171' },
+    { lbl:'Orçamentos aguardando',        v:alertas.orcamentosAguardando||0, c:'#fbbf24' },
+    { lbl:'Negociações paradas',          v:alertas.negociacoesParadas||0,   c:'#fb923c' },
+    { lbl:'Pedidos atrasados',            v:alertas.pedidosAtrasados||0,     c:'#f87171' },
+    { lbl:'Entregas hoje',                v:alertas.entregasHoje||0,         c:'#60a5fa' },
+  ];
+  const alertasHtml = alertaDefs.map(a=>`
+    <div class="alerta-row" style="${a.v===0?'opacity:.45':''}">
+      <span class="alerta-dot" style="background:${a.v>0?a.c:'#3a3a3e'}"></span>
+      <span class="alerta-lbl">${a.lbl}</span>
+      <span class="alerta-badge" style="background:${a.v>0?a.c+'22':'rgba(255,255,255,.05)'};color:${a.v>0?a.c:'var(--text-dim)'}">${a.v}</span>
+    </div>`).join('');
+
+  /* ── Rail: Conquistas do mês ── */
+  const cqHtml = conquistas.length ? conquistas.slice(0,4).map(c=>`
+    <div class="cq-item" style="--cqc:${c.cor}" onclick="setTab('conquistas')" title="${escapeHtml(c.label)} — ${escapeHtml(c.nome)}">
+      <div class="cq-ico" style="background:${c.cor}1e"><i data-lucide="${c.icon}" style="color:${c.cor}"></i></div>
+      <span class="cq-lbl">${escapeHtml(c.label)}</span>
+    </div>`).join('') : '';
+
+  /* ── Tabela Top Vendedores ── */
+  const tableRows = vends.slice(0,8).map((v,idx)=>{
+    const pct = parseFloat(v.metaPct)||0;
+    const hasMeta = parseFloat(v.meta)>0;
+    const barCol = pColor(pct);
+    return `<tr onclick="openIndividuo(${v.id})" style="cursor:pointer" title="Ver perfil de ${escapeHtml(v.nome)}">
+      <td class="rank-num" style="width:36px">${medalOrNum(idx+1)}</td>
+      <td style="min-width:160px">
+        <div class="rank-user">
+          ${avatarEl(v.nome,32,12)}
+          <div><div class="rank-nome">${escapeHtml(v.nome)}</div><div class="rank-perfil">${escapeHtml(v.perfil||'vendedor')}</div></div>
+        </div>
+      </td>
+      <td>${hasMeta?fmtK(parseFloat(v.meta)):'—'}</td>
+      <td style="font-weight:800;color:var(--primary)">${fmtK(parseFloat(v.total_vendido))}</td>
+      <td style="min-width:130px">${hasMeta
+        ? `<div class="progress-bar-wrap"><div class="progress-bar"><div class="progress-fill ${barCol}" data-w="${Math.min(pct,100).toFixed(1)}"></div></div><span class="pct-label" style="color:${pct>=100?'#4ade80':pct>=70?'#fbbf24':'#f87171'}">${pct.toFixed(0)}%</span></div>`
+        : '<span style="font-size:11px;color:var(--text-dim)">—</span>'}</td>
+      <td>${v.qtd_pedidos}</td>
+      <td>${(parseFloat(v.conversao_pct)||0).toFixed(0)}%</td>
+      <td>${fmtK(parseFloat(v.ticket_medio))}</td>
+      <td>${fmtK(parseFloat(v.comissao))}</td>
+      <td>${statusChipMeta(v)}</td>
+    </tr>`;
+  }).join('');
+
+  /* ── Montagem ── */
+  document.getElementById('rkView').innerHTML = `
+    <div class="kpi-grid6">${kpiHtml}</div>
+
+    <div class="dash-cols">
+      <div class="dash-main">
+
+        <div class="exec-ia-row">
+          <div class="pnl fade-up" style="animation-delay:120ms">
+            <div class="pnl-head"><span class="pnl-title"><i data-lucide="layout-list"></i> Resumo Executivo</span></div>
+            <div class="exec-grid">${execHtml}</div>
+          </div>
+          <div class="pnl pnl-ia fade-up" style="animation-delay:170ms">
+            <div class="pnl-head"><span class="pnl-title" style="color:#a78bfa"><i data-lucide="sparkles" style="color:#a78bfa;opacity:1"></i> Insights IA</span>
+              <button class="pnl-link" onclick="setTab('ia')">Ver análise</button></div>
+            ${iaIllu}
+            <div style="padding-right:52px">${iaHtml}</div>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <div class="pnl fade-up" style="animation-delay:220ms">
+            <div class="pnl-head"><span class="pnl-title"><i data-lucide="bar-chart-2"></i> Faturamento por Vendedor</span></div>
+            ${fatvHtml}
+          </div>
+          <div class="pnl fade-up" style="animation-delay:260ms">
+            <div class="pnl-head"><span class="pnl-title"><i data-lucide="trending-up"></i> Tendência de Faturamento</span></div>
+            <div class="chart-wrap" style="height:170px"><canvas id="cLine"></canvas></div>
+            ${notaHtml}
+          </div>
+        </div>
+
+        <div class="pnl fade-up" style="animation-delay:300ms">
+          <div class="pnl-head"><span class="pnl-title"><i data-lucide="filter"></i> Funil Comercial — ${gPeriodoLabel}</span></div>
+          ${funilHtml}
+        </div>
+
+        <div class="rank-table-wrap fade-up" style="animation-delay:340ms">
+          <div class="pnl-head" style="padding:16px 18px 0;margin-bottom:10px"><span class="pnl-title"><i data-lucide="users"></i> Top Vendedores — ${gPeriodoLabel}</span>
+            <button class="pnl-link" onclick="setTab('ranking')">Ver ranking</button></div>
+          ${tableRows
+            ? `<div class="tv-scroll"><table class="rank-table"><thead><tr><th style="width:36px">#</th><th>Vendedor</th><th>Meta</th><th>Realizado</th><th>%</th><th>Pedidos</th><th>Conversão</th><th>Ticket Médio</th><th>Comissão</th><th>Status</th></tr></thead><tbody>${tableRows}</tbody></table></div>`
+            : `<div class="rail-empty" style="padding:34px 0">Nenhum vendedor com dados em ${gPeriodoLabel}</div>`}
+        </div>
+
+      </div>
+
+      <aside class="dash-rail">
+        <div class="pnl fade-up" style="animation-delay:160ms">
+          <div class="pnl-head"><span class="pnl-title"><i data-lucide="calendar-clock"></i> Próximas Ações</span></div>
+          ${acoesHtml}
+        </div>
+        <div class="pnl fade-up" style="animation-delay:210ms">
+          <div class="pnl-head"><span class="pnl-title"><i data-lucide="medal"></i> Top Performers</span>
+            <button class="pnl-link" onclick="setTab('ranking')">Ranking</button></div>
+          ${tpHtml}
+        </div>
+        <div class="pnl fade-up" style="animation-delay:260ms">
+          <div class="pnl-head"><span class="pnl-title"><i data-lucide="bell"></i> Alertas</span></div>
+          ${alertasHtml}
+        </div>
+        ${cqHtml?`<div class="pnl fade-up" style="animation-delay:310ms">
+          <div class="pnl-head"><span class="pnl-title"><i data-lucide="award"></i> Conquistas do Mês</span>
+            <button class="pnl-link" onclick="setTab('conquistas')">Ver todas</button></div>
+          <div class="cq-grid">${cqHtml}</div>
+        </div>`:''}
+      </aside>
+    </div>`;
+
+  lucide.createIcons();
+  destroyCharts();
+  animateBars();
+
+  /* Contadores animados */
+  cards.forEach((k,idx)=>countUp(document.getElementById('kv'+idx), k.raw, k.fmt));
+
+  /* Tendência (Chart.js) */
+  const spData = sparks.faturamento || [];
+  const spLbls = (sparks.labels || []).map(m => MESES_ABREV[parseInt(m.slice(5))-1] || m);
+  const ctx = document.getElementById('cLine');
+  if (ctx && spData.length) {
+    gCharts.line = new Chart(ctx, {
+      type:'line',
+      data:{ labels: spLbls, datasets:[{ data: spData, borderColor:'#d4af37', backgroundColor:'rgba(212,175,55,.09)', fill:true, tension:.42, pointRadius:0, pointHoverRadius:5, pointBackgroundColor:'#d4af37', borderWidth:2 }] },
+      options:{ responsive:true, maintainAspectRatio:false, interaction:{intersect:false,mode:'index'},
+        plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#1a1a1e', borderColor:'#2E2E32', borderWidth:1, titleColor:'#d4af37', bodyColor:'#eee', padding:10, displayColors:false, callbacks:{ label: c => fmtBRL(c.parsed.y) } } },
+        scales:{
+          x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#777',font:{size:10}}},
+          y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#777',font:{size:10},maxTicksLimit:5,callback:v=>'R$'+(v/1000).toFixed(0)+'K'}}
+        }, animation:{duration:900,easing:'easeOutQuart'} }
+    });
+  }
+}
+
+/* ═══════════════════════════════════════
+   RANKING
+═══════════════════════════════════════ */
+let gRankTipo = 'vendedores';
+
+async function loadRanking(params) {
+  document.getElementById('rkView').innerHTML = loadingHtml();
+  try {
+    const data = await apiFetch(`/api/ranking/${gRankTipo}?${params}`);
+    renderRanking(data||[]);
+  } catch(e) { document.getElementById('rkView').innerHTML = errorHtml(e); }
+}
+
+function setRankTipo(t) {
+  gRankTipo = t;
+  document.querySelectorAll('.rank-subtab').forEach(b => b.classList.toggle('active', b.dataset.tipo===t));
+  loadAll();
+}
+
+function renderRanking(list) {
+  const isVend = gRankTipo === 'vendedores';
+  const subtabs = `<div class="rank-subtabs">
+    <button class="rank-subtab ${isVend?'active':''}" data-tipo="vendedores" onclick="setRankTipo('vendedores')" style="display:flex;align-items:center;gap:6px"><i data-lucide="users" style="width:13px;height:13px"></i> Vendedores</button>
+    <button class="rank-subtab ${!isVend?'active':''}" data-tipo="projetistas" onclick="setRankTipo('projetistas')" style="display:flex;align-items:center;gap:6px"><i data-lucide="pen-tool" style="width:13px;height:13px"></i> Projetistas</button>
+  </div>`;
+
+  if (!list.length) {
+    document.getElementById('rkView').innerHTML = subtabs + `<div class="empty-state"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="6"/><path d="M4 20c0-4 8-4 8-4s8 0 8 4"/></svg><p>Nenhum dado para este período.</p></div>`;
+    lucide.createIcons();
+    return;
+  }
+
+  const top3 = list.slice(0,3);
+  const rest  = list.slice(3);
+  const order = top3.length>=3 ? [top3[1],top3[0],top3[2]] : top3;
+  const pClass = ['second','first','third'];
+
+  const podiumHtml = order.map((p,idx)=>{
+    if (!p) return '<div></div>';
+    const pct = isVend && parseFloat(p.meta)>0 ? ((parseFloat(p.total_vendido)/parseFloat(p.meta))*100).toFixed(0)+'%' : null;
+    const bdg = (p.badges||[]).slice(0,2).map(b=>`<span class="badge-chip" style="background:${b.cor}22;color:${b.cor};display:inline-flex;align-items:center;gap:3px"><i data-lucide="${b.icon}" style="width:10px;height:10px"></i>${b.label}</span>`).join('');
+    return `<div class="podium-card ${pClass[idx]} fade-up" style="animation-delay:${idx*80}ms">
+      <div class="podium-rank-badge" style="background:${['#94a3b8','#d4af37','#b87333'][idx]}">${['2','1','3'][idx]}</div>
+      <div class="podium-avatar" style="background:${avatarColor(p.nome)}">${initials(p.nome)}</div>
+      <div class="podium-nome">${escapeHtml(p.nome)}</div>
+      <div class="podium-total">${isVend?fmtK(parseFloat(p.total_vendido)):p.qtd_projetos+' projetos'}</div>
+      ${pct?`<div class="podium-meta">${pct} da meta</div>`:''}
+      ${p.score!==undefined?`<div class="podium-score"><span class="score-dot"></span>Score ${p.score}</div>`:''}
+      ${bdg?`<div class="podium-badges">${bdg}</div>`:''}
+    </div>`;
+  }).join('');
+
+  const thVend = `<th>#</th><th>Vendedor</th><th>Faturamento</th><th>Pedidos</th><th>Ticket Médio</th><th>Meta</th><th>Conversão</th><th>Comissão</th><th>Score</th>`;
+  const thProj = `<th>#</th><th>Projetista</th><th>Projetos</th><th>Concluídos</th><th>Atrasados</th><th>Taxa</th><th>Valor Total</th>`;
+
+  const rowsHtml = rest.map((p,idx)=>{
+    if (isVend) {
+      const pct = parseFloat(p.metaPct)||0;
+      const bar = parseFloat(p.meta)>0
+        ? `<div class="progress-bar-wrap"><div class="progress-bar"><div class="progress-fill ${pColor(pct)}" style="width:${Math.min(pct,100)}%"></div></div><span class="pct-label" style="color:${pct>=100?'#4ade80':pct>=70?'#fbbf24':'#f87171'}">${pct.toFixed(0)}%</span></div>`
+        : '<span style="font-size:11px;color:var(--text-dim)">—</span>';
+      return `<tr onclick="openIndividuo(${p.id})">
+        <td class="rank-num">${idx+4}</td>
+        <td><div class="rank-user">${avatarEl(p.nome,32,12)}<div><div class="rank-nome">${escapeHtml(p.nome)}</div><div class="rank-perfil">${p.qtd_pedidos} ped.</div></div></div></td>
+        <td style="font-weight:700;color:var(--primary)">${fmtK(parseFloat(p.total_vendido))}</td>
+        <td>${p.qtd_pedidos}</td>
+        <td>${fmtK(parseFloat(p.ticket_medio))}</td>
+        <td style="min-width:120px">${bar}</td>
+        <td>${(parseFloat(p.conversao_pct)||0).toFixed(0)}%</td>
+        <td>${fmtK(parseFloat(p.comissao))}</td>
+        <td><span style="background:rgba(196,162,74,.12);color:var(--primary);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">${p.score}</span></td>
+      </tr>`;
+    } else {
+      const tx = parseFloat(p.taxa_conclusao)||0;
+      return `<tr>
+        <td class="rank-num">${idx+4}</td>
+        <td><div class="rank-user">${avatarEl(p.nome,32,12)}<div><div class="rank-nome">${escapeHtml(p.nome)}</div></div></div></td>
+        <td>${p.qtd_projetos}</td>
+        <td style="color:#4ade80">${p.concluidos}</td>
+        <td style="color:${parseFloat(p.atrasados)>0?'#f87171':'var(--text-dim)'}">${p.atrasados}</td>
+        <td><div class="progress-bar-wrap"><div class="progress-bar"><div class="progress-fill ${pColor(tx)}" style="width:${tx.toFixed(0)}%"></div></div><span class="pct-label">${tx.toFixed(0)}%</span></div></td>
+        <td style="color:var(--primary);font-weight:600">${fmtK(parseFloat(p.valor_total))}</td>
+      </tr>`;
+    }
+  }).join('');
+
+  document.getElementById('rkView').innerHTML = `
+    ${subtabs}
+    <div style="margin-bottom:12px;font-size:12px;color:var(--text-dim)">Período: ${gPeriodoLabel}</div>
+    <div class="podium">${podiumHtml}</div>
+    ${rest.length?`<div class="rank-table-wrap"><div class="tv-scroll"><table class="rank-table"><thead><tr>${isVend?thVend:thProj}</tr></thead><tbody>${rowsHtml}</tbody></table></div></div>`:''}`;
+  lucide.createIcons();
+}
+
+/* ═══════════════════════════════════════
+   METAS
+═══════════════════════════════════════ */
+async function loadMetas(params) {
+  document.getElementById('rkView').innerHTML = loadingHtml();
+  try {
+    const [data, vlist] = await Promise.all([
+      apiFetch(`/api/ranking/metas?${params}`),
+      apiFetch(`/api/metas/vendedores`),
+    ]);
+    gVendedores = vlist||[];
+    renderMetas(data);
+  } catch(e) { document.getElementById('rkView').innerHTML = errorHtml(e); }
+}
+
+function metaCardHtml(m, hasMeta, isRange) {
+  const real = parseFloat(m.realizado)||0;
+  const meta = parseFloat(m.valor_meta)||0;
+  const pct  = hasMeta ? (parseFloat(m.pct)||0) : 0;
+  const col  = pColor(pct);
+  const falta = hasMeta ? Math.max(meta-real,0) : 0;
+  const now  = new Date();
+  const diasMes = new Date(gAno,gMes,0).getDate();
+  const diaAtual = (now.getFullYear()===gAno && now.getMonth()+1===gMes) ? now.getDate() : diasMes;
+  const diasRest = Math.max(diasMes - diaAtual, 0);
+
+  return `<div class="meta-card">
+    <div class="meta-card-top">
+      <div class="meta-user">
+        ${avatarEl(m.nome||'?',36,14)}
+        <div>
+          <div style="font-weight:700;color:var(--text);font-size:14px">${escapeHtml(m.nome||'—')}</div>
+          <div style="font-size:11px;color:var(--text-dim)">${m.qtd_pedidos} pedido(s) · ${gPeriodoLabel}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="text-align:right">
+          <div class="meta-val-real">${fmtK(real)}</div>
+          <div class="meta-val-meta">${hasMeta?'/ '+fmtK(meta):'Sem meta'}</div>
+        </div>
+        ${hasMeta && !isRange ? `<div class="meta-actions">
+          <button class="btn-icon" onclick="openMetaModal(${m.vendedor_id},${m.id},'${escapeHtml(m.nome)}',${meta})" title="Editar"><i data-lucide="pencil" style="width:13px;height:13px"></i></button>
+          <button class="btn-icon danger" onclick="deleteMeta(${m.id})" title="Excluir"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
+        </div>` : (!hasMeta && !isRange ? `<button class="btn-add-meta" style="padding:6px 12px;font-size:12px" onclick="openMetaModal(${m.vendedor_id},null,'${escapeHtml(m.nome)}',0)">+ Meta</button>` : '')}
+      </div>
+    </div>
+    ${hasMeta?`
+    <div class="meta-progress-wrap">
+      <div class="meta-progress-bar"><div class="meta-progress-fill ${col}" style="width:${Math.min(pct,100)}%"></div></div>
+      <span class="meta-pct-label" style="color:${col==='green'?'#4ade80':col==='yellow'?'#fbbf24':'#f87171'}">${pct.toFixed(0)}%</span>
+    </div>
+    <div class="meta-status">
+      ${pct>=100?'<span style="color:#4ade80;display:inline-flex;align-items:center;gap:4px"><i data-lucide="check-circle" style="width:12px;height:12px"></i>Meta batida!</span>':`<span>Faltam ${fmtK(falta)}</span>`}
+      ${!isRange ? `<span>${diasRest} dia(s) restante(s)</span>` : ''}
+    </div>`:''}
+  </div>`;
+}
+
+function renderMetas(data) {
+  const { metas=[], semMeta=[], periodo } = data;
+  const isRange = periodo?.isRange || false;
+  const mmHtml = metas.length ? metas.map(m=>metaCardHtml(m,true,isRange)).join('') : '<div class="empty-state"><p>Nenhuma meta definida para este período.</p></div>';
+  const smHtml = semMeta.map(m=>metaCardHtml(m,false,isRange)).join('');
+
+  const rangeNote = isRange ? `<div style="padding:10px 16px;background:rgba(196,162,74,.06);border:1px solid rgba(196,162,74,.2);border-radius:8px;font-size:12px;color:var(--text-dim);margin-bottom:16px;display:flex;align-items:center;gap:8px"><i data-lucide="info" style="width:13px;height:13px;color:var(--primary);flex-shrink:0"></i>Modo intervalo: totais somados para o período. Para editar metas individuais, selecione um único mês.</div>` : '';
+
+  document.getElementById('rkView').innerHTML = `
+    <div class="metas-header">
+      <div>
+        <div style="font-size:18px;font-weight:700;color:var(--text)">Gestão de Metas — ${gPeriodoLabel}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:3px">${metas.length} meta(s) definida(s) · ${semMeta.length} vendedor(es) sem meta</div>
+      </div>
+      ${!isRange ? `<button class="btn-add-meta" onclick="openMetaModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nova Meta
+      </button>` : ''}
+    </div>
+    ${rangeNote}
+    ${metas.length ? `<div class="metas-section"><div class="metas-section-title">Com Meta Definida</div>${mmHtml}</div>` : `<div class="metas-section">${mmHtml}</div>`}
+    ${semMeta.length ? `<div class="metas-section"><div class="metas-section-title">Sem Meta Definida</div>${smHtml}</div>` : ''}`;
+  lucide.createIcons();
+}
+
+/* ── Meta CRUD ── */
+function openMetaModal(vendedorId, id, nome, valor) {
+  if (!gVendedores.length) {
+    showToast('Nenhum vendedor cadastrado. Cadastre em Configurações → Usuários.','warning');
+    return;
+  }
+  const sel = document.getElementById('metaVendedorId');
+  sel.innerHTML = gVendedores.map(v=>`<option value="${v.id}" ${v.id==vendedorId?'selected':''}>${escapeHtml(v.nome)}</option>`).join('');
+  document.getElementById('metaId').value    = id||'';
+  document.getElementById('metaMes').value   = gMes;
+  document.getElementById('metaAno').value   = gAno;
+  document.getElementById('metaValor').value = (valor>0)?valor:'';
+  document.getElementById('modalMetaTitle').textContent = id ? `Editar Meta — ${nome}` : 'Nova Meta';
+  document.getElementById('modalMeta').classList.add('open');
+}
+function closeMetaModal() { document.getElementById('modalMeta').classList.remove('open'); }
+async function saveMeta() {
+  const body = {
+    vendedor_id: parseInt(document.getElementById('metaVendedorId').value),
+    mes: parseInt(document.getElementById('metaMes').value),
+    ano: parseInt(document.getElementById('metaAno').value),
+    valor_meta: parseFloat(document.getElementById('metaValor').value),
+  };
+  if (!body.valor_meta||body.valor_meta<=0) { showToast('Informe um valor válido','warning'); return; }
+  try {
+    await apiPost('/api/ranking/metas', body);
+    closeMetaModal();
+    showToast('Meta salva!','success');
+    loadAll();
+  } catch(e) { showToast('Erro: '+(e.message||e),'error'); }
+}
+async function deleteMeta(id) {
+  if (!confirm('Remover esta meta?')) return;
+  try { await apiDelete(`/api/ranking/metas/${id}`); showToast('Meta removida','success'); loadAll(); }
+  catch(e) { showToast('Erro ao remover','error'); }
+}
+
+/* ═══════════════════════════════════════
+   CONQUISTAS
+═══════════════════════════════════════ */
+async function loadConquistas(params) {
+  document.getElementById('rkView').innerHTML = loadingHtml();
+  try {
+    const data = await apiFetch(`/api/ranking/conquistas?${params}`);
+    renderConquistas(data);
+  } catch(e) { document.getElementById('rkView').innerHTML = errorHtml(e); }
+}
+
+function renderConquistas(data) {
+  const { conquistas=[] } = data;
+  if (!conquistas.length) {
+    document.getElementById('rkView').innerHTML = `<div style="margin-bottom:12px;font-size:18px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px"><i data-lucide="award" style="width:18px;height:18px;color:var(--primary)"></i>Conquistas — ${gPeriodoLabel}</div><div class="empty-state"><p>Nenhuma conquista registrada no período.</p></div>`;
+    lucide.createIcons();
+    return;
+  }
+  const html = conquistas.map((c,idx)=>`
+    <div class="conquista-card fade-up" style="animation-delay:${idx*60}ms">
+      <div class="conquista-glow" style="background:${c.cor}"></div>
+      <span class="conquista-icon"><i data-lucide="${c.icon}" style="width:28px;height:28px;color:${c.cor}"></i></span>
+      <div class="conquista-tipo" style="color:${c.cor}">${c.tipo.toUpperCase()}</div>
+      <div class="conquista-nome">${escapeHtml(c.nome)}</div>
+      <div class="conquista-valor" style="color:${c.cor}">${escapeHtml(c.valor)}</div>
+      <div class="conquista-desc">${escapeHtml(c.descricao)}</div>
+    </div>`).join('');
+  document.getElementById('rkView').innerHTML = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:18px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px"><i data-lucide="award" style="width:18px;height:18px;color:var(--primary)"></i>Conquistas — ${gPeriodoLabel}</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:3px">${conquistas.length} conquista(s)</div>
+    </div>
+    <div class="conquistas-grid">${html}</div>`;
+  lucide.createIcons();
+}
+
+/* ═══════════════════════════════════════
+   IA PERFORMANCE
+═══════════════════════════════════════ */
+async function loadIA(params) {
+  document.getElementById('rkView').innerHTML = loadingHtml();
+  try {
+    const data = await apiFetch(`/api/ranking/ia?${params}`);
+    renderIA(data);
+  } catch(e) { document.getElementById('rkView').innerHTML = errorHtml(e); }
+}
+
+function renderIA(data) {
+  const { insights=[] } = data;
+  const iconCor = { sucesso:'#4ade80', info:'#60a5fa', alerta:'#fbbf24', perigo:'#f87171', warning:'#fb923c' };
+  const html = insights.map((ins,idx)=>`
+    <div class="ia-card ${ins.tipo} fade-up" style="animation-delay:${idx*60}ms">
+      <div class="ia-header">
+        <div class="ia-icon-wrap"><i data-lucide="${ins.icon}" style="width:16px;height:16px;color:${iconCor[ins.tipo]||'#888'}"></i></div>
+        <div class="ia-titulo">${escapeHtml(ins.titulo)}</div>
+      </div>
+      <div class="ia-msg">${escapeHtml(ins.msg)}</div>
+    </div>`).join('');
+  document.getElementById('rkView').innerHTML = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:18px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px"><i data-lucide="cpu" style="width:18px;height:18px;color:var(--primary)"></i>IA Performance — ${gPeriodoLabel}</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:3px">Análises automáticas baseadas nos dados do período</div>
+    </div>
+    <div class="ia-grid">${html}</div>
+    <div style="margin-top:16px;padding:12px 16px;background:rgba(196,162,74,.06);border:1px solid rgba(196,162,74,.2);border-radius:10px;font-size:12px;color:var(--text-dim)">
+      <span style="display:inline-flex;align-items:center;gap:6px"><i data-lucide="lightbulb" style="width:13px;height:13px;color:var(--primary)"></i>Insights gerados com base em pedidos, leads, metas e comissões. Atualizado a cada consulta.</span>
+    </div>`;
+  lucide.createIcons();
+}
+
+/* ═══════════════════════════════════════
+   DRAWER INDIVIDUAL
+═══════════════════════════════════════ */
+async function openIndividuo(id) {
+  document.getElementById('drawerOverlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawerContent').innerHTML = `<div style="display:flex;align-items:center;gap:10px;color:var(--text-dim);padding-top:50px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Carregando perfil...</div>`;
+  try {
+    const params = getPeriodoParams();
+    const d = await apiFetch(`/api/ranking/individuo/${id}?${params}`);
+    renderDrawer(d);
+  } catch(e) {
+    document.getElementById('drawerContent').innerHTML = `<div style="color:#f87171;margin-top:50px">Erro: ${escapeHtml(String(e.message||e))}</div>`;
+  }
+}
+
+function closeDrawer() {
+  document.getElementById('drawerOverlay').classList.remove('open');
+  document.getElementById('drawer').classList.remove('open');
+  if (gCharts.drawer) { try { gCharts.drawer.destroy(); } catch(_){} delete gCharts.drawer; }
+}
+
+function renderDrawer(d) {
+  const { usuario:u, pedidosMes:pm, ped12m, orcamentos:orc, comissoes:com, meta, ultimosPedidos } = d;
+  if (!u) { document.getElementById('drawerContent').innerHTML = '<div style="margin-top:50px;color:var(--text-dim)">Usuário não encontrado.</div>'; return; }
+
+  const real  = parseFloat(pm?.total)||0;
+  const pctM  = meta>0 ? ((real/meta)*100).toFixed(0) : null;
+  const comPg = (com||[]).find(c=>c.status==='pago')?.v||0;
+  const comPnd= (com||[]).find(c=>c.status==='pendente')?.v||0;
+
+  const kpis = [
+    { l:'Faturamento',  v: fmtK(real) },
+    { l:'Pedidos',      v: pm?.qtd||0 },
+    { l:'Ticket Médio', v: fmtK(parseFloat(pm?.ticket)||0) },
+    { l:'Meta do Mês',  v: meta>0?fmtK(meta):'—' },
+    { l:'% Meta',       v: pctM!==null?pctM+'%':'—' },
+    { l:'Orçamentos',   v: orc?.total||0 },
+    { l:'Comis. Paga',  v: fmtK(parseFloat(comPg)) },
+    { l:'Comis. Pend.', v: fmtK(parseFloat(comPnd)) },
+  ];
+
+  const pedRows = (ultimosPedidos||[]).slice(0,6).map(p=>`
+    <tr>
+      <td style="font-weight:600">${escapeHtml(p.numero||'—')}</td>
+      <td>${escapeHtml((p.cliente||'—').split(' ')[0])}</td>
+      <td>${fmtK(parseFloat(p.valor_final)||0)}</td>
+      <td><span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(74,222,128,.1);color:#4ade80">${escapeHtml(p.status||'')}</span></td>
+    </tr>`).join('');
+
+  document.getElementById('drawerContent').innerHTML = `
+    <div class="drawer-header">
+      <div class="drawer-avatar" style="width:56px;height:56px;background:${avatarColor(u.nome)};font-size:20px">${initials(u.nome)}</div>
+      <div>
+        <div class="drawer-nome">${escapeHtml(u.nome)}</div>
+        <div class="drawer-perfil">${escapeHtml(u.perfil||'—')}${u.email?' · '+u.email:''}</div>
+        <div style="font-size:11px;color:var(--primary);margin-top:2px">${gPeriodoLabel}</div>
+      </div>
+    </div>
+    <div class="drawer-kpis">${kpis.map(k=>`<div class="drawer-kpi"><div class="drawer-kpi-label">${k.l}</div><div class="drawer-kpi-val">${k.v}</div></div>`).join('')}</div>
+    ${pctM!==null?`
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:6px">Progresso da Meta</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="flex:1;height:10px;background:rgba(255,255,255,.08);border-radius:5px;overflow:hidden">
+          <div style="height:100%;width:${Math.min(parseFloat(pctM),100)}%;border-radius:5px;background:${parseFloat(pctM)>=100?'#4ade80':parseFloat(pctM)>=70?'#fbbf24':'#f87171'};transition:width .6s"></div>
+        </div>
+        <span style="font-size:14px;font-weight:700;color:${parseFloat(pctM)>=100?'#4ade80':parseFloat(pctM)>=70?'#fbbf24':'#f87171'}">${pctM}%</span>
+      </div>
+    </div>`:''}
+    <div class="drawer-section">
+      <div class="drawer-section-title">Faturamento — Últimos 12 meses</div>
+      <canvas id="drawerChart" style="height:80px;display:block"></canvas>
+    </div>
+    ${pedRows?`<div class="drawer-section"><div class="drawer-section-title">Últimos Pedidos</div><table class="mini-table"><tbody>${pedRows}</tbody></table></div>`:''}`;
+
+  lucide.createIcons();
+
+  if (ped12m && ped12m.length) {
+    const ctx = document.getElementById('drawerChart');
+    if (ctx) {
+      if (gCharts.drawer) { try { gCharts.drawer.destroy(); } catch(_){} }
+      gCharts.drawer = new Chart(ctx, {
+        type:'line',
+        data:{ labels:ped12m.map(r=>r.m.slice(5)), datasets:[{ data:ped12m.map(r=>parseFloat(r.v)||0), borderColor:'#d4af37', backgroundColor:'rgba(212,175,55,.08)', fill:true, tension:.4, pointRadius:3, pointBackgroundColor:'#d4af37' }] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{display:false}, y:{display:false} } }
+      });
+    }
+  }
+}
+</script>
+</body>
+</html>

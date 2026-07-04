@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .cal-layout { display:grid; grid-template-columns:1fr 300px; gap:20px; align-items:start; }
+    .cal-wrap { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .cal-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); }
+    .cal-header h2 { font-size:16px; font-weight:700; color:var(--text); }
+    .cal-nav { display:flex; gap:6px; }
+    .cal-nav button { width:32px; height:32px; border:1px solid var(--border); border-radius:8px; background:transparent; color:var(--text-muted); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:.15s; padding:0; }
+    .cal-nav button:hover { background:var(--bg-card2); color:var(--text); }
+    .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); }
+    .cal-dow { padding:10px 6px; text-align:center; font-size:11px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid var(--border); }
+    .cal-day { min-height:90px; padding:6px; border-right:1px solid var(--border); border-bottom:1px solid var(--border); cursor:pointer; transition:.1s; }
+    .cal-day:nth-child(7n) { border-right:none; }
+    .cal-day:hover { background:rgba(99,102,241,.05); }
+    .cal-day.outro-mes .day-num { color:var(--text-dim); opacity:.4; }
+    .cal-day.hoje { background:rgba(99,102,241,.08); }
+    .cal-day.selecionado { background:rgba(99,102,241,.15); border-color:var(--primary); }
+    .day-num { font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:4px; }
+    .cal-day.hoje .day-num { color:var(--primary); font-size:13px; }
+    .event-dot { display:flex; align-items:center; gap:4px; padding:2px 5px; border-radius:4px; font-size:10px; font-weight:600; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
+    .event-dot.pedido { background:rgba(99,102,241,.2); color:#818cf8; }
+    .event-dot.assistencia { background:rgba(239,68,68,.15); color:#f87171; }
+    .event-dot.lead { background:rgba(34,197,94,.15); color:#4ade80; }
+    .event-dot-more { font-size:10px; color:var(--text-dim); padding-left:5px; }
+    .panel { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; }
+    .panel-header { padding:14px 16px; border-bottom:1px solid var(--border); font-size:13px; font-weight:700; color:var(--text); }
+    .panel-body { padding:12px; max-height:600px; overflow-y:auto; }
+    .event-item { padding:10px 0; border-bottom:1px solid var(--border); }
+    .event-item:last-child { border:none; }
+    .event-head { display:flex; gap:10px; cursor:pointer; align-items:flex-start; }
+    .event-head:hover .event-info h4 { color:var(--primary); }
+    .event-type-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:4px; }
+    .event-info { flex:1; min-width:0; }
+    .event-info h4 { font-size:13px; font-weight:600; color:var(--text); margin-bottom:2px; transition:color .15s; }
+    .event-info p  { font-size:11px; color:var(--text-muted); }
+    .ev-chevron { width:22px; height:22px; border-radius:6px; background:var(--bg-card2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--text-dim); transition:transform .25s; }
+    .ev-chevron svg { width:12px; height:12px; }
+    .event-item.aberto .ev-chevron { transform:rotate(180deg); color:var(--primary); border-color:var(--primary); }
+    .event-detail { display:none; margin-top:10px; margin-left:18px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:12px; animation:evFade .25s ease; }
+    .event-item.aberto .event-detail { display:block; }
+    @keyframes evFade { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+    .ev-row { display:flex; justify-content:space-between; gap:10px; font-size:11.5px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,.04); }
+    .ev-row:last-of-type { border-bottom:none; }
+    .ev-row span:first-child { color:var(--text-dim); flex-shrink:0; }
+    .ev-row span:last-child { color:var(--text); font-weight:600; text-align:right; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+    .ev-prog-wrap { display:flex; align-items:center; gap:8px; margin:8px 0 4px; }
+    .ev-prog { flex:1; height:6px; border-radius:3px; background:rgba(255,255,255,.08); overflow:hidden; }
+    .ev-prog-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,#8a6f2f,#C4A24A); transition:width .5s; }
+    .ev-actions { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+    .ev-btn { flex:1; display:inline-flex; align-items:center; justify-content:center; gap:5px; padding:6px 10px; border-radius:7px; font-size:11px; font-weight:700; cursor:pointer; text-decoration:none; white-space:nowrap; border:1px solid var(--border); background:var(--bg-card2); color:var(--text); transition:.15s; }
+    .ev-btn:hover { border-color:var(--primary); color:var(--primary); }
+    .ev-btn.gold { background:rgba(196,162,74,.12); border-color:rgba(196,162,74,.3); color:var(--primary); }
+    .ev-btn.wa { background:rgba(34,197,94,.1); border-color:rgba(34,197,94,.3); color:#4ade80; }
+    .ev-btn.wa:hover { border-color:#4ade80; color:#4ade80; }
+    .ev-btn svg { width:12px; height:12px; }
+    .ev-loading { display:flex; align-items:center; gap:8px; color:var(--text-dim); font-size:11.5px; padding:6px 0; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .ev-prazo-chip { font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; }
+    .legend { display:flex; gap:12px; flex-wrap:wrap; padding:10px 16px; border-top:1px solid var(--border); }
+    .legend-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-muted); }
+    .legend-dot { width:8px; height:8px; border-radius:50%; }
+    @media (max-width:900px) {
+      .cal-layout { grid-template-columns:1fr; gap:10px; }
+
+      /* Header do calendário */
+      .cal-header    { padding: 10px 12px; }
+      .cal-header h2 { font-size: 13px; }
+      .cal-nav button{ width: 26px; height: 26px; border-radius: 6px; }
+
+      /* Dias da semana */
+      .cal-dow { padding: 6px 2px; font-size: 9px; letter-spacing: 0; }
+
+      /* Células do calendário — a grande redução */
+      .cal-day       { min-height: 38px; padding: 3px 2px; }
+      .day-num       { font-size: 10px; margin-bottom: 2px; }
+      .cal-day.hoje .day-num { font-size: 11px; }
+
+      /* Eventos dentro das células */
+      .event-dot     { padding: 1px 3px; font-size: 9px; margin-bottom: 1px; border-radius: 3px; }
+      .event-dot-more{ font-size: 9px; padding-left: 2px; }
+
+      /* Legenda */
+      .legend        { padding: 6px 10px; gap: 8px; }
+      .legend-item   { font-size: 10px; }
+
+      /* Painel lateral de eventos */
+      .panel-header  { padding: 10px 12px; font-size: 12px; }
+      .panel-body    { max-height: 220px; padding: 8px; }
+      .event-item    { padding: 7px 0; gap: 8px; }
+      .event-info h4 { font-size: 12px; }
+      .event-info p  { font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()"><i data-lucide="panel-left-close"></i></button>
+        <div class="topbar-breadcrumb"><a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a> &nbsp;/&nbsp;<strong>Agenda</strong></div>
+      </div>
+      <div class="topbar-right"><div class="topbar-btn"><i data-lucide="bell"></i></div></div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title"><h1>Agenda</h1><p>Calendário de entregas, instalações e assistências</p></div>
+      </div>
+
+      <div class="cal-layout">
+        <div>
+          <div class="cal-wrap">
+            <div class="cal-header">
+              <h2 id="calTitulo"></h2>
+              <div class="cal-nav">
+                <button id="btnPrev" onclick="navegar(-1)" title="Mês anterior"></button>
+                <button id="btnHoje" onclick="irHoje()" title="Hoje"></button>
+                <button id="btnNext" onclick="navegar(1)" title="Próximo mês"></button>
+              </div>
+            </div>
+            <div class="cal-grid" id="calGrid"></div>
+            <div class="legend">
+              <div class="legend-item"><div class="legend-dot" style="background:#818cf8"></div> Entrega / Instalação</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#f87171"></div> Assistência Técnica</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div> Visita / Lead</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header" id="panelTitulo">Selecione um dia</div>
+          <div class="panel-body" id="panelBody">
+            <p style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px 0">Clique em um dia para ver os eventos</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+checkAuth();
+
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+let hoje = new Date();
+let ano = hoje.getFullYear();
+let mes = hoje.getMonth();
+let eventos = {};
+let diaSelecionado = null;
+
+async function carregarEventos() {
+  eventos = {};
+  try {
+    const [pedidos, assistencias, leads] = await Promise.all([
+      Api.get(`/comercial/pedidos`),
+      Api.get(`/assistencia`),
+      Api.get(`/leads`),
+    ]);
+
+    const addEvento = (data, tipo, titulo, subtitulo, id) => {
+      if (!data) return;
+      const d = data.split('T')[0];
+      if (!eventos[d]) eventos[d] = [];
+      eventos[d].push({ tipo, titulo, subtitulo, id });
+    };
+
+    (pedidos.pedidos||pedidos||[]).forEach(p => {
+      if (p.data_prevista_entrega) addEvento(p.data_prevista_entrega, 'pedido', `Pedido ${p.numero}`, p.cliente_nome||'—', p.id);
+    });
+    assistencias.forEach(a => {
+      if (a.data_agendamento) addEvento(a.data_agendamento, 'assistencia', a.numero, `${a.cliente_nome||'—'} · ${a.tipo_problema}`, a.id);
+    });
+    leads.forEach(l => {
+      if (l.data_visita) addEvento(l.data_visita, 'lead', l.nome, l.produto_interesse||'Lead', l.id);
+    });
+  } catch(e) {}
+  renderCalendario();
+}
+
+function renderCalendario() {
+  document.getElementById('calTitulo').textContent = `${MESES[mes]} ${ano}`;
+  const grid = document.getElementById('calGrid');
+
+  // Cabeçalho
+  let html = DIAS_SEMANA.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+
+  const primeiroDia = new Date(ano, mes, 1).getDay();
+  const diasNoMes = new Date(ano, mes+1, 0).getDate();
+  const diasMesAnterior = new Date(ano, mes, 0).getDate();
+
+  let celulas = [];
+
+  // Dias do mês anterior
+  for (let i = primeiroDia-1; i >= 0; i--) {
+    const dia = diasMesAnterior - i;
+    const d = `${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    celulas.push({ dia, d, outroMes: true });
+  }
+
+  // Dias do mês atual
+  for (let dia = 1; dia <= diasNoMes; dia++) {
+    const d = `${ano}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    celulas.push({ dia, d, outroMes: false });
+  }
+
+  // Completar grid até 42 células
+  let nextDay = 1;
+  while (celulas.length < 42) {
+    const d = `${ano}-${String(mes+2).padStart(2,'0')}-${String(nextDay).padStart(2,'0')}`;
+    celulas.push({ dia: nextDay++, d, outroMes: true });
+  }
+
+  const hojeStr = hoje.toISOString().split('T')[0];
+  html += celulas.map(({dia, d, outroMes}) => {
+    const isHoje = d === hojeStr;
+    const isSel = d === diaSelecionado;
+    const evts = eventos[d] || [];
+    const visiveis = evts.slice(0,3);
+    const resto = evts.length - 3;
+    const dotsHtml = visiveis.map(e =>
+      `<div class="event-dot ${e.tipo}" title="${e.titulo}">${e.titulo.length>14?e.titulo.slice(0,13)+'…':e.titulo}</div>`
+    ).join('') + (resto > 0 ? `<div class="event-dot-more">+${resto} mais</div>` : '');
+    return `<div class="cal-day${outroMes?' outro-mes':''}${isHoje?' hoje':''}${isSel?' selecionado':''}" onclick="selecionarDia('${d}')">
+      <div class="day-num">${dia}</div>
+      ${dotsHtml}
+    </div>`;
+  }).join('');
+
+  grid.innerHTML = html;
+}
+
+function selecionarDia(d) {
+  diaSelecionado = d;
+  renderCalendario();
+  const [y,m2,day] = d.split('-');
+  document.getElementById('panelTitulo').textContent = `${parseInt(day)} de ${MESES[parseInt(m2)-1]} de ${y}`;
+  const evts = eventos[d] || [];
+  const panel = document.getElementById('panelBody');
+  if (!evts.length) {
+    panel.innerHTML = '<p style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px 0">Nenhum evento neste dia</p>';
+    return;
+  }
+  const cores = { pedido:'#818cf8', assistencia:'#f87171', lead:'#4ade80' };
+  const labels = { pedido:'Entrega', assistencia:'Assistência', lead:'Visita' };
+  panel.innerHTML = evts.map((e, idx) => `
+    <div class="event-item" id="evItem-${idx}">
+      <div class="event-head" onclick="toggleEvento(${idx}, '${e.tipo}', ${e.id})">
+        <div class="event-type-dot" style="background:${cores[e.tipo]||'var(--primary)'}"></div>
+        <div class="event-info">
+          <h4>${e.titulo}</h4>
+          <p>${e.subtitulo}</p>
+          <p style="margin-top:3px"><span class="badge badge-primary" style="font-size:10px">${labels[e.tipo]||e.tipo}</span></p>
+        </div>
+        <div class="ev-chevron"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg></div>
+      </div>
+      <div class="event-detail" id="evDet-${idx}"></div>
+    </div>
+  `).join('');
+}
+
+/* ── Expandir evento com detalhes ── */
+const ETAPA_LBL = {
+  novo_pedido:'Novo Pedido', aguardando_medicao:'Aguardando Medição', projeto_3d:'Projeto 3D',
+  aguardando_aprovacao:'Aguardando Aprovação', compra_materiais:'Compra de Materiais',
+  producao:'Produção', montagem:'Montagem', qualidade:'Qualidade',
+  entrega_agendada:'Entrega Agendada', entregue:'Entregue', assistencia:'Assistência Técnica', concluido:'Concluído',
+};
+const PRIO_LBL = { urgente:['Urgente','#ef4444'], alta:['Alta','#f97316'], media:['Média','#eab308'], baixa:['Baixa','#22c55e'] };
+const _moeda = v => 'R$ ' + (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+const _dataBR = d => { if(!d) return '—'; const s=String(d).split('T')[0].split('-'); return `${s[2]}/${s[1]}/${s[0]}`; };
+
+async function toggleEvento(idx, tipo, id) {
+  const item = document.getElementById('evItem-' + idx);
+  const det  = document.getElementById('evDet-' + idx);
+  const jaAberto = item.classList.contains('aberto');
+  // Fecha os outros
+  document.querySelectorAll('.event-item.aberto').forEach(el => el.classList.remove('aberto'));
+  if (jaAberto) return;
+  item.classList.add('aberto');
+
+  if (det.dataset.carregado) return;
+
+  if (tipo === 'pedido') {
+    det.innerHTML = `<div class="ev-loading"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Carregando detalhes...</div>`;
+    try {
+      const p = await Api.get(`/kanban/${id}`);
+      const prio = PRIO_LBL[p.prioridade] || PRIO_LBL.media;
+      const prazo = p.data_prevista_entrega ? new Date(String(p.data_prevista_entrega).split('T')[0]+'T00:00:00') : null;
+      const hj = new Date(); hj.setHours(0,0,0,0);
+      const dias = prazo ? Math.round((prazo - hj)/86400000) : null;
+      let prazoChip = '';
+      if (dias !== null) {
+        if (dias < 0)       prazoChip = `<span class="ev-prazo-chip" style="background:rgba(239,68,68,.12);color:#f87171">Atrasado ${Math.abs(dias)}d</span>`;
+        else if (dias === 0) prazoChip = `<span class="ev-prazo-chip" style="background:rgba(251,191,36,.12);color:#fbbf24">Entrega hoje</span>`;
+        else                prazoChip = `<span class="ev-prazo-chip" style="background:rgba(34,197,94,.12);color:#4ade80">Em ${dias} dia(s)</span>`;
+      }
+      const itens = (p.itens||[]).slice(0,4).map(i => i.descricao || i.produto || '').filter(Boolean);
+      const waNum = (p.cliente_whatsapp||'').replace(/\D/g,'');
+      det.innerHTML = `
+        <div class="ev-row"><span>Cliente</span><span>${p.cliente_nome||'—'}</span></div>
+        <div class="ev-row"><span>Valor</span><span style="color:#4ade80">${_moeda(p.valor_final||p.valor_total)}</span></div>
+        <div class="ev-row"><span>Etapa</span><span>${ETAPA_LBL[p.etapa_producao]||p.etapa_producao||'—'}</span></div>
+        <div class="ev-row"><span>Prioridade</span><span style="color:${prio[1]}">${prio[0]}</span></div>
+        <div class="ev-row"><span>Entrega prevista</span><span>${_dataBR(p.data_prevista_entrega)} ${prazoChip}</span></div>
+        ${p.vendedor_nome?`<div class="ev-row"><span>Vendedor</span><span>${p.vendedor_nome}</span></div>`:''}
+        ${p.projetista_nome?`<div class="ev-row"><span>Projetista</span><span>${p.projetista_nome}</span></div>`:''}
+        ${p.cliente_endereco?`<div class="ev-row"><span>Endereço</span><span>${p.cliente_endereco}${p.cliente_cidade?' — '+p.cliente_cidade:''}</span></div>`:''}
+        ${itens.length?`<div class="ev-row"><span>Itens</span><span>${itens.join(', ')}${(p.itens||[]).length>4?'…':''}</span></div>`:''}
+        <div class="ev-prog-wrap">
+          <div class="ev-prog"><div class="ev-prog-fill" style="width:${p.progresso||0}%"></div></div>
+          <span style="font-size:11px;font-weight:700;color:var(--primary)">${p.progresso||0}%</span>
+        </div>
+        <div class="ev-actions">
+          ${waNum?`<a class="ev-btn wa" href="https://wa.me/55${waNum}" target="_blank" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>WhatsApp</a>`:''}
+          <a class="ev-btn gold" href="kanban.html" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Abrir no Kanban</a>
+        </div>`;
+      det.dataset.carregado = '1';
+    } catch(e) {
+      det.innerHTML = `<div style="color:#f87171;font-size:11.5px">Erro ao carregar: ${e.message}</div>`;
+    }
+  } else if (tipo === 'assistencia') {
+    det.innerHTML = `
+      <div class="ev-row"><span>Tipo</span><span>Chamado de assistência técnica</span></div>
+      <div class="ev-actions"><a class="ev-btn gold" href="assistencia.html" onclick="event.stopPropagation()">Abrir em Assistência Técnica</a></div>`;
+    det.dataset.carregado = '1';
+  } else {
+    det.innerHTML = `
+      <div class="ev-row"><span>Tipo</span><span>Visita agendada com lead</span></div>
+      <div class="ev-actions"><a class="ev-btn gold" href="crm.html" onclick="event.stopPropagation()">Abrir no CRM</a></div>`;
+    det.dataset.carregado = '1';
+  }
+}
+
+function navegar(dir) {
+  mes += dir;
+  if (mes > 11) { mes = 0; ano++; }
+  if (mes < 0)  { mes = 11; ano--; }
+  diaSelecionado = null;
+  document.getElementById('panelTitulo').textContent = 'Selecione um dia';
+  document.getElementById('panelBody').innerHTML = '<p style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px 0">Clique em um dia para ver os eventos</p>';
+  renderCalendario();
+}
+
+function irHoje() {
+  ano = hoje.getFullYear();
+  mes = hoje.getMonth();
+  selecionarDia(hoje.toISOString().split('T')[0]);
+}
+
+const _S = 'display:block;width:16px;height:16px;flex-shrink:0;overflow:visible';
+const _SVG_PREV = `<svg style="${_S}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#C4A24A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`;
+const _SVG_CAL  = `<svg style="${_S}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#C4A24A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>`;
+const _SVG_NEXT = `<svg style="${_S}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#C4A24A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
+
+const elPrev = document.getElementById('btnPrev');
+const elHoje = document.getElementById('btnHoje');
+const elNext = document.getElementById('btnNext');
+if (elPrev) elPrev.innerHTML = _SVG_PREV;
+if (elHoje) elHoje.innerHTML = _SVG_CAL;
+if (elNext) elNext.innerHTML = _SVG_NEXT;
+
+carregarEventos();
+</script>
+</body>
+</html>

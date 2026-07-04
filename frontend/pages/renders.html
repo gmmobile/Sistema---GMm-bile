@@ -1,0 +1,270 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Render Pro — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .renders-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
+    .render-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; transition:.15s; }
+    .render-card:hover { border-color:rgba(99,102,241,.3); transform:translateY(-2px); }
+    .render-thumb { width:100%; height:160px; object-fit:cover; display:block; background:var(--bg); }
+    .render-thumb-placeholder { width:100%; height:160px; background:var(--bg); display:flex; align-items:center; justify-content:center; }
+    .render-thumb-placeholder svg { width:40px; height:40px; color:var(--text-dim); }
+    .render-body { padding:12px; }
+    .render-nome { font-size:13px; font-weight:700; color:var(--text); margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .render-meta { font-size:11px; color:var(--text-muted); margin-bottom:10px; }
+    .render-actions { display:flex; gap:6px; }
+    .drop-zone { border:2px dashed var(--border); border-radius:12px; padding:40px; text-align:center; cursor:pointer; transition:.15s; color:var(--text-muted); }
+    .drop-zone:hover, .drop-zone.over { border-color:var(--primary); color:var(--primary); background:rgba(99,102,241,.05); }
+    .drop-zone svg { width:36px; height:36px; margin-bottom:10px; }
+    .drop-zone p { font-size:13px; margin:4px 0; }
+    .drop-zone span { font-size:11px; }
+    .aprovado-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:700; background:rgba(34,197,94,.15); color:#22c55e; }
+    .aprovado-badge svg { width:11px; height:11px; }
+    @media (max-width:900px) {
+      .renders-grid { grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 10px; }
+      .render-thumb, .render-thumb-placeholder { height: 120px; }
+      .drop-zone    { padding: 24px 16px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()"><i data-lucide="panel-left-close"></i></button>
+        <div class="topbar-breadcrumb"><a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a> &nbsp;/&nbsp;<strong>Render Pro</strong></div>
+      </div>
+      <div class="topbar-right"><div class="topbar-btn"><i data-lucide="bell"></i></div></div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title"><h1>Render Pro</h1><p>Galeria de renders 3D e projetos</p></div>
+        <button class="btn btn-primary" onclick="abrirUpload()"><i data-lucide="upload"></i> Enviar Render</button>
+      </div>
+
+      <div class="table-wrap" style="margin-bottom:20px">
+        <div class="table-header">
+          <input type="text" id="busca" class="search-input" placeholder="Buscar por nome ou ambiente..." oninput="carregar()">
+          <select id="filCliente" onchange="carregar()" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:13px">
+            <option value="">Todos os clientes</option>
+          </select>
+        </div>
+        <div style="padding:16px">
+          <div class="renders-grid" id="listaRenders"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Modal Upload -->
+<div class="modal-overlay" id="modalUpload">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h2><i data-lucide="upload"></i> Enviar Render</h2>
+      <button class="modal-close" onclick="fecharModais()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <i data-lucide="image-plus"></i>
+        <p>Clique ou arraste imagens aqui</p>
+        <span>PNG, JPG, WEBP, PDF — máx. 10MB</span>
+        <p id="fileNome" style="margin-top:8px;font-size:12px;color:var(--primary)"></p>
+      </div>
+      <input type="file" id="fileInput" accept="image/*,.pdf" style="display:none" onchange="onFileSelect(event)">
+
+      <div class="form-group" style="margin-top:14px">
+        <label>Nome do Render *</label>
+        <input type="text" id="uNome" placeholder="Ex: Sala de Estar Vista 01">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cliente</label>
+          <select id="uCliente"><option value="">Nenhum</option></select>
+        </div>
+        <div class="form-group">
+          <label>Ambiente</label>
+          <input type="text" id="uAmbiente" placeholder="Ex: Sala de Estar">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Pedido vinculado</label>
+        <select id="uPedido"><option value="">Nenhum</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModais()">Cancelar</button>
+      <button class="btn btn-primary" onclick="enviarRender()"><i data-lucide="upload"></i> Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Visualizar -->
+<div class="modal-overlay" id="modalVer">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-header">
+      <h2><i data-lucide="image"></i> <span id="vNome"></span></h2>
+      <button class="modal-close" onclick="fecharModais()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body" id="vBody" style="padding:0"></div>
+    <div class="modal-footer" id="vFooter"></div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+checkAuth();
+
+const _SVG_IMG = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+const _SVG_IMG_OFF = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M10.41 10.41a2 2 0 0 1-2.83-2.83"/><line x1="13.5" y1="6" x2="6" y2="6"/><line x1="18" y1="13.5" x2="18" y2="6"/><path d="M14.5 14.5L19 19M5 5L3 3"/><path d="M3 6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16"/><path d="M21 15.5V8a2 2 0 0 0-2-2h-.5"/></svg>`;
+const _SVG_FILE = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+const _SVG_CHKCIRC = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+const _SVG_EYE = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const _SVG_CHK = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+const _SVG_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
+const _SVG_DL = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+
+let arquivoSelecionado = null;
+let clientes = [];
+
+async function init() {
+  try { clientes = await Api.get('/clientes'); } catch(e) { clientes=[]; }
+  const sel1 = document.getElementById('filCliente');
+  const sel2 = document.getElementById('uCliente');
+  clientes.forEach(c => {
+    sel1.insertAdjacentHTML('beforeend',`<option value="${c.id}">${c.nome}</option>`);
+    sel2.insertAdjacentHTML('beforeend',`<option value="${c.id}">${c.nome}</option>`);
+  });
+  try {
+    const pedidos = await Api.get('/comercial/pedidos');
+    const lista = pedidos.pedidos||pedidos||[];
+    lista.forEach(p => document.getElementById('uPedido').insertAdjacentHTML('beforeend',`<option value="${p.id}">Pedido ${p.numero}</option>`));
+  } catch(e){}
+  carregar();
+}
+
+async function carregar() {
+  const busca = document.getElementById('busca').value.toLowerCase();
+  const cid = document.getElementById('filCliente').value;
+  try {
+    let url = '/renders?';
+    if (cid) url += `cliente_id=${cid}`;
+    const data = await Api.get(url);
+    const filtrado = busca ? data.filter(r=>(r.nome||'').toLowerCase().includes(busca)||(r.ambiente||'').toLowerCase().includes(busca)) : data;
+    renderGaleria(filtrado);
+  } catch(e) {
+    renderGaleria([]);
+  }
+}
+
+function renderGaleria(data) {
+  const el = document.getElementById('listaRenders');
+  if (!data.length) { el.innerHTML = `<div class="empty-state">${_SVG_IMG}<p>Nenhum render encontrado. Envie imagens de projetos!</p></div>`; return; }
+  el.innerHTML = data.map(r => {
+    const isImg = r.tipo === 'imagem';
+    const thumb = r.arquivo_path ? `<img class="render-thumb" src="${window.location.origin}/${r.arquivo_path}" alt="${r.nome}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="render-thumb-placeholder" style="display:none">${_SVG_IMG_OFF}</div>` :
+      `<div class="render-thumb-placeholder">${isImg ? _SVG_IMG : _SVG_FILE}</div>`;
+    return `
+    <div class="render-card">
+      ${thumb}
+      <div class="render-body">
+        <div class="render-nome" title="${r.nome}">${r.nome}</div>
+        <div class="render-meta">${r.ambiente||''} ${r.cliente_nome?'· '+r.cliente_nome:''}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+          ${r.aprovado?`<span class="aprovado-badge">${_SVG_CHKCIRC} Aprovado</span>`:''}
+        </div>
+        <div class="render-actions">
+          <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px;flex:1;display:inline-flex;align-items:center;gap:4px" onclick="verRender(${r.id})">${_SVG_EYE} Ver</button>
+          ${!r.aprovado?`<button class="btn btn-ghost" style="padding:4px 8px;font-size:11px;color:var(--success);display:inline-flex;align-items:center" onclick="aprovar(${r.id})">${_SVG_CHK}</button>`:''}
+          <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px;color:var(--danger);display:inline-flex;align-items:center" onclick="excluir(${r.id})">${_SVG_TRASH}</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function onDragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('over'); }
+function onDragLeave()  { document.getElementById('dropZone').classList.remove('over'); }
+function onDrop(e) { e.preventDefault(); onDragLeave(); const f=e.dataTransfer.files[0]; if(f) setArquivo(f); }
+function onFileSelect(e) { if(e.target.files[0]) setArquivo(e.target.files[0]); }
+function setArquivo(f) { arquivoSelecionado=f; document.getElementById('fileNome').textContent=f.name; if(!document.getElementById('uNome').value) document.getElementById('uNome').value=f.name.replace(/\.[^.]+$/,''); }
+
+function abrirUpload() {
+  arquivoSelecionado = null;
+  document.getElementById('fileNome').textContent = '';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('uNome').value = '';
+  document.getElementById('uCliente').value = '';
+  document.getElementById('uAmbiente').value = '';
+  document.getElementById('uPedido').value = '';
+  document.getElementById('modalUpload').classList.add('open');
+}
+
+async function enviarRender() {
+  if (!arquivoSelecionado) { toast('Selecione um arquivo','warning'); return; }
+  const nome = document.getElementById('uNome').value;
+  if (!nome) { toast('Informe o nome do render','warning'); return; }
+
+  const form = new FormData();
+  form.append('arquivo', arquivoSelecionado);
+  form.append('nome', nome);
+  form.append('ambiente', document.getElementById('uAmbiente').value);
+  form.append('cliente_id', document.getElementById('uCliente').value);
+  form.append('pedido_id', document.getElementById('uPedido').value);
+
+  try {
+    const resp = await fetch(`${window.location.origin}/api/renders`, {
+      method:'POST',
+      headers:{ Authorization:'Bearer '+localStorage.getItem('token') },
+      body: form
+    });
+    if (!resp.ok) { const e=await resp.json(); throw new Error(e.erro||'Erro ao enviar'); }
+    toast('Render enviado com sucesso!','success');
+    fecharModais(); carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function verRender(id) {
+  const r = await Api.get(`/renders/${id}`);
+  document.getElementById('vNome').textContent = r.nome;
+  const isImg = r.tipo === 'imagem';
+  document.getElementById('vBody').innerHTML = isImg
+    ? `<img src="${window.location.origin}/${r.arquivo_path}" style="width:100%;max-height:500px;object-fit:contain;border-radius:0 0 12px 12px">`
+    : `<div style="padding:24px;text-align:center"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg><p style="margin-top:8px;color:var(--text-muted)">Arquivo PDF — <a href="${window.location.origin}/${r.arquivo_path}" target="_blank" style="color:var(--primary)">Abrir</a></p></div>`;
+  document.getElementById('vFooter').innerHTML = `
+    <button class="btn btn-ghost" onclick="fecharModais()">Fechar</button>
+    ${r.arquivo_path?`<a href="${window.location.origin}/${r.arquivo_path}" download class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px">${_SVG_DL} Download</a>`:''}
+  `;
+  document.getElementById('modalVer').classList.add('open');
+}
+
+async function aprovar(id) {
+  try { await Api.put(`/renders/${id}/aprovar`, {}); toast('Render aprovado!','success'); carregar(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+async function excluir(id) {
+  if (!confirm('Remover este render?')) return;
+  try { await Api.delete(`/renders/${id}`); toast('Removido','success'); carregar(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+function fecharModais() { document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('open')); }
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',function(e){ if(e.target===this) fecharModais(); }));
+init();
+</script>
+</body>
+</html>

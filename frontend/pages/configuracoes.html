@@ -1,0 +1,363 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurações — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .config-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:20px; }
+    .config-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:20px; }
+    .config-card h3 { font-size:13px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+    .config-card h3 svg { width:16px; height:16px; color:var(--primary); }
+    .config-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); }
+    .config-row:last-child { border:none; }
+    .config-label { font-size:13px; color:var(--text); }
+    .config-desc  { font-size:11px; color:var(--text-muted); margin-top:2px; }
+    .activity-item { display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+    .activity-item:last-child { border:none; }
+    .activity-icon { width:28px; height:28px; border-radius:7px; background:rgba(99,102,241,.15); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .activity-icon svg { width:13px; height:13px; color:var(--primary); }
+    .activity-info { flex:1; }
+    .activity-info strong { font-size:12px; color:var(--text); display:block; }
+    .activity-info span { font-size:11px; color:var(--text-muted); }
+    .activity-time { font-size:10px; color:var(--text-dim); white-space:nowrap; }
+    .modulo-filter { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+    .modulo-btn { padding:4px 10px; border-radius:16px; font-size:11px; font-weight:600; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; transition:.15s; }
+    .modulo-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .info-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:8px; background:var(--bg); border:1px solid var(--border); font-size:12px; color:var(--text-muted); }
+    .info-badge strong { color:var(--text); }
+    @media (max-width:900px) {
+      .config-grid { grid-template-columns: 1fr; gap: 10px; }
+      .config-card { padding: 14px; border-radius:10px; }
+      .config-card h3 { font-size: 12px; margin-bottom:10px; padding-bottom:8px; }
+      .config-row  { padding: 8px 0; }
+      #formLoja    { grid-template-columns: 1fr !important; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()"><i data-lucide="panel-left-close"></i></button>
+        <div class="topbar-breadcrumb"><a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a> &nbsp;/&nbsp;<strong>Configurações</strong></div>
+      </div>
+      <div class="topbar-right"><div class="topbar-btn"><i data-lucide="bell"></i></div></div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title"><h1>Configurações</h1><p>Sistema, backup e histórico de atividades</p></div>
+      </div>
+
+      <!-- Dados da loja -->
+      <div class="config-card" style="margin-bottom:20px">
+        <h3>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"/><path d="m3 9 2.45-4.9A2 2 0 0 1 7.24 3h9.52a2 2 0 0 1 1.8 1.1L21 9"/><path d="M12 3v6"/></svg>
+          Dados da Empresa
+        </h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" id="formLoja">
+          <div class="form-group"><label>Nome da Empresa</label><input type="text" id="lNome"></div>
+          <div class="form-group"><label>CNPJ</label><input type="text" id="lCnpj" oninput="mascaraCpfCnpj(this)"></div>
+          <div class="form-group"><label>Telefone</label><input type="text" id="lTel" oninput="mascaraTelefone(this)"></div>
+          <div class="form-group"><label>WhatsApp</label><input type="text" id="lWhats" oninput="mascaraTelefone(this)"></div>
+          <div class="form-group"><label>E-mail</label><input type="email" id="lEmail"></div>
+          <div class="form-group"><label>Site</label><input type="text" id="lSite" placeholder="https://"></div>
+          <div class="form-group"><label>CEP</label><input type="text" id="lCep" oninput="buscarCep(this,{rua:'lRua',bairro:'lBairro',cidade:'lCidade',estado:'lEstado'})"></div>
+          <div class="form-group"><label>Número</label><input type="text" id="lNum"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Rua</label><input type="text" id="lRua"></div>
+          <div class="form-group"><label>Bairro</label><input type="text" id="lBairro"></div>
+          <div class="form-group"><label>Cidade</label><input type="text" id="lCidade"></div>
+          <div class="form-group"><label>UF</label><input type="text" id="lEstado" maxlength="2"></div>
+          <div class="form-group">
+            <label>Logo (PNG/JPG, máx 2MB)</label>
+            <input type="file" id="lLogo" accept="image/*" onchange="previewLogo(this)">
+          </div>
+          <div class="form-group" style="display:flex;align-items:center;gap:12px">
+            <img id="logoPreview" src="" style="height:48px;border-radius:6px;display:none;border:1px solid var(--border)">
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;justify-content:flex-end">
+          <button class="btn btn-primary" onclick="salvarLoja()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Salvar Configurações
+          </button>
+        </div>
+      </div>
+
+      <div class="config-grid" style="margin-bottom:24px">
+        <!-- Dados do sistema -->
+        <div class="config-card">
+          <h3><i data-lucide="building-2"></i> Sistema</h3>
+          <div class="config-row">
+            <div><div class="config-label">Versão</div><div class="config-desc">Sistema Completo v1.0</div></div>
+            <span class="badge badge-success">Ativo</span>
+          </div>
+          <div class="config-row">
+            <div><div class="config-label">Banco de Dados</div><div class="config-desc">SQLite — WAL Mode</div></div>
+            <span class="info-badge"><i data-lucide="database"></i> <strong>Local</strong></span>
+          </div>
+          <div class="config-row">
+            <div><div class="config-label">Servidor</div><div class="config-desc">Node.js + Express — porta 3000</div></div>
+            <span class="badge badge-primary">Online</span>
+          </div>
+        </div>
+
+        <!-- Backup -->
+        <div class="config-card">
+          <h3><i data-lucide="hard-drive-download"></i> Backup</h3>
+          <div class="config-row">
+            <div>
+              <div class="config-label">Backup do Banco de Dados</div>
+              <div class="config-desc">Baixe o arquivo sistema.db com todos os dados</div>
+            </div>
+          </div>
+          <div style="margin-top:4px">
+            <button class="btn btn-primary" onclick="baixarBackup()" style="width:100%"><i data-lucide="download"></i> Baixar Backup Agora</button>
+          </div>
+          <div style="margin-top:10px">
+            <button class="btn btn-ghost" onclick="exportarTudo()" style="width:100%;font-size:12px"><i data-lucide="file-archive"></i> Exportar tudo em JSON</button>
+          </div>
+        </div>
+
+        <!-- Perfil do usuário logado -->
+        <div class="config-card">
+          <h3><i data-lucide="user-circle"></i> Meu Perfil</h3>
+          <div id="perfilInfo"></div>
+          <div style="margin-top:10px;display:flex;gap:8px">
+            <button class="btn btn-ghost" style="flex:1;font-size:12px" onclick="window.location.href='usuarios.html'"><i data-lucide="users"></i> Gerenciar Usuários</button>
+            <button class="btn btn-ghost" style="flex:1;font-size:12px" onclick="abrirTrocarSenha()"><i data-lucide="key"></i> Trocar Senha</button>
+          </div>
+        </div>
+
+        <!-- Info do banco -->
+        <div class="config-card">
+          <h3><i data-lucide="bar-chart-2"></i> Estatísticas do Banco</h3>
+          <div id="statsDB"></div>
+        </div>
+      </div>
+
+      <!-- Histórico de Atividades -->
+      <div class="config-card" style="max-width:100%">
+        <h3><i data-lucide="activity"></i> Histórico de Atividades</h3>
+        <div class="modulo-filter" id="moduloFilter">
+          <button class="modulo-btn active" onclick="filtrarModulo(this,'')">Todos</button>
+          <button class="modulo-btn" onclick="filtrarModulo(this,'usuarios')">Usuários</button>
+          <button class="modulo-btn" onclick="filtrarModulo(this,'clientes')">Clientes</button>
+          <button class="modulo-btn" onclick="filtrarModulo(this,'comercial')">Comercial</button>
+          <button class="modulo-btn" onclick="filtrarModulo(this,'financeiro')">Financeiro</button>
+          <button class="modulo-btn" onclick="filtrarModulo(this,'comissoes')">Comissões</button>
+        </div>
+        <div id="listaAtividades"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Modal Trocar Senha -->
+<div class="modal-overlay" id="modalSenha">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      <h2><i data-lucide="key"></i> Trocar Senha</h2>
+      <button class="modal-close" onclick="fecharModais()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Senha atual</label><input type="password" id="sAtual"></div>
+      <div class="form-group"><label>Nova senha</label><input type="password" id="sNova" placeholder="Mínimo 6 caracteres"></div>
+      <div class="form-group"><label>Confirmar</label><input type="password" id="sConf"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModais()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarSenha()"><i data-lucide="check"></i> Alterar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+checkAuth();
+
+const eu = getUsuario();
+let moduloAtivo = '';
+
+async function carregarLoja() {
+  try {
+    const cfg = await Api.get('/admin/configuracoes-loja');
+    document.getElementById('lNome').value   = cfg.nome_empresa || '';
+    document.getElementById('lCnpj').value   = cfg.cnpj || '';
+    document.getElementById('lTel').value    = cfg.telefone || '';
+    document.getElementById('lWhats').value  = cfg.whatsapp || '';
+    document.getElementById('lEmail').value  = cfg.email || '';
+    document.getElementById('lSite').value   = cfg.site || '';
+    document.getElementById('lCep').value    = cfg.cep || '';
+    document.getElementById('lRua').value    = cfg.rua || '';
+    document.getElementById('lNum').value    = cfg.numero || '';
+    document.getElementById('lBairro').value = cfg.bairro || '';
+    document.getElementById('lCidade').value = cfg.cidade || '';
+    document.getElementById('lEstado').value = cfg.estado || '';
+    if (cfg.logo_path) {
+      const img = document.getElementById('logoPreview');
+      img.src = `${window.location.origin}/${cfg.logo_path}`;
+      img.style.display = '';
+    }
+  } catch(e) {}
+}
+
+async function salvarLoja() {
+  const fd = new FormData();
+  const campos = { nome_empresa:'lNome', cnpj:'lCnpj', telefone:'lTel', whatsapp:'lWhats',
+    email:'lEmail', site:'lSite', cep:'lCep', rua:'lRua', numero:'lNum',
+    bairro:'lBairro', cidade:'lCidade', estado:'lEstado' };
+  for (const [key, id] of Object.entries(campos)) {
+    fd.append(key, document.getElementById(id).value || '');
+  }
+  const logoFile = document.getElementById('lLogo').files[0];
+  if (logoFile) fd.append('logo', logoFile);
+  try {
+    const resp = await fetch(`${window.location.origin}/api/admin/configuracoes-loja`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: fd,
+    });
+    if (!resp.ok) throw new Error('Erro ao salvar');
+    toast('Configurações salvas!', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function previewLogo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const img = document.getElementById('logoPreview');
+  img.src = URL.createObjectURL(file);
+  img.style.display = '';
+}
+
+async function init() {
+  carregarLoja();
+  // Perfil
+  if (eu) {
+    document.getElementById('perfilInfo').innerHTML = `
+      <div class="config-row"><div class="config-label">Nome</div><strong style="font-size:13px">${eu.nome}</strong></div>
+      <div class="config-row"><div class="config-label">E-mail</div><span style="font-size:12px;color:var(--text-muted)">${eu.email}</span></div>
+      <div class="config-row"><div class="config-label">Perfil</div><span class="badge badge-primary">${eu.perfil}</span></div>
+    `;
+  }
+
+  // Stats DB
+  try {
+    const [clientes, pedidos, lancamentos, leads, assistencias] = await Promise.all([
+      Api.get('/clientes'), Api.get('/comercial/pedidos'), Api.get('/financeiro/lancamentos'),
+      Api.get('/leads'), Api.get('/assistencia'),
+    ]);
+    document.getElementById('statsDB').innerHTML = `
+      <div class="config-row"><div class="config-label">Clientes</div><strong>${(clientes||[]).length}</strong></div>
+      <div class="config-row"><div class="config-label">Pedidos</div><strong>${((pedidos?.pedidos||pedidos)||[]).length}</strong></div>
+      <div class="config-row"><div class="config-label">Lançamentos Financeiros</div><strong>${((lancamentos?.lancamentos||lancamentos)||[]).length}</strong></div>
+      <div class="config-row"><div class="config-label">Leads no CRM</div><strong>${(leads||[]).length}</strong></div>
+      <div class="config-row" style="border:none"><div class="config-label">Chamados de Assistência</div><strong>${(assistencias||[]).length}</strong></div>
+    `;
+  } catch(e){}
+
+  carregarAtividades();
+}
+
+async function carregarAtividades() {
+  try {
+    let url = `/admin/atividades?limite=50`;
+    if (moduloAtivo) url += `&modulo=${moduloAtivo}`;
+    const data = await Api.get(url);
+    renderAtividades(data);
+  } catch(e) {
+    document.getElementById('listaAtividades').innerHTML='<p style="color:var(--text-dim);font-size:13px">Nenhuma atividade registrada ainda</p>';
+  }
+}
+
+function renderAtividades(data) {
+  const el = document.getElementById('listaAtividades');
+  if (!data.length) { el.innerHTML='<p style="color:var(--text-dim);font-size:13px;text-align:center;padding:16px">Nenhuma atividade registrada</p>'; return; }
+  el.innerHTML = data.map(a => `
+    <div class="activity-item">
+      <div class="activity-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+      <div class="activity-info">
+        <strong>${a.descricao}</strong>
+        <span>${a.usuario_nome||'Sistema'} · ${a.modulo}</span>
+      </div>
+      <div class="activity-time">${formatarData(a.criado_em)}</div>
+    </div>
+  `).join('');
+}
+
+function filtrarModulo(btn, modulo) {
+  document.querySelectorAll('.modulo-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  moduloAtivo = modulo;
+  carregarAtividades();
+}
+
+async function baixarBackup() {
+  try {
+    const a = document.createElement('a');
+    a.href = `${window.location.origin}/api/admin/backup?token=${localStorage.getItem('token')}`;
+    a.download = '';
+    // Fetch com header Authorization para download
+    const resp = await fetch(`${window.location.origin}/api/admin/backup`, { headers:{ Authorization:'Bearer '+localStorage.getItem('token') } });
+    if (!resp.ok) { toast('Sem permissão para gerar backup','error'); return; }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `backup_sistema_${new Date().toISOString().split('T')[0]}.db`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast('Backup baixado com sucesso!','success');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function exportarTudo() {
+  try {
+    const [clientes, pedidos, parceiros, comissoes] = await Promise.all([
+      Api.get('/clientes'), Api.get('/comercial/pedidos'),
+      Api.get('/parceiros'), Api.get('/comissoes'),
+    ]);
+    const json = JSON.stringify({ clientes, pedidos, parceiros, comissoes, exportadoEm: new Date().toISOString() }, null, 2);
+    const blob = new Blob([json], { type:'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `export_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    toast('Exportado com sucesso!','success');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function abrirTrocarSenha() {
+  ['sAtual','sNova','sConf'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('modalSenha').classList.add('open');
+}
+
+async function salvarSenha() {
+  const nova = document.getElementById('sNova').value;
+  const conf = document.getElementById('sConf').value;
+  if (!nova||nova.length<6) { toast('Senha mínima de 6 caracteres','warning'); return; }
+  if (nova!==conf) { toast('As senhas não coincidem','warning'); return; }
+  try {
+    await Api.post('/auth/trocar-senha', { senha_atual: document.getElementById('sAtual').value, nova_senha: nova });
+    toast('Senha alterada com sucesso!','success');
+    fecharModais();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function fecharModais() { document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('open')); }
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',function(e){ if(e.target===this) fecharModais(); }));
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comercial — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    .tabs { display:flex; gap:4px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:4px; margin-bottom:20px; width:fit-content; }
+    .tab { padding:7px 18px; border-radius:7px; font-size:13px; font-weight:500; cursor:pointer; color:var(--text-muted); border:none; background:transparent; transition:.15s; display:flex; align-items:center; gap:6px; }
+    .tab svg { width:14px; height:14px; }
+    .tab.active { background:var(--primary); color:#fff; }
+    .tab:hover:not(.active) { background:var(--bg-card2); color:var(--text); }
+
+    .status-pill { font-size:11px; font-weight:600; padding:3px 10px; border-radius:99px; white-space:nowrap; }
+    .s-rascunho  { background:rgba(148,163,184,0.15); color:#94a3b8; }
+    .s-enviado   { background:rgba(59,130,246,0.15);  color:#60a5fa; }
+    .s-aprovado  { background:rgba(34,197,94,0.15);   color:#4ade80; }
+    .s-recusado  { background:rgba(239,68,68,0.15);   color:#f87171; }
+    .s-confirmado{ background:rgba(99,102,241,0.15);  color:#818cf8; }
+    .s-medicao   { background:rgba(245,158,11,0.15);  color:#fbbf24; }
+    .s-projeto   { background:rgba(139,92,246,0.15);  color:#a78bfa; }
+    .s-producao  { background:rgba(249,115,22,0.15);  color:#fb923c; }
+    .s-pronto    { background:rgba(34,197,94,0.2);    color:#4ade80; }
+    .s-entrega   { background:rgba(59,130,246,0.2);   color:#60a5fa; }
+    .s-instalacao{ background:rgba(16,185,129,0.15);  color:#34d399; }
+    .s-concluido { background:rgba(34,197,94,0.25);   color:#22c55e; }
+    .s-cancelado { background:rgba(239,68,68,0.15);   color:#f87171; }
+
+    .item-linha { display:grid; grid-template-columns:1fr 2fr 1fr 90px 100px 32px; gap:8px; align-items:center; padding:8px; background:var(--bg); border:1px solid var(--border); border-radius:8px; margin-bottom:6px; }
+    .item-linha input, .item-linha select { padding:6px 10px; font-size:12px; }
+    .btn-rm { width:28px; height:28px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); border-radius:6px; color:var(--danger); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .btn-rm svg { width:13px; height:13px; }
+    .total-row { display:flex; justify-content:flex-end; gap:24px; padding:12px 0; border-top:1px solid var(--border); margin-top:4px; font-size:13px; }
+    .total-row strong { font-size:16px; color:var(--text); }
+    .acao-btn { width:30px; height:30px; border:1px solid var(--border); border-radius:7px; background:var(--bg-card2); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-muted); transition:.15s; }
+    .acao-btn:hover { background:var(--bg); color:var(--text); }
+    .acao-btn svg { width:13px; height:13px; }
+    .itens-cabecalho { display:grid; grid-template-columns:1fr 2fr 1fr 90px 100px 32px; gap:8px; padding:0 8px 6px; font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-dim); letter-spacing:.5px; }
+    @media (max-width:900px) {
+      .item-linha { grid-template-columns: 1fr 1fr 60px 32px; gap:6px; }
+      .item-linha .col-material { display:none; }
+      .total-row { gap:12px; font-size:12px; flex-wrap:wrap; }
+      .itens-cabecalho { display:none; }
+      .tabs { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; flex-wrap:nowrap; }
+      .tab { white-space:nowrap; }
+      /* Converte tabela em cards: Número+Status linha1, Cliente+Valor linha2 */
+      #tabelaWrap table { min-width: 0 !important; }
+      #tabelaWrap thead { display: none; }
+      #tabelaWrap tbody tr {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-rows: auto auto;
+        padding: 8px 10px;
+        gap: 2px 8px;
+        border-bottom: 1px solid rgba(51,65,85,.5);
+      }
+      #tabelaWrap tbody tr:last-child { border-bottom: none; }
+      #tabelaWrap td { padding: 0; border: none; }
+      #tabelaWrap td:nth-child(1) { grid-row:1; grid-column:1; font-size:11px; font-weight:700; color:var(--primary); }
+      #tabelaWrap td:nth-child(2) { grid-row:2; grid-column:1; font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
+      #tabelaWrap td:nth-child(3) { grid-row:2; grid-column:2; font-size:12px; text-align:right; }
+      #tabelaWrap td:nth-child(4) { grid-row:1; grid-column:2; font-size:11px; text-align:right; }
+      #tabelaWrap td:nth-child(5),
+      #tabelaWrap td:nth-child(6) { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()"><i data-lucide="panel-left-close"></i></button>
+        <div class="topbar-breadcrumb"><a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a> &nbsp;/&nbsp;<strong>Comercial</strong></div>
+      </div>
+      <div class="topbar-right"><div class="topbar-btn"><i data-lucide="bell"></i></div></div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title"><h1>Pedidos</h1><p>Pedidos de projetos</p></div>
+        <a href="orcamentos.html" class="btn btn-ghost" style="font-size:13px">Ver Orçamentos →</a>
+      </div>
+
+      <div class="search-bar">
+        <div class="search-input-wrap">
+          <i data-lucide="search"></i>
+          <input type="text" id="campoBusca" placeholder="Buscar por cliente ou número..." oninput="buscar()">
+        </div>
+        <select id="filtroStatus" onchange="buscar()" style="width:180px">
+          <option value="">Todos os status</option>
+        </select>
+        <button class="btn btn-ghost" onclick="carregar()"><i data-lucide="refresh-cw"></i></button>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3 id="tabelaTitulo"><i data-lucide="package"></i> Pedidos</h3>
+          <span id="totalReg" class="text-muted" style="font-size:13px;"></span>
+        </div>
+        <div id="tabelaWrap"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Modal Orçamento -->
+<div class="modal-overlay" id="modalOrc">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-header">
+      <h2 id="mOrcTitulo"><i data-lucide="file-text"></i> Novo Orçamento</h2>
+      <button class="modal-close" onclick="fecharModal('modalOrc')"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cliente *</label>
+          <select id="oCliente"><option value="">Selecione...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Cond. Pagamento</label>
+          <input type="text" id="oCondicao" placeholder="Ex: 50% entrada + 50% entrega">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Validade (dias)</label>
+          <input type="number" id="oValidade" value="15">
+        </div>
+        <div class="form-group">
+          <label>Desconto (R$)</label>
+          <input type="number" id="oDesconto" value="0" step="0.01" oninput="calcTotal()">
+        </div>
+      </div>
+
+      <div style="margin:16px 0 8px; font-size:13px; font-weight:600; color:var(--text-muted)">Itens do projeto</div>
+      <div class="itens-cabecalho">
+        <span>Ambiente</span><span>Descrição</span><span>Material</span><span>Qtd</span><span>Valor unit.</span><span></span>
+      </div>
+      <div id="itensList"></div>
+      <button class="btn btn-ghost" onclick="addItem()" style="width:100%; margin-top:6px; font-size:12px;">
+        <i data-lucide="plus"></i> Adicionar item
+      </button>
+
+      <div class="total-row">
+        <span class="text-muted">Subtotal: <strong id="subtotal">R$ 0,00</strong></span>
+        <span class="text-muted">Desconto: <strong id="totalDesc">R$ 0,00</strong></span>
+        <span>Total: <strong id="totalFinal">R$ 0,00</strong></span>
+      </div>
+      <div class="form-group"><label>Observações</label><textarea id="oObs" rows="2"></textarea></div>
+      <input type="hidden" id="oId">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modalOrc')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarOrc()"><i data-lucide="save"></i> Salvar Orçamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Converter em Pedido -->
+<div class="modal-overlay" id="modalConverter">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2><i data-lucide="package"></i> Converter em Pedido</h2>
+      <button class="modal-close" onclick="fecharModal('modalConverter')"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Data prevista de entrega *</label>
+        <input type="date" id="cDataEntrega">
+      </div>
+
+      <div style="border-top:1px solid var(--border);margin:16px 0 12px;padding-top:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span style="font-size:13px;font-weight:600">Parcelas de pagamento</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--text-muted)">Qtd:</span>
+            <select id="cQtdParcelas" onchange="gerarParcelas()" style="padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text)">
+              <option value="0">Sem parcelas</option>
+            </select>
+          </div>
+        </div>
+        <div id="cParcelasWrap" style="display:none;flex-direction:column;gap:8px"></div>
+        <div id="cTotalParcelas" style="display:none;font-size:12px;color:var(--text-muted);margin-top:6px;text-align:right"></div>
+      </div>
+
+      <input type="hidden" id="cOrcId">
+      <input type="hidden" id="cValorTotal">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modalConverter')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarConverter()"><i data-lucide="check"></i> Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Contratos -->
+<div class="modal-overlay" id="modalContratos">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h2><i data-lucide="paperclip"></i> Anexos — <span id="ctrNumero"></span></h2>
+      <button class="modal-close" onclick="fecharModal('modalContratos')"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <!-- Upload -->
+      <div id="ctrDropzone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:2px dashed var(--border);border-radius:10px;padding:24px;cursor:pointer;transition:.15s;color:var(--text-muted);font-size:13px" onclick="document.getElementById('ctrArquivo').click()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>
+        <span>Clique para anexar ou arraste um arquivo</span>
+        <span style="font-size:11px">PDF, Imagem, Word — máx. 20MB</span>
+        <input type="file" id="ctrArquivo" accept=".pdf,.jpg,.jpeg,.png,.docx,.doc" style="display:none" onchange="uploadContrato()">
+      </div>
+      <div id="ctrUploadStatus" style="font-size:12px;margin-top:8px;display:none"></div>
+
+      <!-- Lista -->
+      <div id="ctrLista" style="margin-top:16px;display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <input type="hidden" id="ctrPedidoId">
+  </div>
+</div>
+
+<!-- Modal Editar Pedido -->
+<div class="modal-overlay" id="modalEditPedido">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <h2><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> Editar Pedido — <span id="ePedNumero" style="color:var(--primary-light)"></span></h2>
+      <button class="modal-close" onclick="fecharModal('modalEditPedido')"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ePedId">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data prevista de entrega</label>
+          <input type="date" id="ePedEntrega">
+        </div>
+        <div class="form-group">
+          <label>Condição de pagamento</label>
+          <input type="text" id="ePedCondicao" placeholder="Ex: 50% entrada + saldo na entrega">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor total (R$)</label>
+          <input type="number" id="ePedValor" step="0.01" min="0" oninput="calcEditPedido()">
+        </div>
+        <div class="form-group">
+          <label>Desconto (R$)</label>
+          <input type="number" id="ePedDesconto" step="0.01" min="0" value="0" oninput="calcEditPedido()">
+        </div>
+        <div class="form-group">
+          <label>Valor final</label>
+          <input type="text" id="ePedFinal" readonly style="background:var(--bg-card2);font-weight:600;color:var(--primary-light)">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Garantia (meses)</label>
+          <input type="number" id="ePedGarantia" min="0" max="120" value="12">
+        </div>
+        <div class="form-group" style="flex:2">
+          <label>Observações</label>
+          <input type="text" id="ePedObs" placeholder="Observações do pedido">
+        </div>
+      </div>
+      <!-- Itens -->
+      <div style="margin-top:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <label style="font-weight:600;font-size:13px">Itens do pedido</label>
+          <button type="button" class="btn btn-ghost" style="font-size:12px" onclick="addItemPed()">+ Item</button>
+        </div>
+        <div id="ePedItens" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modalEditPedido')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarPedido()"><i data-lucide="save"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Status Pedido -->
+<div class="modal-overlay" id="modalStatus">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      <h2><i data-lucide="git-branch"></i> Atualizar Status</h2>
+      <button class="modal-close" onclick="fecharModal('modalStatus')"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Novo Status</label>
+        <select id="sNovoStatus">
+          <option value="confirmado">Confirmado</option>
+          <option value="medicao">Em Medição</option>
+          <option value="projeto">Em Projeto</option>
+          <option value="producao">Em Produção</option>
+          <option value="pronto">Pronto</option>
+          <option value="entrega">Em Entrega</option>
+          <option value="instalacao">Em Instalação</option>
+          <option value="concluido">Concluído ✓</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+      </div>
+      <input type="hidden" id="sPedidoId">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modalStatus')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarStatus()"><i data-lucide="check"></i> Atualizar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Painel lateral de Cobranças -->
+<div class="detail-overlay" id="painelCobrancasOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;opacity:0;pointer-events:none;transition:.2s">
+  <div id="painelCobrancas" style="position:fixed;top:0;right:0;bottom:0;width:440px;background:var(--bg-card);border-left:1px solid var(--border);z-index:201;transform:translateX(100%);transition:.25s cubic-bezier(.34,1.56,.64,1);display:flex;flex-direction:column">
+    <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg-card);flex-shrink:0">
+      <div>
+        <div style="font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary-light)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.42 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.5a16 16 0 0 0 6.06 6.06l.96-.96a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Cobranças
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px" id="cobPedidoInfo"></div>
+      </div>
+      <button class="btn btn-ghost" style="padding:6px 10px;font-size:12px" onclick="fecharCobrancas()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Fechar
+      </button>
+    </div>
+
+    <!-- Histórico -->
+    <div style="padding:16px 22px;flex:1;overflow-y:auto">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:10px">Histórico de Cobranças</div>
+      <div id="cobLista"></div>
+    </div>
+
+    <!-- Form nova cobrança -->
+    <div style="padding:16px 22px;border-top:1px solid var(--border);background:var(--bg-card);flex-shrink:0">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:10px">Registrar Nova Cobrança</div>
+      <div class="form-row" style="margin-bottom:10px">
+        <div class="form-group" style="margin-bottom:0">
+          <label>Data</label>
+          <input type="date" id="cobData">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>Observação *</label>
+        <textarea id="cobObs" rows="3" placeholder="Ex: Cliente informou que pagará na sexta-feira..."></textarea>
+      </div>
+      <input type="hidden" id="cobTel">
+      <div id="cobWhatsRow" style="display:none;margin-bottom:10px">
+        <button class="btn btn-ghost" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;color:#22c55e;border-color:rgba(34,197,94,.3)" onclick="enviarWhatsCobranca()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+          Enviar via WhatsApp
+        </button>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="salvarCobranca()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Salvar Cobrança
+      </button>
+    </div>
+  </div>
+</div>
+<style>
+  #painelCobrancasOverlay.open { opacity:1 !important; pointer-events:auto !important; }
+  #painelCobrancasOverlay.open #painelCobrancas { transform:translateX(0) !important; }
+</style>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+let abaAtual = 'pedidos';
+let clientes = [];
+
+const STATUS_ORC = { rascunho:'s-rascunho', enviado:'s-enviado', aprovado:'s-aprovado', recusado:'s-recusado' };
+const STATUS_PED = { confirmado:'s-confirmado', medicao:'s-medicao', projeto:'s-projeto', producao:'s-producao',
+  pronto:'s-pronto', entrega:'s-entrega', instalacao:'s-instalacao', concluido:'s-concluido', cancelado:'s-cancelado' };
+const LABEL_STATUS = { rascunho:'Rascunho', enviado:'Enviado', aprovado:'Aprovado', recusado:'Recusado',
+  confirmado:'Confirmado', medicao:'Em Medição', projeto:'Em Projeto', producao:'Em Produção',
+  pronto:'Pronto', entrega:'Em Entrega', instalacao:'Instalação', concluido:'Concluído', cancelado:'Cancelado' };
+
+let _leadIdParam = null;
+
+async function init() {
+  clientes = await Api.get('/clientes');
+  const sel = document.getElementById('oCliente');
+  clientes.forEach(c => sel.innerHTML += `<option value="${c.id}">${c.nome}</option>`);
+  const filtro = document.getElementById('filtroStatus');
+  filtro.innerHTML = '<option value="">Todos os status</option>';
+  const opts = { confirmado:'Confirmado', medicao:'Em Medição', producao:'Em Produção', pronto:'Pronto', concluido:'Concluído' };
+  Object.entries(opts).forEach(([v,l]) => filtro.innerHTML += `<option value="${v}">${l}</option>`);
+  carregar();
+
+  // Abre modal de orçamento pré-preenchido quando vem do CRM
+  const urlParams = new URLSearchParams(window.location.search);
+  const clienteIdParam = urlParams.get('cliente_id');
+  _leadIdParam = urlParams.get('lead_id');
+  if (clienteIdParam) {
+    abrirModalOrc();
+    document.getElementById('oCliente').value = clienteIdParam;
+    if (_leadIdParam) {
+      // Mostra badge indicando origem do lead
+      const badge = document.createElement('div');
+      badge.style.cssText = 'background:rgba(212,175,55,.12);border:1px solid rgba(212,175,55,.25);color:#D4AF37;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;margin-bottom:10px;display:flex;align-items:center;gap:6px';
+      badge.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> Gerado a partir do CRM — Lead #${_leadIdParam}`;
+      const modalBody = document.querySelector('#modalOrc .modal-body');
+      if (modalBody) modalBody.insertBefore(badge, modalBody.firstChild);
+    }
+    // Remove params da URL sem recarregar
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+}
+
+let timeout;
+function buscar() { clearTimeout(timeout); timeout = setTimeout(carregar, 400); }
+
+async function carregar() {
+  const busca  = document.getElementById('campoBusca').value;
+  const status = document.getElementById('filtroStatus').value;
+  const params = new URLSearchParams();
+  if (busca)  params.set('busca', busca);
+  if (status) params.set('status', status);
+
+  try {
+    const dados = await Api.get(`/comercial/${abaAtual}?${params}`);
+    renderTabela(dados);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function renderTabela(dados) {
+  document.getElementById('totalReg').textContent = `${dados.length} registro(s)`;
+  const _SVG_FILETXT = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>`;
+  const _SVG_PKG     = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>`;
+  const _SVG_EYE     = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+  const _SVG_FDWN    = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>`;
+  const _SVG_GIT     = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>`;
+  const _SVG_MSG     = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>`;
+  const _SVG_PKG13   = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`;
+  const _SVG_PHONE   = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><line x1="12" y1="6" x2="12" y2="8"/><line x1="12" y1="16" x2="12" y2="18"/></svg>`;
+
+  document.getElementById('tabelaTitulo').innerHTML = abaAtual === 'orcamentos'
+    ? `${_SVG_FILETXT} Orçamentos`
+    : `${_SVG_PKG} Pedidos`;
+
+  if (!dados.length) {
+    document.getElementById('tabelaWrap').innerHTML = `<div class="empty-state">${abaAtual==='orcamentos'?_SVG_FILETXT:_SVG_PKG}<h3>Nenhum registro</h3><p>Crie um novo orçamento para começar</p></div>`;
+    return;
+  }
+
+  const isOrc = abaAtual === 'orcamentos';
+  const statusMap = isOrc ? STATUS_ORC : STATUS_PED;
+
+  const rows = dados.map(r => `
+    <tr data-id="${r.id}" data-valor="${r.valor_final ?? r.valor_total ?? 0}">
+      <td><span style="font-weight:600;color:var(--primary-light)">${escapeHtml(r.numero)}</span></td>
+      <td>${escapeHtml(r.cliente_nome) || '—'}</td>
+      <td>${moeda(r.valor_final)}</td>
+      <td><span class="status-pill ${statusMap[r.status]||''}">${LABEL_STATUS[r.status]||r.status}</span></td>
+      <td>${isOrc ? formatarData(r.criado_em) : (formatarData(r.data_prevista_entrega)||'—')}</td>
+      <td>
+        <div style="display:flex;gap:5px;">
+          ${isOrc ? `
+            <button class="acao-btn" onclick="verOrc(${r.id})" title="Ver/editar">${_SVG_EYE}</button>
+            <button class="acao-btn" onclick="gerarPDF(${r.id})" title="Gerar PDF">${_SVG_FDWN}</button>
+            ${r.status !== 'aprovado' ? `<button class="acao-btn" onclick="abrirConverter(${r.id})" title="Converter em pedido">${_SVG_PKG13}</button>` : ''}
+          ` : `
+            <button class="acao-btn" onclick="editarPedido(${r.id})" title="Editar pedido"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button>
+            <button class="acao-btn" onclick="abrirStatus(${r.id},\'${r.status}\')" title="Atualizar status">${_SVG_GIT}</button>
+            <button class="acao-btn" onclick="gerarPDFPedido(${r.id})" title="Gerar PDF">${_SVG_FDWN}</button>
+            ${r.token ? `<button class="acao-btn" onclick="copiarPortal('${r.token}')" title="Copiar link do portal"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>` : ''}
+            <button class="acao-btn" onclick="abrirContratos(${r.id},'${escapeHtml(r.numero)}')" title="Anexos"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+            <button class="acao-btn" title="Cobranças" data-cob-id="${r.id}" data-cob-num="${escapeHtml(r.numero)}" data-cob-nome="${escapeHtml(r.cliente_nome||'')}" data-cob-wa="${escapeHtml(r.cliente_whatsapp||r.cliente_tel||'')}" onclick="abrirCobrancas(this.dataset.cobId,this.dataset.cobNum,this.dataset.cobNome,this.dataset.cobWa)">${_SVG_PHONE}</button>
+            ${r.cliente_whatsapp||r.cliente_tel ? `<button class="acao-btn" title="WhatsApp" data-wa="${escapeHtml(r.cliente_whatsapp||r.cliente_tel||'')}" data-num="${escapeHtml(r.numero)}" data-nome="${escapeHtml(r.cliente_nome||'')}" data-st="${escapeHtml(r.status)}" onclick="whatsappPedido(this.dataset.wa,this.dataset.num,this.dataset.nome,this.dataset.st)">${_SVG_MSG}</button>` : ''}
+            <button class="acao-btn" onclick="removerPedido(${r.id})" title="Mover para lixeira" style="color:#f87171"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
+          `}
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  document.getElementById('tabelaWrap').innerHTML = `
+    <table><thead><tr>
+      <th>Número</th><th>Cliente</th><th>Valor</th><th>Status</th>
+      <th>${isOrc ? 'Data' : 'Entrega prevista'}</th><th>Ações</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// Itens do orçamento
+let itens = [];
+function addItem(i = { ambiente:'', descricao:'', material:'', quantidade:1, valor_unitario:0 }) {
+  itens.push(i);
+  renderItens();
+}
+function removeItem(idx) { itens.splice(idx,1); renderItens(); }
+function renderItens() {
+  document.getElementById('itensList').innerHTML = itens.map((it,i) => `
+    <div class="item-linha">
+      <input placeholder="Cozinha" value="${it.ambiente||''}" oninput="itens[${i}].ambiente=this.value">
+      <input placeholder="Descrição do item" value="${it.descricao||''}" oninput="itens[${i}].descricao=this.value">
+      <input placeholder="MDF branco" value="${it.material||''}" oninput="itens[${i}].material=this.value">
+      <input type="number" min="1" value="${it.quantidade||1}" oninput="itens[${i}].quantidade=+this.value;calcTotal()">
+      <input type="number" step="0.01" value="${it.valor_unitario||0}" oninput="itens[${i}].valor_unitario=+this.value;calcTotal()">
+      <button class="btn-rm" onclick="removeItem(${i})"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+  `).join('');
+  lucide.createIcons({ nodes:[document.getElementById('itensList')] });
+  calcTotal();
+}
+function calcTotal() {
+  itens.forEach((it,i) => {
+    const linha = document.getElementById('itensList').children[i];
+    if (!linha) return;
+    it.quantidade    = +linha.children[3].value || 1;
+    it.valor_unitario= +linha.children[4].value || 0;
+  });
+  const sub = itens.reduce((s,it) => s+(it.quantidade*it.valor_unitario),0);
+  const desc= +document.getElementById('oDesconto').value||0;
+  document.getElementById('subtotal').textContent  = moeda(sub);
+  document.getElementById('totalDesc').textContent = moeda(desc);
+  document.getElementById('totalFinal').textContent= moeda(sub-desc);
+}
+
+function abrirModalOrc() {
+  itens=[];
+  ['oId','oCondicao','oObs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('oCliente').value='';
+  document.getElementById('oValidade').value='15';
+  document.getElementById('oDesconto').value='0';
+  renderItens();
+  if(!itens.length) addItem();
+  lucide.createIcons({ nodes:[document.getElementById('modalOrc')] });
+  document.getElementById('modalOrc').classList.add('open');
+}
+function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
+
+async function verOrc(id) {
+  const orc = await Api.get(`/comercial/orcamentos/${id}`);
+  itens = orc.itens || [];
+  document.getElementById('oId').value = orc.id;
+  document.getElementById('oCliente').value  = orc.cliente_id || '';
+  document.getElementById('oCondicao').value = orc.condicao_pagamento || '';
+  document.getElementById('oValidade').value = orc.validade_dias || 15;
+  document.getElementById('oDesconto').value = orc.desconto || 0;
+  document.getElementById('oObs').value      = orc.observacoes || '';
+  renderItens();
+  lucide.createIcons({ nodes:[document.getElementById('modalOrc')] });
+  document.getElementById('modalOrc').classList.add('open');
+}
+
+async function salvarOrc() {
+  const body = {
+    cliente_id: document.getElementById('oCliente').value,
+    condicao_pagamento: document.getElementById('oCondicao').value,
+    validade_dias: +document.getElementById('oValidade').value,
+    desconto: +document.getElementById('oDesconto').value,
+    observacoes: document.getElementById('oObs').value,
+    lead_id: _leadIdParam || null,
+    itens
+  };
+  if (!body.cliente_id) { toast('Selecione o cliente','warning'); return; }
+  if (!itens.length)    { toast('Adicione pelo menos 1 item','warning'); return; }
+  try {
+    const id = document.getElementById('oId').value;
+    if (id) { await Api.put(`/comercial/orcamentos/${id}`,body); toast('Orçamento atualizado!','success'); }
+    else    { await Api.post('/comercial/orcamentos',body); toast('Orçamento criado!','success'); }
+    fecharModal('modalOrc');
+    carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function abrirConverter(id) {
+  const row = document.querySelector(`[data-id="${id}"]`);
+  const valorTotal = parseFloat(row?.dataset.valor || 0);
+  document.getElementById('cOrcId').value = id;
+  document.getElementById('cValorTotal').value = valorTotal;
+  document.getElementById('cDataEntrega').value = '';
+  document.getElementById('cParcelasWrap').style.display = 'none';
+  document.getElementById('cParcelasWrap').innerHTML = '';
+  document.getElementById('cTotalParcelas').style.display = 'none';
+
+  // Popula opções 1x–60x dinamicamente
+  const sel = document.getElementById('cQtdParcelas');
+  if (sel.options.length <= 1) {
+    for (let i = 1; i <= 60; i++) {
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = `${i}x`;
+      sel.appendChild(opt);
+    }
+  }
+  sel.value = '0';
+
+  document.getElementById('modalConverter').classList.add('open');
+}
+
+function gerarParcelas() {
+  const qtd = parseInt(document.getElementById('cQtdParcelas').value);
+  const wrap = document.getElementById('cParcelasWrap');
+  const totalEl = document.getElementById('cTotalParcelas');
+  wrap.innerHTML = '';
+  if (!qtd) { wrap.style.display = 'none'; totalEl.style.display = 'none'; return; }
+
+  const valorTotal = parseFloat(document.getElementById('cValorTotal').value) || 0;
+  const valorParcela = valorTotal ? (valorTotal / qtd).toFixed(2) : '';
+  wrap.style.display = 'flex';
+  totalEl.style.display = 'block';
+
+  const hoje = new Date();
+  for (let i = 0; i < qtd; i++) {
+    const d = new Date(hoje);
+    d.setMonth(d.getMonth() + i + 1);
+    const dataStr = d.toISOString().split('T')[0];
+    wrap.innerHTML += `
+      <div style="display:grid;grid-template-columns:24px 1fr 1fr;align-items:center;gap:8px">
+        <span style="font-size:12px;font-weight:600;color:var(--text-muted)">${i+1}x</span>
+        <input type="date" class="parc-data" value="${dataStr}" style="font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text)">
+        <div style="position:relative">
+          <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text-muted)">R$</span>
+          <input type="number" class="parc-valor" value="${valorParcela}" step="0.01" oninput="atualizarTotalParcelas()"
+            style="font-size:12px;padding:6px 8px 6px 28px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);width:100%">
+        </div>
+      </div>`;
+  }
+  atualizarTotalParcelas();
+}
+
+function atualizarTotalParcelas() {
+  const valores = [...document.querySelectorAll('.parc-valor')].map(i => parseFloat(i.value) || 0);
+  const soma = valores.reduce((a, b) => a + b, 0);
+  const total = parseFloat(document.getElementById('cValorTotal').value) || 0;
+  const ok = !total || Math.abs(soma - total) < 0.02;
+  document.getElementById('cTotalParcelas').innerHTML =
+    `Total: <strong style="color:${ok ? 'var(--primary)' : '#ef4444'}">${soma.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</strong>` +
+    (total ? ` de ${total.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}` : '');
+}
+
+async function confirmarConverter() {
+  const id   = document.getElementById('cOrcId').value;
+  const data = document.getElementById('cDataEntrega').value;
+  if (!data) { toast('Informe a data de entrega','warning'); return; }
+
+  const qtd = parseInt(document.getElementById('cQtdParcelas').value);
+  const parcelas = [];
+  if (qtd > 0) {
+    const datas  = [...document.querySelectorAll('.parc-data')];
+    const valores = [...document.querySelectorAll('.parc-valor')];
+    for (let i = 0; i < qtd; i++) {
+      const v = parseFloat(valores[i]?.value);
+      const d = datas[i]?.value;
+      if (!d || !v || v <= 0) { toast(`Preencha data e valor da parcela ${i+1}`, 'warning'); return; }
+      parcelas.push({ data_vencimento: d, valor: v });
+    }
+  }
+
+  try {
+    const r = await Api.post(`/comercial/orcamentos/${id}/converter-pedido`, { data_prevista_entrega: data, parcelas });
+    toast(`Pedido ${r.numero} criado!`, 'success');
+    fecharModal('modalConverter');
+    carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function abrirStatus(id, statusAtual) {
+  document.getElementById('sPedidoId').value = id;
+  document.getElementById('sNovoStatus').value = statusAtual;
+  document.getElementById('modalStatus').classList.add('open');
+}
+async function confirmarStatus() {
+  const id = document.getElementById('sPedidoId').value;
+  const status = document.getElementById('sNovoStatus').value;
+  try {
+    const r = await Api.put(`/comercial/pedidos/${id}/status`, { status });
+    toast('Status atualizado!', 'success');
+    fecharModal('modalStatus');
+    carregar();
+    try { new BroadcastChannel('gm_kanban').postMessage({ tipo: 'status_atualizado', id, status }); } catch {};
+
+    // Oferecer WhatsApp automático
+    if (r.whatsappLink) {
+      setTimeout(() => {
+        if (confirm('Notificar o cliente via WhatsApp sobre a atualização de status?')) {
+          window.open(r.whatsappLink, '_blank');
+        }
+      }, 300);
+    }
+  } catch(e) { toast(e.message,'error'); }
+}
+
+// ── PDF Premium — Design Luxury ──
+const PDF = {
+  OURO:  [196, 162, 74],
+  TEXTO: [20, 20, 20],
+  MUTED: [118, 112, 104],
+  LINHA: [228, 223, 214],
+  BG:    [245, 244, 241],
+  PL: 62,   // largura do painel escuro esquerdo
+  X:  68,   // início do conteúdo
+  W:  134,  // largura do conteúdo
+
+  async _loadImage(url) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) return null;
+      const blob = await r.blob();
+      return await new Promise(res => {
+        const fr = new FileReader();
+        fr.onloadend = () => res(fr.result);
+        fr.onerror   = () => res(null);
+        fr.readAsDataURL(blob);
+      });
+    } catch { return null; }
+  },
+
+  async logoBase64(p) {
+    if (!p) return null;
+    return this._loadImage(`http://localhost:3000/${p}`);
+  },
+
+  async bgBase64() {
+    const raw = await this._loadImage('http://localhost:3000/uploads/bg_pdf.png');
+    if (!raw) return null;
+    // Recorta a imagem para a proporção exata do painel (62×297mm) via Canvas
+    return await new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const tW = 248, tH = 1188; // 62×297mm a 4px/mm
+        const canvas = document.createElement('canvas');
+        canvas.width = tW; canvas.height = tH;
+        const ctx = canvas.getContext('2d');
+        const srcAR = img.naturalWidth / img.naturalHeight;
+        const dstAR = tW / tH;
+        let sx, sy, sw, sh;
+        if (srcAR > dstAR) {
+          sh = img.naturalHeight; sw = sh * dstAR;
+          sx = (img.naturalWidth - sw) / 2; sy = 0;
+        } else {
+          sw = img.naturalWidth; sh = sw / dstAR;
+          sx = 0; sy = (img.naturalHeight - sh) / 2;
+        }
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, tW, tH);
+        resolve(canvas.toDataURL('image/jpeg', 0.88));
+      };
+      img.onerror = () => resolve(null);
+      img.src = raw;
+    });
+  },
+
+  // ── Painel escuro esquerdo ──
+  _painelEsq(doc, logoB64, bgB64) {
+    const { PL } = this;
+    // Imagem de fundo já cortada na proporção correta (62×297mm)
+    if (bgB64) {
+      try { doc.addImage(bgB64, 'JPEG', 0, 0, PL, 297, '', 'FAST'); } catch {}
+    }
+    // Overlay escuro semi-transparente sobre a imagem
+    try { doc.setGState(new doc.GState({ opacity: 0.68 })); } catch {}
+    doc.setFillColor(15, 10, 5);
+    doc.rect(0, 0, PL, 297, 'F');
+    try { doc.setGState(new doc.GState({ opacity: 1 })); } catch {}
+    // Linha dourada na borda direita do painel
+    doc.setFillColor(...this.OURO);
+    doc.rect(PL - 1, 0, 1, 297, 'F');
+  },
+
+  // ── Cabeçalho direito ──
+  _header(doc, cfg) {
+    const { X, W } = this;
+    const R = X + W;
+    const gmW = 18; // largura estimada do "GM"
+
+    // "GM" serif
+    doc.setFont('times', 'bold');
+    doc.setFontSize(27);
+    doc.setTextColor(...this.TEXTO);
+    doc.text('GM', X, 31);
+
+    // Separador vertical
+    doc.setDrawColor(208, 203, 195);
+    doc.setLineWidth(0.4);
+    doc.line(X + gmW + 5, 19, X + gmW + 5, 38);
+
+    // Nome empresa
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(...this.TEXTO);
+    doc.text(cfg.nome_empresa || 'GM MÓBILE', X + gmW + 10, 27.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...this.MUTED);
+    doc.text('MÓVEIS PLANEJADOS', X + gmW + 10, 34.5);
+
+    // Info direita (CNPJ, email)
+    let ry = 23;
+    if (cfg.cnpj) {
+      this._iconePessoa(doc, R - 68, ry - 1.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...this.MUTED);
+      doc.text(`CNPJ: ${cfg.cnpj}`, R - 63, ry);
+      ry += 9;
+    }
+    if (cfg.email) {
+      this._iconeEmail(doc, R - 68, ry - 1.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...this.MUTED);
+      doc.text(cfg.email, R - 63, ry);
+      ry += 7;
+    }
+    // Linha ouro decorativa (direita)
+    doc.setFillColor(...this.OURO);
+    doc.rect(R - 22, ry + 3, 17, 0.6, 'F');
+
+    // Linha separadora horizontal
+    doc.setDrawColor(...this.LINHA);
+    doc.setLineWidth(0.3);
+    doc.line(X, 45, R, 45);
+  },
+
+  _iconePessoa(doc, x, y) {
+    doc.setFillColor(...this.OURO);
+    doc.circle(x + 1.5, y + 1.5, 1.5, 'F');
+  },
+
+  _iconeEmail(doc, x, y) {
+    doc.setFillColor(...this.OURO);
+    doc.circle(x + 1.5, y + 1.5, 1.5, 'F');
+  },
+
+  // ── Título do documento ──
+  _titulo(doc, tipo, numero) {
+    const { X, W } = this;
+    const R = X + W;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(...this.TEXTO);
+    doc.text(tipo, X, 64);
+    // Linha ouro sob título
+    doc.setFillColor(...this.OURO);
+    doc.rect(X, 67.5, 22, 1.5, 'F');
+    // Nº + data
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...this.MUTED);
+    doc.text('Nº ', X, 77);
+    const nw = doc.getTextWidth('Nº ');
+    doc.setTextColor(...this.OURO);
+    doc.setFont('helvetica', 'bold');
+    doc.text(numero, X + nw, 77);
+    const numW = doc.getTextWidth(numero);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...this.MUTED);
+    doc.text(`   |   Emitido em ${new Date().toLocaleDateString('pt-BR')}`, X + nw + numW, 77);
+    // Linha separadora
+    doc.setDrawColor(...this.LINHA);
+    doc.setLineWidth(0.3);
+    doc.line(X, 83, R, 83);
+  },
+
+  _secLabel(doc, label, x, y) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...this.TEXTO);
+    doc.text(label, x, y);
+    doc.setFillColor(...this.OURO);
+    doc.rect(x, y + 2.5, 12, 0.7, 'F');
+  },
+
+  // ── Seção de info: cliente (esq) + detalhes (dir) ──
+  _infoSection(doc, nomeCliente, extras, labelDir, camposDir) {
+    const { X, W } = this;
+    const R = X + W;
+    const infoY = 92;
+    const divX  = X + 65; // divisor vertical
+
+    // -- Coluna esquerda: CLIENTE --
+    this._secLabel(doc, 'CLIENTE', X, infoY);
+
+    // fonte deve ser definida ANTES de splitTextToSize para medir corretamente
+    doc.setFont('times', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(...this.TEXTO);
+    const nomeLinhas = doc.splitTextToSize(nomeCliente, divX - X - 6);
+    let cy = infoY + 14;
+    nomeLinhas.forEach(l => { doc.text(l, X, cy); cy += 8; });
+
+    extras.forEach(l => {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...this.MUTED);
+      cy += 2;
+      doc.text(l, X, cy);
+      cy += 6;
+    });
+
+    // -- Divisor vertical --
+    const divH = Math.max(cy - infoY + 10, 65);
+    doc.setDrawColor(...this.LINHA);
+    doc.setLineWidth(0.3);
+    doc.line(divX, infoY - 5, divX, infoY + divH);
+
+    // -- Coluna direita: labelDir --
+    const rx = divX + 8;
+    this._secLabel(doc, labelDir, rx, infoY);
+    let dy = infoY + 13;
+    camposDir.forEach(({ label: lbl, valor }, i) => {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...this.MUTED);
+      doc.text(lbl, rx, dy);
+      dy += 5.5;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(...this.TEXTO);
+      doc.text(valor, rx, dy);
+      dy += 5;
+      if (i < camposDir.length - 1) {
+        doc.setDrawColor(...this.LINHA);
+        doc.setLineWidth(0.25);
+        doc.line(rx, dy + 2.5, R - 2, dy + 2.5);
+        dy += 8;
+      }
+    });
+
+    return infoY + divH + 6;
+  },
+
+  // ── Tabela de itens (quando existem) ──
+  _tabela(doc, itens, startY) {
+    if (!itens.length) return startY;
+    const { X, W } = this;
+    doc.autoTable({
+      startY,
+      head: [['Ambiente', 'Descrição', 'Material', 'Qtd', 'Unit.', 'Total']],
+      body: itens.map(it => [
+        it.ambiente || '—', it.descricao || '—', it.material || '—',
+        it.quantidade || 1, moeda(it.valor_unitario), moeda((it.quantidade||1)*it.valor_unitario),
+      ]),
+      headStyles: { fillColor: [26, 20, 12], textColor: this.OURO, fontStyle:'bold', fontSize:8 },
+      bodyStyles: { fontSize:8.5, textColor: this.TEXTO },
+      alternateRowStyles: { fillColor: [248, 247, 244] },
+      columnStyles: {
+        0:{cellWidth:20}, 1:{cellWidth:40}, 2:{cellWidth:22},
+        3:{cellWidth:10,halign:'center'}, 4:{cellWidth:22,halign:'right'}, 5:{cellWidth:20,halign:'right'},
+      },
+      margin: { left: X, right: 210 - (X + W) },
+      tableLineColor: this.LINHA,
+      tableLineWidth: 0.15,
+    });
+    return doc.lastAutoTable.finalY + 6;
+  },
+
+  // ── Caixa de valor total ──
+  _valorTotal(doc, total, sub, desc, y) {
+    const { X, W } = this;
+    const R = X + W;
+    const temDesc = desc > 0;
+    const fmt = v => `R$ ${(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+    const boxH = 40;
+
+    doc.setFillColor(...this.BG);
+    doc.rect(X, y, W, boxH, 'F');
+
+    // Label ouro
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...this.OURO);
+    doc.text('VALOR TOTAL DO PROJETO', X + 8, y + 11);
+    doc.setFillColor(...this.OURO);
+    doc.rect(X + 8, y + 13.5, 10, 0.7, 'F');
+
+    // Valor em serif grande
+    doc.setFont('times', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(...this.TEXTO);
+    doc.text(fmt(total), X + 8, y + 31);
+
+    // Subtotal + desconto (se houver)
+    if (temDesc) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...this.MUTED);
+      doc.text(`Subtotal: ${fmt(sub)}`, R - 4, y + 20, { align:'right' });
+      doc.setTextColor(175, 55, 55);
+      doc.text(`Desconto: - ${fmt(desc)}`, R - 4, y + 29, { align:'right' });
+    }
+
+    return y + boxH;
+  },
+
+  // ── Observações ──
+  _obs(doc, texto, y) {
+    const { X } = this;
+    if (!texto) return y;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...this.MUTED);
+    doc.text('OBSERVAÇÕES', X, y + 10);
+    doc.setFillColor(...this.OURO);
+    doc.rect(X, y + 12.5, 12, 0.7, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...this.MUTED);
+    const linhas = doc.splitTextToSize(texto, this.W - 4);
+    doc.text(linhas, X, y + 19);
+    return y + 19 + linhas.length * 5.5;
+  },
+
+  // ── Assinaturas ──
+  _assinaturas(doc, y) {
+    const { X, W } = this;
+    const R   = X + W;
+    const mid = X + W / 2;
+    doc.setDrawColor(...this.LINHA);
+    doc.setLineWidth(0.3);
+    doc.line(mid, y - 14, mid, y + 7);
+    doc.line(X, y, mid - 8, y);
+    doc.line(mid + 8, y, R, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...this.MUTED);
+    doc.text('Assinatura do Cliente',   X + (mid - X - 8) / 2,    y + 5, { align:'center' });
+    doc.text('Responsável — GM MÓBILE', mid + 8 + (R - mid - 8) / 2, y + 5, { align:'center' });
+  },
+
+  // ── Rodapé ──
+  _rodape(doc, cfg) {
+    const { X, W } = this;
+    const emp    = cfg.nome_empresa || 'GM MÓBILE';
+    const cidade = [cfg.cidade, cfg.estado].filter(Boolean).join(', ');
+    // Linha ouro
+    doc.setFillColor(...this.OURO);
+    doc.rect(X, 271, W, 0.5, 'F');
+    // Ícone de pin
+    doc.setFillColor(...this.OURO);
+    doc.circle(X + 3, 279.5, 2.2, 'F');
+    doc.setFillColor(255, 255, 255);
+    doc.circle(X + 3, 279.8, 0.9, 'F');
+    // Texto
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...this.TEXTO);
+    const empLabel = `  ${emp}`;
+    doc.text(empLabel, X + 8, 280);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...this.MUTED);
+    const partes = [cidade, `Emitido em ${new Date().toLocaleString('pt-BR')}`].filter(Boolean).join('   |   ');
+    doc.text(`   |   ${partes}`, X + 8 + doc.getTextWidth(empLabel), 280);
+  },
+};
+
+// ── PDF do Orçamento ──
+async function gerarPDF(id) {
+  try {
+    const [orc, cfg] = await Promise.all([
+      Api.get(`/comercial/orcamentos/${id}`),
+      Api.get('/admin/configuracoes-loja').catch(() => ({})),
+    ]);
+    const [logoB64, bgB64] = await Promise.all([PDF.logoBase64(cfg.logo_path), PDF.bgBase64()]);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    PDF._painelEsq(doc, logoB64, bgB64);
+    PDF._header(doc, cfg);
+    PDF._titulo(doc, 'ORÇAMENTO', orc.numero);
+
+    const nomeCliente = orc.cliente_nome || '—';
+    const extras = [];
+    if (orc.cliente_telefone) extras.push(`Tel: ${orc.cliente_telefone}`);
+
+    const camposCond = [
+      { label: 'Status', valor: orc.status?.toUpperCase() || '—' },
+      { label: 'Validade', valor: `${orc.validade_dias || 15} dias` },
+    ];
+    if (orc.condicao_pagamento) camposCond.push({ label: 'Pagamento', valor: orc.condicao_pagamento });
+
+    let nextY = PDF._infoSection(doc, nomeCliente, extras, 'CONDIÇÕES', camposCond);
+
+    const itens = orc.itens || [];
+    nextY = PDF._tabela(doc, itens, nextY);
+
+    const sub  = itens.reduce((s, it) => s + ((it.quantidade||1) * it.valor_unitario), 0);
+    const desc = orc.desconto || 0;
+    nextY = PDF._valorTotal(doc, sub - desc, sub, desc, nextY + 4);
+
+    nextY = PDF._obs(doc, orc.observacoes, nextY + 4);
+    PDF._assinaturas(doc, Math.min(nextY + 20, 258));
+    PDF._rodape(doc, cfg);
+
+    doc.save(`orcamento_${orc.numero}.pdf`);
+    toast('PDF gerado com sucesso!', 'success');
+  } catch(e) { toast(e.message || 'Erro ao gerar PDF', 'error'); }
+}
+
+// ── PDF do Pedido ──
+async function gerarPDFPedido(id) {
+  try {
+    const [ped, cfg] = await Promise.all([
+      Api.get(`/comercial/pedidos/${id}`),
+      Api.get('/admin/configuracoes-loja').catch(() => ({})),
+    ]);
+    const [logoB64, bgB64] = await Promise.all([PDF.logoBase64(cfg.logo_path), PDF.bgBase64()]);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    PDF._painelEsq(doc, logoB64, bgB64);
+    PDF._header(doc, cfg);
+    PDF._titulo(doc, 'PEDIDO DE VENDA', ped.numero);
+
+    const nomeCliente = ped.cliente_nome || '—';
+    const extras = [];
+    if (ped.cliente_telefone) extras.push(`Tel: ${ped.cliente_telefone}`);
+
+    const dataEnt = ped.data_prevista_entrega
+      ? new Date(ped.data_prevista_entrega + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
+    const camposPed = [
+      { label: 'Status',           valor: ped.status?.toUpperCase() || '—' },
+      { label: 'Entrega prevista', valor: dataEnt },
+    ];
+    if (ped.condicao_pagamento) camposPed.push({ label: 'Pagamento', valor: ped.condicao_pagamento });
+
+    let nextY = PDF._infoSection(doc, nomeCliente, extras, 'DETALHES DO PEDIDO', camposPed);
+
+    const itens = ped.itens || [];
+    nextY = PDF._tabela(doc, itens, nextY);
+
+    const sub  = itens.reduce((s, it) => s + ((it.quantidade||1) * it.valor_unitario), 0);
+    const desc = Math.max(0, (ped.valor_total || sub) - (ped.valor_final || sub));
+    nextY = PDF._valorTotal(doc, ped.valor_final ?? sub, sub, desc, nextY + 4);
+
+    nextY = PDF._obs(doc, ped.observacoes, nextY + 4);
+    PDF._assinaturas(doc, Math.min(nextY + 20, 258));
+    PDF._rodape(doc, cfg);
+
+    doc.save(`pedido_${ped.numero}.pdf`);
+    toast('PDF gerado!', 'success');
+  } catch(e) { toast(e.message || 'Erro ao gerar PDF', 'error'); }
+}
+
+// ── Portal do Cliente ──
+function copiarPortal(token) {
+  const url = `${location.origin}/pages/portal-cliente.html?token=${token}`;
+  navigator.clipboard.writeText(url).then(() => {
+    toast('Link do portal copiado! Envie ao cliente.', 'success');
+  }).catch(() => {
+    prompt('Copie o link abaixo:', url);
+  });
+}
+
+// ── WhatsApp Pedido ──
+function whatsappPedido(tel, numero, cliente, status) {
+  const telefone = tel.replace(/\D/g, '');
+  const msg = encodeURIComponent(`Olá ${cliente}! Informamos que seu pedido *${numero}* está com status atualizado para: *${status.toUpperCase()}*.\n\nQualquer dúvida, estamos à disposição!`);
+  window.open(`https://wa.me/55${telefone}?text=${msg}`, '_blank');
+}
+
+document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', function(e){ if(e.target===this) this.classList.remove('open'); }));
+init();
+
+// ── Painel de Cobranças ──
+let _cobPedidoId = null;
+
+async function abrirCobrancas(pedidoId, numero, clienteNome, tel) {
+  _cobPedidoId = pedidoId;
+  document.getElementById('cobPedidoInfo').textContent = `${numero} — ${clienteNome}`;
+  document.getElementById('cobData').value = new Date().toISOString().split('T')[0];
+  document.getElementById('cobObs').value = '';
+  await carregarCobrancas();
+
+  // Pré-preenche mensagem padrão se tiver telefone
+  if (tel) {
+    document.getElementById('cobTel').value = tel;
+    document.getElementById('cobWhatsRow').style.display = '';
+  } else {
+    document.getElementById('cobTel').value = '';
+    document.getElementById('cobWhatsRow').style.display = 'none';
+  }
+
+  document.getElementById('painelCobrancasOverlay').classList.add('open');
+}
+
+async function carregarCobrancas() {
+  try {
+    const lista = await Api.get(`/cobrancas?pedido_id=${_cobPedidoId}`);
+    const el = document.getElementById('cobLista');
+    if (!lista.length) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim);font-size:13px">Nenhuma cobrança registrada ainda</div>';
+      return;
+    }
+    el.innerHTML = lista.map(c => `
+      <div style="background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;position:relative">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:11px;font-weight:700;color:var(--primary-light)">${new Date(c.data_cobranca + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+          <span style="font-size:11px;color:var(--text-muted)">${c.usuario_nome || 'Sistema'}</span>
+        </div>
+        <div style="font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap">${c.observacao}</div>
+      </div>
+    `).join('');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function salvarCobranca() {
+  const obs = document.getElementById('cobObs').value.trim();
+  const data = document.getElementById('cobData').value;
+  if (!obs) { toast('Informe a observação da cobrança','warning'); return; }
+  try {
+    await Api.post('/cobrancas', { pedido_id: _cobPedidoId, observacao: obs, data_cobranca: data });
+    toast('Cobrança registrada!','success');
+    document.getElementById('cobObs').value = '';
+    await carregarCobrancas();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function enviarWhatsCobranca() {
+  const tel = document.getElementById('cobTel').value.replace(/\D/g,'');
+  const info = document.getElementById('cobPedidoInfo').textContent;
+  const obs  = document.getElementById('cobObs').value.trim() || 'Cobrança referente ao seu pedido.';
+  const msg  = encodeURIComponent(`Olá! Passando para informar sobre o pedido *${info}*.\n\n${obs}\n\nAguardamos o contato. Obrigado!`);
+  window.open(`https://wa.me/55${tel}?text=${msg}`, '_blank');
+}
+
+function fecharCobrancas() {
+  document.getElementById('painelCobrancasOverlay').classList.remove('open');
+  _cobPedidoId = null;
+}
+document.getElementById('painelCobrancasOverlay').addEventListener('click', function(e){ if(e.target===this) fecharCobrancas(); });
+
+// ── Editar Pedido ──
+let _itensPed = [];
+
+async function editarPedido(id) {
+  try {
+    const p = await Api.get(`/comercial/pedidos/${id}`);
+    document.getElementById('ePedId').value       = p.id;
+    document.getElementById('ePedNumero').textContent = p.numero;
+    document.getElementById('ePedEntrega').value  = p.data_prevista_entrega || '';
+    document.getElementById('ePedCondicao').value = p.condicao_pagamento || '';
+    document.getElementById('ePedValor').value    = p.valor_total || 0;
+    document.getElementById('ePedDesconto').value = p.desconto || 0;
+    document.getElementById('ePedGarantia').value = p.prazo_garantia_meses || 12;
+    document.getElementById('ePedObs').value      = p.observacoes || '';
+    calcEditPedido();
+    _itensPed = (p.itens || []).map(i => ({ ...i }));
+    renderItensPed();
+    document.getElementById('modalEditPedido').classList.add('open');
+  } catch(e) { toast('Erro ao carregar pedido', 'error'); }
+}
+
+function calcEditPedido() {
+  const v = parseFloat(document.getElementById('ePedValor').value) || 0;
+  const d = parseFloat(document.getElementById('ePedDesconto').value) || 0;
+  document.getElementById('ePedFinal').value = moeda(v - d);
+}
+
+function addItemPed(item = { ambiente:'', descricao:'', material:'', quantidade:1, valor_unitario:0 }) {
+  _itensPed.push(item);
+  renderItensPed();
+}
+
+function removeItemPed(idx) { _itensPed.splice(idx, 1); renderItensPed(); }
+
+function renderItensPed() {
+  document.getElementById('ePedItens').innerHTML = _itensPed.map((it, i) => `
+    <div style="display:grid;grid-template-columns:1fr 2fr 1fr 60px 90px 30px;gap:5px;align-items:center">
+      <input placeholder="Ambiente" value="${escapeHtml(it.ambiente||'')}" oninput="_itensPed[${i}].ambiente=this.value" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card2);color:var(--text)">
+      <input placeholder="Descrição" value="${escapeHtml(it.descricao||'')}" oninput="_itensPed[${i}].descricao=this.value" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card2);color:var(--text)">
+      <input placeholder="Material" value="${escapeHtml(it.material||'')}" oninput="_itensPed[${i}].material=this.value" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card2);color:var(--text)">
+      <input type="number" min="1" value="${it.quantidade||1}" oninput="_itensPed[${i}].quantidade=+this.value" style="font-size:12px;padding:5px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card2);color:var(--text)">
+      <input type="number" step="0.01" value="${it.valor_unitario||0}" oninput="_itensPed[${i}].valor_unitario=+this.value" style="font-size:12px;padding:5px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card2);color:var(--text)">
+      <button onclick="removeItemPed(${i})" style="background:none;border:none;cursor:pointer;color:#ef4444;padding:4px;line-height:1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+  `).join('') || '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:8px">Nenhum item — clique em "+ Item" para adicionar</div>';
+}
+
+async function salvarPedido() {
+  const id = document.getElementById('ePedId').value;
+  const body = {
+    data_prevista_entrega: document.getElementById('ePedEntrega').value || null,
+    condicao_pagamento:    document.getElementById('ePedCondicao').value,
+    valor_total:           parseFloat(document.getElementById('ePedValor').value) || 0,
+    desconto:              parseFloat(document.getElementById('ePedDesconto').value) || 0,
+    prazo_garantia_meses:  parseInt(document.getElementById('ePedGarantia').value) || 12,
+    observacoes:           document.getElementById('ePedObs').value,
+    itens:                 _itensPed,
+  };
+  try {
+    await Api.put(`/comercial/pedidos/${id}`, body);
+    toast('Pedido atualizado!', 'success');
+    fecharModal('modalEditPedido');
+    carregar();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Contratos ──
+async function abrirContratos(pedidoId, numero) {
+  document.getElementById('ctrPedidoId').value = pedidoId;
+  document.getElementById('ctrNumero').textContent = numero;
+  document.getElementById('ctrUploadStatus').style.display = 'none';
+  document.getElementById('modalContratos').classList.add('open');
+  await carregarContratos();
+
+  // Drag & drop
+  const dz = document.getElementById('ctrDropzone');
+  dz.ondragover = e => { e.preventDefault(); dz.style.borderColor = 'var(--primary)'; };
+  dz.ondragleave = () => { dz.style.borderColor = ''; };
+  dz.ondrop = e => {
+    e.preventDefault(); dz.style.borderColor = '';
+    const file = e.dataTransfer.files[0];
+    if (file) { document.getElementById('ctrArquivo').files = e.dataTransfer.files; uploadContrato(); }
+  };
+}
+
+async function carregarContratos() {
+  const id = document.getElementById('ctrPedidoId').value;
+  const lista = document.getElementById('ctrLista');
+  lista.innerHTML = '<div style="color:var(--text-muted);font-size:12px">Carregando...</div>';
+  try {
+    const rows = await Api.get(`/contratos/${id}`);
+    if (!rows.length) { lista.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:12px">Nenhum arquivo anexado ainda.</div>'; return; }
+    const SVG_PDF  = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 12h1v4h1"/><path d="M14 12h-1v4"/><path d="M8 12v4"/></svg>`;
+    const SVG_IMG  = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
+    const SVG_DOC  = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>`;
+    const SVG_DL   = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+    const SVG_DEL  = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+    lista.innerHTML = rows.map(c => {
+      const ext = c.nome_arquivo.split('.').pop().toLowerCase();
+      const icone = ext === 'pdf' ? SVG_PDF : ['jpg','jpeg','png'].includes(ext) ? SVG_IMG : SVG_DOC;
+      const kb = c.tamanho ? `${(c.tamanho/1024).toFixed(0)} KB` : '';
+      const data = c.criado_em ? new Date(c.criado_em).toLocaleDateString('pt-BR') : '';
+      const autor = c.enviado_por ? `por ${c.enviado_por}` : '';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-card2,rgba(255,255,255,.04));border-radius:8px;border:1px solid var(--border)">
+        <span style="flex-shrink:0;display:flex">${icone}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nome_arquivo}</div>
+          <div style="font-size:11px;color:var(--text-muted)">${[kb, data, autor].filter(Boolean).join(' · ')}</div>
+        </div>
+        <a href="/${c.caminho}" target="_blank" class="btn btn-ghost" style="padding:5px 8px;flex-shrink:0" title="Baixar/Visualizar">${SVG_DL}</a>
+        <button onclick="deletarContrato(${c.id})" class="btn btn-ghost" style="padding:5px 8px;color:#ef4444;flex-shrink:0" title="Remover">${SVG_DEL}</button>
+      </div>`;
+    }).join('');
+  } catch(e) { lista.innerHTML = '<div style="color:#ef4444;font-size:12px">Erro ao carregar arquivos.</div>'; }
+}
+
+async function uploadContrato() {
+  const input = document.getElementById('ctrArquivo');
+  const file = input.files[0];
+  if (!file) return;
+  const id = document.getElementById('ctrPedidoId').value;
+  const status = document.getElementById('ctrUploadStatus');
+
+  status.style.display = 'block';
+  status.style.color = 'var(--text-muted)';
+  status.textContent = `Enviando ${file.name}…`;
+
+  const form = new FormData();
+  form.append('arquivo', file);
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/contratos/${id}`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.erro || 'Erro no upload'); }
+    status.style.color = '#22c55e';
+    status.textContent = `${file.name} anexado com sucesso!`;
+    input.value = '';
+    await carregarContratos();
+    setTimeout(() => { status.style.display = 'none'; }, 3000);
+  } catch(e) {
+    status.style.color = '#ef4444';
+    status.textContent = e.message;
+  }
+}
+
+async function removerPedido(id) {
+  if (!confirm('Mover este pedido para a lixeira? O orçamento vinculado também será movido.')) return;
+  try {
+    await Api.delete(`/comercial/pedidos/${id}`);
+    toast('Pedido movido para a lixeira — 15 dias para restaurar','success');
+    carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function deletarContrato(id) {
+  if (!confirm('Remover este arquivo?')) return;
+  try {
+    await Api.delete(`/contratos/${id}`);
+    await carregarContratos();
+  } catch(e) { toast('Erro ao remover arquivo', 'error'); }
+}
+</script>
+</body>
+</html>

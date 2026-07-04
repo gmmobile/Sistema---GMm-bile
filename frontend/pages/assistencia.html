@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assistência Técnica — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .filtros-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
+    .filtro-pill { padding:6px 14px; border-radius:99px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:transparent; color:var(--text-muted); transition:.15s; }
+    .filtro-pill.ativo { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .filtro-pill:hover:not(.ativo) { background:var(--bg-card2); color:var(--text); }
+    .busca-wrap { flex:1; min-width:200px; position:relative; }
+    .busca-wrap svg { position:absolute; left:10px; top:50%; transform:translateY(-50%); width:14px; height:14px; color:var(--text-dim); pointer-events:none; }
+    .busca-wrap input { padding-left:34px; }
+
+    .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+    .stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:16px 18px; display:flex; align-items:center; gap:14px; }
+    .stat-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .stat-icon svg { width:18px; height:18px; }
+    .stat-label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; }
+    .stat-val { font-size:24px; font-weight:800; color:var(--text); line-height:1.1; margin-top:2px; }
+
+    .tabela-wrap { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    .tabela-wrap table { width:100%; border-collapse:collapse; }
+    .tabela-wrap thead th { padding:11px 16px; text-align:left; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); background:var(--bg-card2); border-bottom:1px solid var(--border); white-space:nowrap; }
+    .tabela-wrap tbody tr { border-bottom:1px solid rgba(51,65,85,.5); transition:.12s; }
+    .tabela-wrap tbody tr:last-child { border-bottom:none; }
+    .tabela-wrap tbody tr:hover { background:rgba(255,255,255,.03); }
+    .tabela-wrap td { padding:12px 16px; font-size:13px; color:var(--text); vertical-align:middle; }
+
+    .s-pill { font-size:11px; font-weight:600; padding:3px 10px; border-radius:99px; white-space:nowrap; display:inline-block; }
+    .s-aberto      { background:rgba(59,130,246,.15);  color:#60a5fa; }
+    .s-agendado    { background:rgba(245,158,11,.15);  color:#fbbf24; }
+    .s-em_atendimento { background:rgba(139,92,246,.15); color:#a78bfa; }
+    .s-concluido   { background:rgba(34,197,94,.25);   color:#22c55e; }
+    .s-cancelado   { background:rgba(239,68,68,.15);   color:#f87171; }
+
+    .u-pill { font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px; text-transform:uppercase; letter-spacing:.5px; display:inline-block; }
+    .u-baixo   { background:rgba(100,116,139,.15); color:#94a3b8; }
+    .u-medio   { background:rgba(59,130,246,.15);  color:#60a5fa; }
+    .u-alto    { background:rgba(245,158,11,.15);  color:#fbbf24; }
+    .u-critico { background:rgba(239,68,68,.15);   color:#f87171; }
+
+    .acoes { display:flex; gap:5px; }
+    .acao-btn { width:28px; height:28px; border:1px solid var(--border); border-radius:6px; background:transparent; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-muted); transition:.15s; }
+    .acao-btn:hover { background:var(--bg-card2); color:var(--text); }
+    .acao-btn svg { width:13px; height:13px; }
+
+    .empty-state { text-align:center; padding:60px 20px; color:var(--text-dim); }
+    .empty-state svg { margin-bottom:12px; opacity:.4; }
+    .empty-state h3 { font-size:15px; color:var(--text-muted); margin-bottom:6px; }
+    .empty-state p { font-size:13px; }
+
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .modal-section { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-dim); margin:16px 0 8px; border-top:1px solid var(--border); padding-top:14px; }
+
+    .detail-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:200; opacity:0; pointer-events:none; transition:.2s; }
+    .detail-overlay.open { opacity:1; pointer-events:auto; }
+    .detail-panel { position:fixed; top:0; right:0; bottom:0; width:480px; background:var(--bg-card); border-left:1px solid var(--border); z-index:201; transform:translateX(100%); transition:.25s cubic-bezier(.34,1.56,.64,1); overflow-y:auto; display:flex; flex-direction:column; }
+    .detail-overlay.open .detail-panel { transform:translateX(0); }
+    .detail-header { padding:20px 24px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:var(--bg-card); flex-shrink:0; }
+    .detail-header h2 { font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px; }
+    .detail-header h2 svg { width:18px; height:18px; color:var(--primary-light); }
+    .detail-body { padding:20px 24px; flex:1; overflow-y:auto; }
+    .detail-row { display:flex; flex-direction:column; gap:3px; margin-bottom:16px; }
+    .detail-row label { font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px; }
+    .detail-row span { font-size:14px; color:var(--text); }
+    .detail-2col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .detail-desc { background:var(--bg-card2); border:1px solid var(--border); border-radius:8px; padding:12px 14px; font-size:13px; color:var(--text); line-height:1.6; white-space:pre-wrap; }
+    .detail-actions { display:flex; gap:8px; flex-wrap:wrap; padding:16px 24px; border-top:1px solid var(--border); background:var(--bg-card); flex-shrink:0; }
+    .status-select { background:var(--bg-card2); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:13px; color:var(--text); width:100%; cursor:pointer; }
+    @media (max-width:900px) {
+      .stats-row   { grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom:12px; }
+      .stat-card   { padding: 10px 12px; gap: 10px; border-radius:10px; }
+      .stat-icon   { width: 30px; height: 30px; border-radius: 8px; flex-shrink:0; }
+      .stat-icon svg { width:14px; height:14px; }
+      .stat-val    { font-size: 16px !important; }
+      .stat-label  { font-size: 10px; }
+      .detail-panel { width: min(480px, 95vw) !important; }
+      .detail-2col  { grid-template-columns: 1fr; }
+      /* Cards: Número+Status(5) linha1, Cliente linha2 */
+      .tabela-wrap table { min-width: 0; }
+      .tabela-wrap thead { display: none; }
+      .tabela-wrap tbody tr {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-rows: auto auto;
+        padding: 8px 10px;
+        gap: 2px 8px;
+        border-bottom: 1px solid rgba(51,65,85,.5);
+      }
+      .tabela-wrap tbody tr:last-child { border-bottom: none; }
+      .tabela-wrap td { padding: 0; border: none; }
+      .tabela-wrap td:nth-child(1) { grid-row:1; grid-column:1; font-size:11px; font-weight:700; color:var(--primary); }
+      .tabela-wrap td:nth-child(2) { grid-row:2; grid-column:1 / -1; font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .tabela-wrap td:nth-child(3) { display:none; }
+      .tabela-wrap td:nth-child(4) { display:none; }
+      .tabela-wrap td:nth-child(5) { grid-row:1; grid-column:2; font-size:11px; text-align:right; }
+      .tabela-wrap td:nth-child(6) { display:none; }
+      .tabela-wrap td:nth-child(7) { display:none; }
+      .tabela-wrap td:nth-child(8) { display:none; }
+      .filtros-bar  { gap: 6px; }
+      .busca-wrap   { min-width: 0; width: 100%; }
+      .form-row     { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()"><i data-lucide="panel-left-close"></i></button>
+        <div class="topbar-breadcrumb"><a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a> &nbsp;/&nbsp;<strong>Assistência Técnica</strong></div>
+      </div>
+      <div class="topbar-right"><div class="topbar-btn"><i data-lucide="bell"></i></div></div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title">
+          <h1>Assistência Técnica</h1>
+          <p>Chamados de pós-venda e manutenção</p>
+        </div>
+        <button class="btn btn-primary" onclick="abrirModalNovo()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Novo Chamado
+        </button>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(99,102,241,.15)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div><div class="stat-label">Total</div><div class="stat-val" id="sTotal">—</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(59,130,246,.15)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div><div class="stat-label">Em aberto</div><div class="stat-val" id="sAbertos">—</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(239,68,68,.15)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div><div class="stat-label">Críticos</div><div class="stat-val" id="sCriticos">—</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(34,197,94,.15)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div><div class="stat-label">Concluídos</div><div class="stat-val" id="sConcluidos">—</div></div>
+        </div>
+      </div>
+
+      <div class="filtros-bar">
+        <div class="busca-wrap">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="busca" placeholder="Buscar por cliente, número, tipo..." oninput="filtrar()">
+        </div>
+        <button class="filtro-pill ativo" onclick="setFiltroStatus(this, '')">Todos</button>
+        <button class="filtro-pill" onclick="setFiltroStatus(this, 'aberto')">Abertos</button>
+        <button class="filtro-pill" onclick="setFiltroStatus(this, 'agendado')">Agendados</button>
+        <button class="filtro-pill" onclick="setFiltroStatus(this, 'em_atendimento')">Em atendimento</button>
+        <button class="filtro-pill" onclick="setFiltroStatus(this, 'concluido')">Concluídos</button>
+      </div>
+
+      <div class="tabela-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Número</th>
+              <th>Cliente</th>
+              <th>Tipo de Problema</th>
+              <th>Urgência</th>
+              <th>Status</th>
+              <th>Agendamento</th>
+              <th>Técnico</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbodyAT">
+            <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-dim)">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Modal Novo Chamado -->
+<div class="modal-overlay" id="modalNovo">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h2>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Novo Chamado de Assistência
+      </h2>
+      <button class="modal-close" onclick="fecharModalNovo()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cliente *</label>
+          <select id="nCliente" onchange="carregarPedidosCliente()">
+            <option value="">Selecione...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Pedido vinculado</label>
+          <select id="nPedido">
+            <option value="">Nenhum</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tipo de Problema *</label>
+          <select id="nTipo">
+            <option value="">Selecione...</option>
+            <option>Arranhão / Amassado</option>
+            <option>Porta desalinhada</option>
+            <option>Gaveta com problema</option>
+            <option>Dobradiça solta</option>
+            <option>Puxador solto</option>
+            <option>Rachadura / Trinca</option>
+            <option>Problema de instalação</option>
+            <option>Peça faltando</option>
+            <option>Cor divergente</option>
+            <option>Medida incorreta</option>
+            <option>Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Urgência</label>
+          <select id="nUrgencia">
+            <option value="baixo">Baixa</option>
+            <option value="medio" selected>Média</option>
+            <option value="alto">Alta</option>
+            <option value="critico">Crítica</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Descrição do problema *</label>
+        <textarea id="nDescricao" rows="3" placeholder="Descreva o problema detalhadamente..."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data de agendamento</label>
+          <input type="date" id="nAgendamento">
+        </div>
+        <div class="form-group">
+          <label>Técnico responsável</label>
+          <select id="nTecnico">
+            <option value="">A definir</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModalNovo()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarChamado()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Abrir Chamado
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Painel lateral de detalhe -->
+<div class="detail-overlay" id="detailOverlay" onclick="fecharDetalhe(event)">
+  <div class="detail-panel">
+    <div class="detail-header">
+      <h2>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span id="dNumero">AT-0001</span>
+      </h2>
+      <button class="btn btn-ghost" style="padding:6px 10px;font-size:12px" onclick="fecharDetalhe()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Fechar
+      </button>
+    </div>
+    <div class="detail-body" id="detailBody"></div>
+    <div class="detail-actions" id="detailActions"></div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+
+const STATUS_LABEL = { aberto:'Aberto', agendado:'Agendado', em_atendimento:'Em atendimento', concluido:'Concluído', cancelado:'Cancelado' };
+const URGENCIA_LABEL = { baixo:'Baixa', medio:'Média', alto:'Alta', critico:'Crítica' };
+
+let _filtroStatus = '';
+let _chamadoAtual = null;
+
+const SVG_EYE = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const SVG_CHECK = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+async function carregar() {
+  try {
+    const params = new URLSearchParams();
+    if (_filtroStatus) params.set('status', _filtroStatus);
+    const busca = document.getElementById('busca').value.trim();
+    if (busca) params.set('busca', busca);
+    const lista = await Api.get('/assistencia?' + params.toString());
+    renderTabela(lista);
+    atualizarStats();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function atualizarStats() {
+  try {
+    const todos = await Api.get('/assistencia');
+    document.getElementById('sTotal').textContent = todos.length;
+    document.getElementById('sAbertos').textContent = todos.filter(a => ['aberto','agendado','em_atendimento'].includes(a.status)).length;
+    document.getElementById('sCriticos').textContent = todos.filter(a => a.urgencia === 'critico' && a.status !== 'concluido').length;
+    document.getElementById('sConcluidos').textContent = todos.filter(a => a.status === 'concluido').length;
+  } catch(e) {}
+}
+
+function renderTabela(lista) {
+  const tbody = document.getElementById('tbodyAT');
+  if (!lista.length) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+      <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+      <h3>Nenhum chamado encontrado</h3><p>Abra o primeiro chamado de assistência técnica</p>
+    </div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = lista.map(a => {
+    const agendamento = a.data_agendamento ? new Date(a.data_agendamento).toLocaleDateString('pt-BR') : '—';
+    const conc = a.status === 'concluido' || a.status === 'cancelado';
+    return `<tr>
+      <td><span style="font-family:monospace;font-size:12px;color:var(--text-muted)">${a.numero}</span></td>
+      <td><strong>${a.cliente_nome || '—'}</strong></td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.tipo_problema}</td>
+      <td><span class="u-pill u-${a.urgencia}">${URGENCIA_LABEL[a.urgencia] || a.urgencia}</span></td>
+      <td><span class="s-pill s-${a.status}">${STATUS_LABEL[a.status] || a.status}</span></td>
+      <td style="color:var(--text-muted)">${agendamento}</td>
+      <td style="color:var(--text-muted)">${a.tecnico_nome || '—'}</td>
+      <td>
+        <div class="acoes">
+          <button class="acao-btn" title="Ver detalhes" onclick="abrirDetalhe(${a.id})">${SVG_EYE}</button>
+          ${!conc ? `<button class="acao-btn" title="Concluir" onclick="concluirRapido(${a.id})">${SVG_CHECK}</button>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function setFiltroStatus(el, val) {
+  document.querySelectorAll('.filtro-pill').forEach(p => p.classList.remove('ativo'));
+  el.classList.add('ativo');
+  _filtroStatus = val;
+  carregar();
+}
+
+function filtrar() { carregar(); }
+
+async function abrirModalNovo() {
+  try {
+    const [clientes, usuarios] = await Promise.all([Api.get('/clientes'), Api.get('/usuarios')]);
+    document.getElementById('nCliente').innerHTML = '<option value="">Selecione...</option>' +
+      clientes.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+    document.getElementById('nTecnico').innerHTML = '<option value="">A definir</option>' +
+      usuarios.filter(u => u.ativo).map(u => `<option value="${u.id}">${u.nome}</option>`).join('');
+    document.getElementById('nPedido').innerHTML = '<option value="">Nenhum</option>';
+    document.getElementById('nCliente').value = '';
+    document.getElementById('nTipo').value = '';
+    document.getElementById('nDescricao').value = '';
+    document.getElementById('nAgendamento').value = '';
+    document.getElementById('nUrgencia').value = 'medio';
+    document.getElementById('nTecnico').value = '';
+    document.getElementById('modalNovo').classList.add('open');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function carregarPedidosCliente() {
+  const clienteId = document.getElementById('nCliente').value;
+  const sel = document.getElementById('nPedido');
+  sel.innerHTML = '<option value="">Nenhum</option>';
+  if (!clienteId) return;
+  try {
+    const pedidos = await Api.get(`/comercial/pedidos?cliente_id=${clienteId}`);
+    if (pedidos.length) sel.innerHTML += pedidos.map(p => `<option value="${p.id}">${p.numero} — ${p.status}</option>`).join('');
+  } catch(e) {}
+}
+
+function fecharModalNovo() { document.getElementById('modalNovo').classList.remove('open'); }
+
+async function salvarChamado() {
+  const body = {
+    cliente_id: +document.getElementById('nCliente').value,
+    pedido_id: document.getElementById('nPedido').value || null,
+    tipo_problema: document.getElementById('nTipo').value,
+    descricao: document.getElementById('nDescricao').value.trim(),
+    urgencia: document.getElementById('nUrgencia').value,
+    data_agendamento: document.getElementById('nAgendamento').value || null,
+    tecnico_id: document.getElementById('nTecnico').value || null,
+  };
+  if (!body.cliente_id) { toast('Selecione um cliente', 'warning'); return; }
+  if (!body.tipo_problema) { toast('Selecione o tipo de problema', 'warning'); return; }
+  if (!body.descricao) { toast('Descreva o problema', 'warning'); return; }
+  try {
+    const r = await Api.post('/assistencia', body);
+    toast(`Chamado ${r.numero} aberto!`, 'success');
+    fecharModalNovo();
+    carregar();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function abrirDetalhe(id) {
+  try {
+    const a = await Api.get(`/assistencia/${id}`);
+    _chamadoAtual = a;
+    document.getElementById('dNumero').textContent = a.numero;
+
+    const fmt = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+    const fmtDt = d => d ? new Date(d).toLocaleString('pt-BR') : '—';
+
+    document.getElementById('detailBody').innerHTML = `
+      <div class="detail-2col">
+        <div class="detail-row"><label>Cliente</label><span>${a.cliente_nome || '—'}</span></div>
+        <div class="detail-row"><label>Contato</label><span>${a.cliente_tel || a.cliente_wpp || '—'}</span></div>
+      </div>
+      <div class="detail-2col">
+        <div class="detail-row"><label>Pedido vinculado</label><span>${a.pedido_numero || '—'}</span></div>
+        <div class="detail-row"><label>Abertura</label><span>${fmtDt(a.data_abertura)}</span></div>
+      </div>
+      <div class="detail-2col">
+        <div class="detail-row"><label>Urgência</label><span><span class="u-pill u-${a.urgencia}">${URGENCIA_LABEL[a.urgencia]}</span></span></div>
+        <div class="detail-row"><label>Agendamento</label><span>${fmt(a.data_agendamento)}</span></div>
+      </div>
+      <div class="detail-row"><label>Técnico</label><span>${a.tecnico_nome || 'Não atribuído'}</span></div>
+      <div class="detail-row" style="margin-top:4px"><label>Tipo de Problema</label><span style="font-size:14px;font-weight:600">${a.tipo_problema}</span></div>
+      <div class="detail-row"><label>Descrição</label><div class="detail-desc">${a.descricao || '—'}</div></div>
+      ${a.resolucao ? `<div class="detail-row"><label>Resolução</label><div class="detail-desc">${a.resolucao}</div></div>` : ''}
+      ${a.observacoes ? `<div class="detail-row"><label>Observações</label><div class="detail-desc">${a.observacoes}</div></div>` : ''}
+      ${a.status === 'concluido' ? `<div class="detail-row"><label>Conclusão</label><span>${fmt(a.data_conclusao)}</span></div>` : ''}
+      ${(a.status !== 'concluido' && a.status !== 'cancelado') ? `
+        <div class="modal-section">Alterar Status</div>
+        <select class="status-select" id="statusSelect">
+          <option value="aberto" ${a.status==='aberto'?'selected':''}>Aberto</option>
+          <option value="agendado" ${a.status==='agendado'?'selected':''}>Agendado</option>
+          <option value="em_atendimento" ${a.status==='em_atendimento'?'selected':''}>Em atendimento</option>
+          <option value="concluido" ${a.status==='concluido'?'selected':''}>Concluído</option>
+          <option value="cancelado" ${a.status==='cancelado'?'selected':''}>Cancelado</option>
+        </select>
+        <div class="modal-section">Resolução</div>
+        <textarea id="resolucaoTxt" rows="3" placeholder="Como o problema foi resolvido..." style="width:100%">${a.resolucao||''}</textarea>
+      ` : `<div style="margin-top:8px"><span class="s-pill s-${a.status}">${STATUS_LABEL[a.status]}</span></div>`}
+    `;
+
+    const actions = document.getElementById('detailActions');
+    if (a.status !== 'concluido' && a.status !== 'cancelado') {
+      actions.innerHTML = `
+        <button class="btn btn-ghost" onclick="salvarResolucao()" style="flex:1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Salvar
+        </button>
+        <button class="btn btn-success" onclick="concluirChamado()" style="flex:1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Concluir Chamado
+        </button>
+      `;
+    } else {
+      actions.innerHTML = `<span style="font-size:13px;color:var(--text-muted)">Chamado ${STATUS_LABEL[a.status].toLowerCase()}.</span>`;
+    }
+
+    document.getElementById('detailOverlay').classList.add('open');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function fecharDetalhe(e) {
+  if (e && e.target !== document.getElementById('detailOverlay')) return;
+  document.getElementById('detailOverlay').classList.remove('open');
+  _chamadoAtual = null;
+}
+
+async function salvarResolucao() {
+  if (!_chamadoAtual) return;
+  const status = document.getElementById('statusSelect').value;
+  const resolucao = document.getElementById('resolucaoTxt')?.value || null;
+  try {
+    await Api.put(`/assistencia/${_chamadoAtual.id}/status`, { status, resolucao });
+    toast('Chamado atualizado!', 'success');
+    fecharDetalhe();
+    carregar();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function concluirChamado() {
+  if (!_chamadoAtual) return;
+  const resolucao = document.getElementById('resolucaoTxt')?.value || null;
+  try {
+    await Api.put(`/assistencia/${_chamadoAtual.id}/status`, { status: 'concluido', resolucao });
+    toast('Chamado concluído!', 'success');
+    fecharDetalhe();
+    carregar();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function concluirRapido(id) {
+  if (!confirm('Marcar chamado como concluído?')) return;
+  try {
+    await Api.put(`/assistencia/${id}/status`, { status: 'concluido', resolucao: null });
+    toast('Chamado concluído!', 'success');
+    carregar();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+document.getElementById('modalNovo').addEventListener('click', function(e){ if(e.target===this) fecharModalNovo(); });
+carregar();
+</script>
+</body>
+</html>

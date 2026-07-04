@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fornecedores — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .action-bar { display:flex; gap:10px; align-items:center; margin-bottom:18px; flex-wrap:wrap; }
+    .action-bar input { flex:1; min-width:220px; }
+
+    .grid-forn { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; }
+    .card-forn { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:18px 20px; cursor:pointer; transition:.15s; }
+    .card-forn:hover { border-color:var(--primary); }
+    .cf-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px; }
+    .cf-icon { width:40px; height:40px; border-radius:10px; background:rgba(99,102,241,.15); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .cf-icon svg { width:18px; height:18px; color:#818cf8; }
+    .cf-nome { font-size:14px; font-weight:700; color:var(--text); margin-bottom:3px; }
+    .cf-cnpj { font-size:11px; color:var(--text-muted); }
+    .cf-info { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px; padding-top:10px; border-top:1px solid rgba(51,65,85,.5); }
+    .cf-info-item label { font-size:10px; color:var(--text-dim); text-transform:uppercase; display:block; }
+    .cf-info-item span { font-size:12px; color:var(--text-muted); }
+    .cf-acoes { display:flex; gap:4px; }
+
+    /* Painel */
+    .painel-forn { position:fixed; right:0; top:0; height:100vh; width:480px; background:var(--bg-card); border-left:1px solid var(--border); z-index:300; transform:translateX(100%); transition:.3s ease; display:flex; flex-direction:column; }
+    .painel-forn.open { transform:translateX(0); }
+    .painel-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:299; opacity:0; pointer-events:none; transition:.3s; }
+    .painel-overlay.open { opacity:1; pointer-events:auto; }
+    .pf-header { padding:18px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+    .pf-body { flex:1; overflow-y:auto; padding:20px; }
+    .pf-footer { padding:14px 20px; border-top:1px solid var(--border); display:flex; gap:8px; }
+    .info-sect { margin-bottom:18px; }
+    .info-sect h4 { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+    .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .info-item label { font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px; }
+    .info-item span { font-size:13px; color:var(--text); }
+    .pix-box { background:var(--bg-card2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:13px; font-family:monospace; color:var(--primary); word-break:break-all; }
+    @media (max-width:900px) {
+      .grid-forn { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap:8px; }
+      .card-forn { padding: 12px 14px; border-radius:10px; }
+      .cf-nome   { font-size: 13px; }
+      .cf-cat    { font-size: 11px; }
+      .painel-forn { width: min(480px, 95vw); }
+      .info-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()"><i data-lucide="panel-left-close"></i></button>
+        <div class="topbar-breadcrumb"><a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a> &nbsp;/&nbsp;<strong>Fornecedores</strong></div>
+      </div>
+      <div class="topbar-right"><div class="topbar-btn"><i data-lucide="bell"></i></div></div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title"><h1>Fornecedores</h1><p>Gestão de fornecedores de materiais e serviços</p></div>
+        <div class="page-actions">
+          <button class="btn btn-primary" onclick="abrirNovo()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Fornecedor
+          </button>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <input type="text" id="busca" placeholder="Buscar por nome ou CNPJ..." oninput="filtrar()">
+        <select id="fCat" onchange="filtrar()">
+          <option value="">Todas as categorias</option>
+        </select>
+      </div>
+
+      <div class="grid-forn" id="grid">
+        <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-dim)">Carregando...</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Overlay + Painel -->
+<div class="painel-overlay" id="pfOverlay" onclick="fecharPainel()"></div>
+<div class="painel-forn" id="painelForn">
+  <div class="pf-header">
+    <h3 id="pfNome" style="font-size:16px;font-weight:700"></h3>
+    <button class="btn btn-ghost" style="padding:6px" onclick="fecharPainel()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+    </button>
+  </div>
+  <div class="pf-body" id="pfBody"></div>
+  <div class="pf-footer" id="pfFooter"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalForn" style="align-items:flex-start;padding:20px;overflow-y:auto">
+  <div class="modal" style="max-width:600px;width:100%;margin:auto">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modalTitulo">Novo Fornecedor</h2>
+      <button class="modal-close" onclick="fecharModal()"></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="fId">
+
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label>Nome <span class="required">*</span></label>
+          <input type="text" id="fNome" placeholder="Razão social ou nome">
+        </div>
+        <div class="form-group">
+          <label>CNPJ / CPF</label>
+          <input type="text" id="fCnpj" placeholder="00.000.000/0001-00">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Categoria</label>
+          <input type="text" id="fCategoria" placeholder="Ex: Ferragens, Madeira, Serviço...">
+        </div>
+        <div class="form-group">
+          <label>Prazo de pagamento (dias)</label>
+          <input type="number" id="fPrazo" value="30" min="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Telefone</label>
+          <input type="text" id="fTel" oninput="mascaraTelefone(this)">
+        </div>
+        <div class="form-group">
+          <label>WhatsApp</label>
+          <input type="text" id="fWhats" oninput="mascaraTelefone(this)">
+        </div>
+        <div class="form-group">
+          <label>E-mail</label>
+          <input type="email" id="fEmail">
+        </div>
+      </div>
+
+      <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px">Dados bancários</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Banco</label>
+          <input type="text" id="fBanco" placeholder="Ex: Itaú, Bradesco...">
+        </div>
+        <div class="form-group">
+          <label>Agência</label>
+          <input type="text" id="fAgencia">
+        </div>
+        <div class="form-group">
+          <label>Conta</label>
+          <input type="text" id="fConta">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Chave Pix</label>
+        <input type="text" id="fPix" placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória">
+      </div>
+
+      <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px">Endereço</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>CEP</label>
+          <input type="text" id="fCep" oninput="buscarCep(this,{rua:'fRuaF',bairro:'fBairroF',cidade:'fCidadeF',estado:'fEstadoF'})">
+        </div>
+        <div class="form-group" style="flex:2">
+          <label>Rua</label>
+          <input type="text" id="fRuaF">
+        </div>
+        <div class="form-group" style="flex:0 0 80px">
+          <label>Número</label>
+          <input type="text" id="fNumF">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Bairro</label>
+          <input type="text" id="fBairroF">
+        </div>
+        <div class="form-group">
+          <label>Cidade</label>
+          <input type="text" id="fCidadeF">
+        </div>
+        <div class="form-group" style="flex:0 0 70px">
+          <label>UF</label>
+          <input type="text" id="fEstadoF">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Observações</label>
+        <textarea id="fObs" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvar()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+checkAuth();
+
+let _todos = [];
+
+const _SVG_FORN  = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"/><path d="m3 9 2.45-4.9A2 2 0 0 1 7.24 3h9.52a2 2 0 0 1 1.8 1.1L21 9"/><path d="M12 3v6"/></svg>`;
+const _SVG_EDIT  = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+const _SVG_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+const _SVG_EYE   = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const _SVG_WHATS = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21"/></svg>`;
+
+async function init() {
+  try {
+    const [forn, cats] = await Promise.all([
+      Api.get('/fornecedores'),
+      Api.get('/fornecedores/categorias'),
+    ]);
+    _todos = forn;
+    const sel = document.getElementById('fCat');
+    cats.forEach(c => sel.insertAdjacentHTML('beforeend', `<option value="${c}">${c}</option>`));
+    renderGrid(_todos);
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function filtrar() {
+  const busca = document.getElementById('busca').value.toLowerCase();
+  const cat   = document.getElementById('fCat').value;
+  const lista = _todos.filter(f => {
+    if (busca && !f.nome.toLowerCase().includes(busca) && !(f.cnpj||'').includes(busca)) return false;
+    if (cat && f.categoria !== cat) return false;
+    return true;
+  });
+  renderGrid(lista);
+}
+
+function renderGrid(lista) {
+  const grid = document.getElementById('grid');
+  if (!lista.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-dim)">
+      ${_SVG_FORN.replace('18" height="18"','40" height="40"').replace('#818cf8','currentColor')}<br>Nenhum fornecedor encontrado</div>`;
+    return;
+  }
+  grid.innerHTML = lista.map(f => `
+    <div class="card-forn" onclick="abrirDetalhe(${f.id})">
+      <div class="cf-top">
+        <div>
+          <div class="cf-nome">${f.nome}</div>
+          <div class="cf-cnpj">${f.cnpj || 'Sem CNPJ'}</div>
+        </div>
+        <div style="display:flex;gap:4px;align-items:center">
+          <div class="cf-icon">${_SVG_FORN}</div>
+        </div>
+      </div>
+      ${f.categoria ? `<span class="badge badge-info">${f.categoria}</span>` : ''}
+      <div class="cf-info">
+        <div class="cf-info-item"><label>Telefone</label><span>${f.telefone || f.whatsapp || '—'}</span></div>
+        <div class="cf-info-item"><label>Prazo pag.</label><span>${f.prazo_pagamento} dias</span></div>
+        <div class="cf-info-item"><label>Cidade</label><span>${f.cidade || '—'}</span></div>
+        <div class="cf-info-item"><label>Pix</label><span>${f.chave_pix ? '✓ Cadastrado' : '—'}</span></div>
+      </div>
+      <div style="display:flex;gap:4px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(51,65,85,.5)" onclick="event.stopPropagation()">
+        <button class="acao-btn" title="Ver" onclick="abrirDetalhe(${f.id})">${_SVG_EYE}</button>
+        <button class="acao-btn" title="Editar" onclick="editar(${f.id})">${_SVG_EDIT}</button>
+        ${f.whatsapp ? `<button class="acao-btn" title="WhatsApp" onclick="abrirWhats('${f.whatsapp}')" style="color:#22c55e">${_SVG_WHATS}</button>` : ''}
+        <button class="acao-btn" title="Remover" onclick="remover(${f.id})" style="color:#f87171;margin-left:auto">${_SVG_TRASH}</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function abrirWhats(tel) {
+  const n = tel.replace(/\D/g,'');
+  window.open(`https://wa.me/55${n}`, '_blank');
+}
+
+async function abrirDetalhe(id) {
+  const f = _todos.find(x => x.id === id);
+  if (!f) return;
+  document.getElementById('pfNome').textContent = f.nome;
+
+  const end = [f.rua, f.numero, f.bairro, f.cidade, f.estado].filter(Boolean).join(', ');
+
+  document.getElementById('pfBody').innerHTML = `
+    <div class="info-sect">
+      <h4>Dados gerais</h4>
+      <div class="info-grid">
+        <div class="info-item"><label>CNPJ / CPF</label><span>${f.cnpj || '—'}</span></div>
+        <div class="info-item"><label>Categoria</label><span>${f.categoria || '—'}</span></div>
+        <div class="info-item"><label>Telefone</label><span>${f.telefone || '—'}</span></div>
+        <div class="info-item"><label>WhatsApp</label><span>${f.whatsapp || '—'}</span></div>
+        <div class="info-item"><label>E-mail</label><span>${f.email || '—'}</span></div>
+        <div class="info-item"><label>Prazo pag.</label><span>${f.prazo_pagamento} dias</span></div>
+      </div>
+    </div>
+    <div class="info-sect">
+      <h4>Dados bancários</h4>
+      <div class="info-grid">
+        <div class="info-item"><label>Banco</label><span>${f.banco || '—'}</span></div>
+        <div class="info-item"><label>Agência / Conta</label><span>${f.agencia || '—'} / ${f.conta || '—'}</span></div>
+      </div>
+      ${f.chave_pix ? `<div style="margin-top:10px"><label style="font-size:11px;color:var(--text-muted)">Chave Pix</label><div class="pix-box">${f.chave_pix}</div></div>` : ''}
+    </div>
+    ${end ? `<div class="info-sect"><h4>Endereço</h4><p style="font-size:13px;color:var(--text)">${end}</p></div>` : ''}
+    ${f.observacoes ? `<div class="info-sect"><h4>Observações</h4><p style="font-size:13px;color:var(--text-muted)">${f.observacoes}</p></div>` : ''}
+  `;
+
+  const btns = [`<button class="btn btn-ghost" style="flex:1" onclick="editar(${f.id})">Editar</button>`];
+  if (f.whatsapp) btns.push(`<button class="btn btn-ghost" style="flex:1" onclick="abrirWhats('${f.whatsapp}')">WhatsApp</button>`);
+
+  document.getElementById('pfFooter').innerHTML = btns.join('');
+
+  document.getElementById('painelForn').classList.add('open');
+  document.getElementById('pfOverlay').classList.add('open');
+}
+
+function fecharPainel() {
+  document.getElementById('painelForn').classList.remove('open');
+  document.getElementById('pfOverlay').classList.remove('open');
+}
+
+function abrirNovo() {
+  document.getElementById('fId').value = '';
+  ['fNome','fCnpj','fCategoria','fTel','fWhats','fEmail','fBanco','fAgencia','fConta','fPix','fCep','fRuaF','fNumF','fBairroF','fCidadeF','fEstadoF','fObs'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('fPrazo').value = 30;
+  document.getElementById('modalTitulo').textContent = 'Novo Fornecedor';
+  document.getElementById('modalForn').classList.add('open');
+}
+
+async function editar(id) {
+  fecharPainel();
+  const f = _todos.find(x => x.id === id);
+  if (!f) return;
+  document.getElementById('fId').value        = f.id;
+  document.getElementById('fNome').value      = f.nome;
+  document.getElementById('fCnpj').value      = f.cnpj || '';
+  document.getElementById('fCategoria').value = f.categoria || '';
+  document.getElementById('fPrazo').value     = f.prazo_pagamento || 30;
+  document.getElementById('fTel').value       = f.telefone || '';
+  document.getElementById('fWhats').value     = f.whatsapp || '';
+  document.getElementById('fEmail').value     = f.email || '';
+  document.getElementById('fBanco').value     = f.banco || '';
+  document.getElementById('fAgencia').value   = f.agencia || '';
+  document.getElementById('fConta').value     = f.conta || '';
+  document.getElementById('fPix').value       = f.chave_pix || '';
+  document.getElementById('fCep').value       = f.cep || '';
+  document.getElementById('fRuaF').value      = f.rua || '';
+  document.getElementById('fNumF').value      = f.numero || '';
+  document.getElementById('fBairroF').value   = f.bairro || '';
+  document.getElementById('fCidadeF').value   = f.cidade || '';
+  document.getElementById('fEstadoF').value   = f.estado || '';
+  document.getElementById('fObs').value       = f.observacoes || '';
+  document.getElementById('modalTitulo').textContent = 'Editar Fornecedor';
+  document.getElementById('modalForn').classList.add('open');
+}
+
+async function salvar() {
+  const id   = document.getElementById('fId').value;
+  const nome = document.getElementById('fNome').value.trim();
+  if (!nome) { toast('Nome é obrigatório','warning'); return; }
+  const body = {
+    nome, cnpj: document.getElementById('fCnpj').value || null,
+    categoria:  document.getElementById('fCategoria').value || null,
+    prazo_pagamento: parseInt(document.getElementById('fPrazo').value) || 30,
+    telefone:   document.getElementById('fTel').value || null,
+    whatsapp:   document.getElementById('fWhats').value || null,
+    email:      document.getElementById('fEmail').value || null,
+    banco:      document.getElementById('fBanco').value || null,
+    agencia:    document.getElementById('fAgencia').value || null,
+    conta:      document.getElementById('fConta').value || null,
+    chave_pix:  document.getElementById('fPix').value || null,
+    cep:        document.getElementById('fCep').value || null,
+    rua:        document.getElementById('fRuaF').value || null,
+    numero:     document.getElementById('fNumF').value || null,
+    bairro:     document.getElementById('fBairroF').value || null,
+    cidade:     document.getElementById('fCidadeF').value || null,
+    estado:     document.getElementById('fEstadoF').value || null,
+    observacoes:document.getElementById('fObs').value || null,
+  };
+  try {
+    if (id) { await Api.put(`/fornecedores/${id}`, body); toast('Fornecedor atualizado','success'); }
+    else    { await Api.post('/fornecedores', body);       toast('Fornecedor cadastrado','success'); }
+    fecharModal();
+    init();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function remover(id) {
+  if (!confirm('Remover este fornecedor?')) return;
+  try {
+    await Api.delete(`/fornecedores/${id}`);
+    toast('Removido','success');
+    init();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function fecharModal() { document.getElementById('modalForn').classList.remove('open'); }
+
+init();
+</script>
+</body>
+</html>

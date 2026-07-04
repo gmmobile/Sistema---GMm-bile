@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BI Center | GM-MÓBILE</title>
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+<link rel="stylesheet" href="../assets/css/global.css">
+<link rel="stylesheet" href="../assets/css/layout.css">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+/* ── Layout ── */
+.bi-wrap{display:flex;flex:1;overflow:hidden;min-height:0;}
+.bi-nav{width:216px;min-width:216px;background:var(--bg-card2);border-right:1px solid var(--border);overflow-y:auto;padding:10px 0;display:flex;flex-direction:column;}
+.bi-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+.bi-filterbar{padding:9px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--bg-card2);flex-shrink:0;}
+.bi-view{flex:1;overflow-y:auto;padding:20px;}
+
+/* ── Nav ── */
+.nav-sec{padding:14px 14px 4px;font-size:9.5px;font-weight:700;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 16px;font-size:12.5px;color:var(--text-dim);cursor:pointer;transition:all .15s;border-left:2px solid transparent;}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.04);}
+.nav-item.ativo{color:var(--primary);background:rgba(212,175,55,.07);border-left-color:var(--primary);font-weight:600;}
+.nav-item svg{width:14px;height:14px;flex-shrink:0;opacity:.7;}
+.nav-item.ativo svg{opacity:1;}
+
+/* ── Filter bar ── */
+.pb{padding:4px 11px;border-radius:6px;font-size:12px;font-weight:500;background:transparent;border:1px solid var(--border);color:var(--text-dim);cursor:pointer;transition:all .15s;}
+.pb:hover{border-color:rgba(255,255,255,.2);color:var(--text);}
+.pb.ativo{background:var(--primary);border-color:var(--primary);color:#000;}
+#dtIni,#dtFim{padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;}
+.fl-sep{width:1px;height:16px;background:var(--border);margin:0 2px;flex-shrink:0;}
+.fl-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.pLabel{font-size:11px;color:var(--text-dim);}
+.bi-btn{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:12px;cursor:pointer;transition:all .15s;}
+.bi-btn:hover{border-color:var(--primary);color:var(--primary);}
+.bi-btn svg{width:13px;height:13px;}
+#cstPeriod{display:none;align-items:center;gap:6px;}
+#cstPeriod.show{display:flex;}
+
+/* ── KPI Row ── */
+.krow{display:grid;gap:12px;margin-bottom:16px;}
+.krow.k4{grid-template-columns:repeat(4,1fr);}
+.krow.k3{grid-template-columns:repeat(3,1fr);}
+.krow.k2{grid-template-columns:repeat(2,1fr);}
+@media(max-width:1100px){.krow.k4{grid-template-columns:repeat(2,1fr);}.krow.k3{grid-template-columns:repeat(3,1fr);}}
+.bi-kpi{background:var(--bg-card2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:7px;}
+.kpi-top2{display:flex;align-items:center;justify-content:space-between;}
+.kpi-lbl{font-size:11px;color:var(--text-dim);font-weight:500;}
+.kpi-val{font-size:21px;font-weight:700;line-height:1.1;letter-spacing:-.3px;}
+.kpi-bot{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim);}
+.kvar{font-weight:600;font-size:11px;}
+.v-up{color:#4ade80;}.v-dn{color:#f87171;}.v-neu{color:#64748b;}
+.kico{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.kico svg{width:13px;height:13px;}
+.cV{background:rgba(74,222,128,.12);color:#4ade80;}
+.cA{background:rgba(96,165,250,.12);color:#60a5fa;}
+.cD{background:rgba(212,175,55,.12);color:#d4af37;}
+.cR{background:rgba(248,113,113,.12);color:#f87171;}
+.cX{background:rgba(167,139,250,.12);color:#a78bfa;}
+.cC{background:rgba(34,211,238,.12);color:#22d3ee;}
+.cO{background:rgba(251,146,60,.12);color:#fb923c;}
+.cS{background:rgba(148,163,184,.12);color:#94a3b8;}
+
+/* ── Charts ── */
+.crow{display:grid;gap:14px;margin-bottom:16px;}
+.crow.c1{grid-template-columns:1fr;}
+.crow.c2{grid-template-columns:1fr 1fr;}
+.crow.c21{grid-template-columns:2fr 1fr;}
+.crow.c12{grid-template-columns:1fr 2fr;}
+.crow.c3{grid-template-columns:1.5fr 1fr 1fr;}
+@media(max-width:980px){.crow.c2,.crow.c21,.crow.c12,.crow.c3{grid-template-columns:1fr;}}
+.cc{background:var(--bg-card2);border:1px solid var(--border);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;}
+.cc-title{font-size:13px;font-weight:600;}
+.cc-sub{font-size:11px;color:var(--text-dim);margin-top:-6px;}
+.cc canvas{max-height:220px;}
+.cc.tall canvas{max-height:280px;}
+
+/* ── Tables ── */
+.btc{background:var(--bg-card2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px;}
+.btc-hd{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.btc-hd b{font-size:13px;font-weight:600;}
+.btc-hd small{font-size:11px;color:var(--text-dim);}
+.bt{width:100%;border-collapse:collapse;}
+.bt th{padding:8px 14px;font-size:10.5px;font-weight:600;color:var(--text-dim);text-align:left;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+.bt td{padding:9px 14px;font-size:12.5px;border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap;}
+.bt tbody tr:hover{background:rgba(255,255,255,.025);}
+.bt tbody tr:last-child td{border-bottom:none;}
+.tag{display:inline-flex;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;}
+.tag-v{background:rgba(74,222,128,.12);color:#4ade80;}
+.tag-r{background:rgba(248,113,113,.12);color:#f87171;}
+.tag-a{background:rgba(251,146,60,.12);color:#fb923c;}
+.tag-d{background:rgba(212,175,55,.12);color:#d4af37;}
+.tag-s{background:rgba(148,163,184,.12);color:#94a3b8;}
+.tag-p{background:rgba(167,139,250,.12);color:#a78bfa;}
+.tag-c{background:rgba(34,211,238,.12);color:#22d3ee;}
+
+/* ── DRE ── */
+.dre-card{background:var(--bg-card2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px;}
+.dre-hd{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.dre-hd h3{font-size:14px;font-weight:700;}
+.dret{width:100%;border-collapse:collapse;font-size:13px;}
+.dret th{padding:8px 18px;font-size:10.5px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);}
+.dret th:last-child,.dret td:last-child{text-align:right;}
+.dret td{padding:9px 18px;border-bottom:1px solid rgba(255,255,255,.04);}
+.dret tr.sec td{font-weight:700;color:var(--text);background:rgba(255,255,255,.03);border-top:1px solid var(--border);padding:11px 18px;}
+.dret tr.sub td{font-weight:600;font-size:13.5px;}
+.dret tr.fin td{font-weight:800;font-size:15px;border-top:2px solid var(--border);padding-top:14px;}
+.dret .pos{color:#4ade80;}.dret .neg{color:#f87171;}.dret .neu{color:var(--text-dim);}
+.dret .indent{padding-left:34px;color:var(--text-dim);}
+
+/* ── IA Insights ── */
+.ia-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+@media(max-width:900px){.ia-grid{grid-template-columns:1fr;}}
+.ia-card{background:var(--bg-card2);border-radius:12px;padding:18px 20px;display:flex;gap:14px;border-left:3px solid;}
+.ia-card.sucesso{border-left-color:#4ade80;}.ia-card.info{border-left-color:#60a5fa;}.ia-card.alerta{border-left-color:#fbbf24;}.ia-card.perigo{border-left-color:#f87171;}.ia-card.warning{border-left-color:#fb923c;}
+.ia-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ia-ico svg{width:17px;height:17px;}
+.sucesso .ia-ico{background:rgba(74,222,128,.12);color:#4ade80;}
+.info    .ia-ico{background:rgba(96,165,250,.12);color:#60a5fa;}
+.alerta  .ia-ico{background:rgba(251,191,36,.12);color:#fbbf24;}
+.perigo  .ia-ico{background:rgba(248,113,113,.12);color:#f87171;}
+.warning .ia-ico{background:rgba(251,146,60,.12);color:#fb923c;}
+.ia-body h4{font-size:13px;font-weight:700;margin-bottom:4px;}
+.ia-body p{font-size:12px;color:var(--text-dim);line-height:1.55;margin:0;}
+
+/* ── Misc ── */
+.bi-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;gap:12px;color:var(--text-dim);}
+.spin{width:26px;height:26px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:sp .7s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.bi-view-hd{margin-bottom:18px;}
+.bi-view-hd h2{font-size:18px;font-weight:700;}
+.bi-view-hd p{font-size:12px;color:var(--text-dim);margin-top:2px;}
+.prog-bar{height:4px;border-radius:2px;background:var(--border);overflow:hidden;margin-top:3px;}
+.prog-fill{height:100%;border-radius:2px;background:var(--primary);}
+</style>
+</head>
+<body>
+<div class="app-layout">
+<aside class="sidebar" id="sidebar"></aside>
+<div class="main-content" style="display:flex;flex-direction:column;overflow:hidden;height:100vh;">
+
+<!-- Topbar -->
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="btn-collapse" onclick="toggleSidebar()"><i data-lucide="panel-left-close"></i></button>
+    <div class="topbar-breadcrumb">
+      <a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a>
+      &nbsp;/&nbsp;<strong>Centro de BI</strong>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-btn" onclick="carregarNotificacoes();toggleNotifDropdown()" title="Notificações">
+      <i data-lucide="bell"></i>
+      <span class="notif-badge" id="notifBadge" style="display:none"></span>
+    </div>
+  </div>
+</header>
+
+<div class="bi-wrap">
+
+  <!-- BI Sidebar -->
+  <nav class="bi-nav" id="biNav">
+    <div class="nav-sec">Principal</div>
+    <div class="nav-item ativo" data-view="overview" onclick="setView('overview')">
+      <i data-lucide="layout-dashboard"></i> Visão Geral
+    </div>
+
+    <div class="nav-sec" style="margin-top:8px;">Comercial</div>
+    <div class="nav-item" data-view="comercial" onclick="setView('comercial')">
+      <i data-lucide="trending-up"></i> Faturamento
+    </div>
+    <div class="nav-item" data-view="clientes" onclick="setView('clientes')">
+      <i data-lucide="users"></i> Clientes
+    </div>
+
+    <div class="nav-sec" style="margin-top:8px;">Financeiro</div>
+    <div class="nav-item" data-view="financeiro" onclick="setView('financeiro')">
+      <i data-lucide="wallet"></i> Fluxo de Caixa
+    </div>
+    <div class="nav-item" data-view="dre" onclick="setView('dre')">
+      <i data-lucide="file-bar-chart"></i> DRE
+    </div>
+
+    <div class="nav-sec" style="margin-top:8px;">Operacional</div>
+    <div class="nav-item" data-view="producao" onclick="setView('producao')">
+      <i data-lucide="hammer"></i> Produção
+    </div>
+    <div class="nav-item" data-view="estoque" onclick="setView('estoque')">
+      <i data-lucide="package"></i> Estoque
+    </div>
+    <div class="nav-item" data-view="fiscal" onclick="setView('fiscal')">
+      <i data-lucide="receipt"></i> Fiscal / NF
+    </div>
+
+    <div class="nav-sec" style="margin-top:8px;">Inteligência</div>
+    <div class="nav-item" data-view="ia" onclick="setView('ia')">
+      <i data-lucide="cpu"></i> IA Insights
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <div class="bi-main">
+
+    <!-- Filter Bar -->
+    <div class="bi-filterbar">
+      <button class="pb" data-p="hoje"   onclick="setPeriodo('hoje')">Hoje</button>
+      <button class="pb" data-p="semana" onclick="setPeriodo('semana')">Semana</button>
+      <button class="pb ativo" data-p="mes" onclick="setPeriodo('mes')">Este Mês</button>
+      <button class="pb" data-p="3m"     onclick="setPeriodo('3m')">3 Meses</button>
+      <button class="pb" data-p="6m"     onclick="setPeriodo('6m')">6 Meses</button>
+      <button class="pb" data-p="ano"    onclick="setPeriodo('ano')">Este Ano</button>
+      <div class="fl-sep"></div>
+      <button class="pb" data-p="custom" onclick="setPeriodo('custom')">Personalizado</button>
+      <div id="cstPeriod">
+        <input type="date" id="dtIni">
+        <span style="font-size:12px;color:var(--text-dim);">até</span>
+        <input type="date" id="dtFim">
+        <button class="pb ativo" onclick="aplicarPeriodoCustom()">Aplicar</button>
+      </div>
+      <div class="fl-right">
+        <span class="pLabel" id="pLabel"></span>
+        <button class="bi-btn" onclick="recarregar()" title="Atualizar">
+          <i data-lucide="refresh-cw"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Dynamic View -->
+    <div class="bi-view" id="biView">
+      <div class="bi-loading"><div class="spin"></div><span>Carregando...</span></div>
+    </div>
+
+  </div>
+</div>
+</div><!-- .main-content -->
+</div><!-- .app-layout -->
+<div id="toast-container" class="toast-container"></div>
+
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+// ── Estado global ────────────────────────────────────────────────────
+let _view = 'overview';
+let _charts = {};
+let _state = { tipo:'mes', ini:'', fim:'' };
+
+// ── Chart.js defaults ─────────────────────────────────────────────────
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.pointStyleWidth = 10;
+Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(10,10,15,0.92)';
+Chart.defaults.plugins.tooltip.borderColor = 'rgba(255,255,255,0.08)';
+Chart.defaults.plugins.tooltip.borderWidth = 1;
+Chart.defaults.plugins.tooltip.padding = 10;
+
+const COR = {
+  V:'#4ade80', A:'#60a5fa', D:'#d4af37', R:'#f87171',
+  X:'#a78bfa', C:'#22d3ee', O:'#fb923c', S:'#94a3b8',
+  bV:'rgba(74,222,128,.12)', bA:'rgba(96,165,250,.12)',
+  bD:'rgba(212,175,55,.12)', bR:'rgba(248,113,113,.12)',
+  bX:'rgba(167,139,250,.12)',bC:'rgba(34,211,238,.12)', bO:'rgba(251,146,60,.12)',
+};
+
+// ── Utilitários ──────────────────────────────────────────────────────
+function hoje() { return new Date().toISOString().split('T')[0]; }
+function dAgo(n) { const d=new Date(); d.setDate(d.getDate()-n); return d.toISOString().split('T')[0]; }
+function fmtDate(d) {
+  if (!d) return '';
+  const [y,mo,da] = (d.split('T')[0]).split('-');
+  return `${da}/${mo}/${y}`;
+}
+function fmtPct(v) {
+  if (v===null||v===undefined) return '–';
+  return (v>0?'+':'')+parseFloat(v).toFixed(1)+'%';
+}
+function varCls(v) { return v>0?'v-up':v<0?'v-dn':'v-neu'; }
+
+function calcPeriodo(tipo) {
+  const now=new Date(), y=now.getFullYear(), m=now.getMonth();
+  switch(tipo) {
+    case 'hoje':   return {ini:hoje(),fim:hoje()};
+    case 'semana': return {ini:dAgo(6),fim:hoje()};
+    case 'mes':    return {ini:`${y}-${String(m+1).padStart(2,'0')}-01`,fim:new Date(y,m+1,0).toISOString().split('T')[0]};
+    case '3m':     return {ini:dAgo(89),fim:hoje()};
+    case '6m':     return {ini:dAgo(179),fim:hoje()};
+    case 'ano':    return {ini:`${y}-01-01`,fim:`${y}-12-31`};
+    default:       return {ini:_state.ini,fim:_state.fim};
+  }
+}
+
+function params() { return `inicio=${_state.ini}&fim=${_state.fim}`; }
+
+// ── Período ──────────────────────────────────────────────────────────
+function setPeriodo(tipo) {
+  document.querySelectorAll('.pb').forEach(b=>b.classList.remove('ativo'));
+  const btn = document.querySelector(`[data-p="${tipo}"]`);
+  if (btn) btn.classList.add('ativo');
+  const cp = document.getElementById('cstPeriod');
+  if (tipo==='custom') { cp.classList.add('show'); return; }
+  cp.classList.remove('show');
+  const {ini,fim} = calcPeriodo(tipo);
+  _state = {tipo,ini,fim};
+  updateLabel();
+  recarregar();
+}
+
+function aplicarPeriodoCustom() {
+  const ini = document.getElementById('dtIni').value;
+  const fim = document.getElementById('dtFim').value;
+  if (!ini||!fim) { alert('Selecione as duas datas.'); return; }
+  _state = {tipo:'custom',ini,fim};
+  updateLabel();
+  recarregar();
+}
+
+function updateLabel() {
+  document.getElementById('pLabel').textContent = `${fmtDate(_state.ini)} – ${fmtDate(_state.fim)}`;
+}
+
+// ── Charts ───────────────────────────────────────────────────────────
+function killCharts() {
+  Object.values(_charts).forEach(c=>c&&c.destroy&&c.destroy());
+  _charts={};
+}
+
+function mkBar(id,labels,datasets,opts={}) {
+  const ctx=document.getElementById(id); if(!ctx) return;
+  const merged={responsive:true,maintainAspectRatio:true,plugins:{legend:{display:datasets.length>1}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,.05)'}}}, ...opts};
+  _charts[id]=new Chart(ctx,{type:'bar',data:{labels,datasets:datasets.map(d=>({borderRadius:5,borderSkipped:false,...d}))},options:merged});
+}
+
+function mkLine(id,labels,datasets,opts={}) {
+  const ctx=document.getElementById(id); if(!ctx) return;
+  const merged={responsive:true,maintainAspectRatio:true,plugins:{legend:{display:datasets.length>1}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,.05)'}}}, ...opts};
+  _charts[id]=new Chart(ctx,{type:'line',data:{labels,datasets:datasets.map(d=>({tension:.35,pointRadius:3,pointHoverRadius:5,...d}))},options:merged});
+}
+
+function mkDoughnut(id,labels,data,colors,opts={}) {
+  const ctx=document.getElementById(id); if(!ctx) return;
+  _charts[id]=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:1,borderColor:'rgba(255,255,255,.08)',hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:true,cutout:'65%',plugins:{legend:{position:'bottom',labels:{padding:14}}}, ...opts}});
+}
+
+function mkBarH(id,labels,data,color,opts={}) {
+  const ctx=document.getElementById(id); if(!ctx) return;
+  const merged={indexAxis:'y',responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.05)'}},y:{grid:{display:false}}}, ...opts};
+  _charts[id]=new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:color,borderRadius:4}]},options:merged});
+}
+
+function padArr(arr,n) {
+  if(!arr||!arr.length) return Array(n).fill(0);
+  if(arr.length>=n) return arr.slice(-n);
+  return [...Array(n-arr.length).fill(0),...arr];
+}
+
+// ── View system ──────────────────────────────────────────────────────
+const VIEWS={overview,comercial,financeiro,dre,producao,estoque,clientes,fiscal,ia};
+
+function setView(nome) {
+  _view=nome;
+  document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('ativo'));
+  const el=document.querySelector(`[data-view="${nome}"]`);
+  if(el) el.classList.add('ativo');
+  killCharts();
+  const fn=VIEWS[nome];
+  if(fn) fn(); else errView('View não implementada.');
+}
+
+function recarregar() { killCharts(); const fn=VIEWS[_view]; if(fn) fn(); }
+
+function loading() {
+  document.getElementById('biView').innerHTML=`<div class="bi-loading"><div class="spin"></div><span>Carregando dados...</span></div>`;
+}
+function errView(msg) {
+  document.getElementById('biView').innerHTML=`<div class="bi-loading"><i data-lucide="alert-circle" style="width:28px;height:28px;color:#f87171;"></i><span style="color:#f87171;">${msg}</span></div>`;
+  lucide.createIcons();
+}
+
+// ═════════════════════════════════════════════════
+// VIEW: OVERVIEW
+// ═════════════════════════════════════════════════
+async function overview() {
+  loading();
+  try {
+    const d = await Api.get(`/relatorios/overview?${params()}`);
+    document.getElementById('biView').innerHTML=`
+<div class="bi-view-hd"><h2>Visão Geral</h2><p>${fmtDate(d.periodo.ini)} até ${fmtDate(d.periodo.fim)}</p></div>
+
+<div class="krow k4">
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Faturamento</span><div class="kico cV"><i data-lucide="trending-up"></i></div></div>
+    <div class="kpi-val" style="color:#4ade80">${moeda(d.faturamento.val)}</div>
+    <div class="kpi-bot"><span class="kvar ${varCls(d.faturamento.variacao)}">${fmtPct(d.faturamento.variacao)}</span><span>vs período anterior</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Receitas Pagas</span><div class="kico cA"><i data-lucide="circle-dollar-sign"></i></div></div>
+    <div class="kpi-val" style="color:#60a5fa">${moeda(d.receita.val)}</div>
+    <div class="kpi-bot"><span class="kvar ${varCls(d.receita.variacao)}">${fmtPct(d.receita.variacao)}</span><span>vs período anterior</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Despesas Pagas</span><div class="kico cR"><i data-lucide="arrow-down-circle"></i></div></div>
+    <div class="kpi-val" style="color:#f87171">${moeda(d.despesa.val)}</div>
+    <div class="kpi-bot"><span class="kvar ${varCls(d.despesa.variacao)}">${fmtPct(d.despesa.variacao)}</span><span>vs período anterior</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Lucro Líquido</span><div class="kico cX"><i data-lucide="award"></i></div></div>
+    <div class="kpi-val" style="color:${d.lucro.val>=0?'#a78bfa':'#f87171'}">${moeda(d.lucro.val)}</div>
+    <div class="kpi-bot"><span class="kvar ${varCls(d.lucro.variacao)}">${fmtPct(d.lucro.variacao)}</span><span>margem ${d.lucro.margem}%</span></div>
+  </div>
+</div>
+
+<div class="krow k4">
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Pedidos</span><div class="kico cO"><i data-lucide="package"></i></div></div>
+    <div class="kpi-val" style="color:#fb923c">${d.pedidos.total}</div>
+    <div class="kpi-bot"><span style="color:#f87171;font-weight:600;">${d.pedidos.atrasados} atrasados</span><span>· ${d.pedidos.aberto} em aberto</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Clientes Ativos</span><div class="kico cC"><i data-lucide="users"></i></div></div>
+    <div class="kpi-val" style="color:#22d3ee">${(d.clientes.ativos||0).toLocaleString('pt-BR')}</div>
+    <div class="kpi-bot"><span class="kvar ${varCls(d.clientes.variacao)}">${fmtPct(d.clientes.variacao)}</span><span>+${d.clientes.novos} novos</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Estoque (valor)</span><div class="kico cD"><i data-lucide="boxes"></i></div></div>
+    <div class="kpi-val" style="color:#d4af37">${moeda(d.estoque.valorTotal)}</div>
+    <div class="kpi-bot"><span style="color:${d.estoque.baixo>0?'#fbbf24':'#4ade80'};font-weight:600;">${d.estoque.baixo} itens críticos</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Inadimplência</span><div class="kico cR"><i data-lucide="alert-triangle"></i></div></div>
+    <div class="kpi-val" style="color:${d.inadimplencia.qtd>0?'#f87171':'#4ade80'}">${moeda(d.inadimplencia.total)}</div>
+    <div class="kpi-bot"><span style="font-weight:600;">${d.inadimplencia.qtd} títulos</span><span>vencidos</span></div>
+  </div>
+</div>
+
+<div class="crow c2">
+  <div class="cc tall"><span class="cc-title">Faturamento — Últimos 6 Meses</span><canvas id="ch-fat6"></canvas></div>
+  <div class="cc tall"><span class="cc-title">Receitas vs Despesas</span><canvas id="ch-recdesp"></canvas></div>
+</div>`;
+    lucide.createIcons();
+
+    const lb6=[];
+    for(let i=5;i>=0;i--){const d2=new Date();d2.setMonth(d2.getMonth()-i);lb6.push(d2.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}));}
+
+    mkBar('ch-fat6',lb6,[{label:'Faturamento',data:padArr(d.faturamento.spark,6),backgroundColor:COR.bV,borderColor:COR.V,borderWidth:1.5}],
+      {plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR',{notation:'compact'})}}}});
+
+    mkLine('ch-recdesp',lb6,[
+      {label:'Receitas',data:padArr(d.receita.spark,6),borderColor:COR.V,backgroundColor:COR.bV,fill:true},
+      {label:'Despesas',data:padArr(d.despesa.spark,6),borderColor:COR.R,backgroundColor:COR.bR,fill:true},
+    ],{scales:{y:{ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR',{notation:'compact'})}}}});
+  } catch(e){errView('Erro ao carregar dados: '+e.message);}
+}
+
+// ═════════════════════════════════════════════════
+// VIEW: COMERCIAL
+// ═════════════════════════════════════════════════
+async function comercial() {
+  loading();
+  try {
+    const d = await Api.get(`/relatorios/comercial?${params()}`);
+    const convCls = d.conversao>=50?'#4ade80':d.conversao>=25?'#fbbf24':'#f87171';
+    document.getElementById('biView').innerHTML=`
+<div class="bi-view-hd"><h2>Comercial</h2><p>Faturamento, orçamentos, vendedores e conversão</p></div>
+<div class="krow k4">
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Total Pedidos</span><div class="kico cO"><i data-lucide="shopping-cart"></i></div></div>
+    <div class="kpi-val" style="color:#fb923c">${d.totPedidos}</div>
+    <div class="kpi-bot"><span>no período</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Total Orçamentos</span><div class="kico cA"><i data-lucide="file-text"></i></div></div>
+    <div class="kpi-val" style="color:#60a5fa">${d.totOrcamentos}</div>
+    <div class="kpi-bot"><span>emitidos no período</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Taxa de Conversão</span><div class="kico cV"><i data-lucide="percent"></i></div></div>
+    <div class="kpi-val" style="color:${convCls}">${d.conversao}%</div>
+    <div class="kpi-bot"><span>orçamentos → pedidos</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Ticket Médio</span><div class="kico cD"><i data-lucide="receipt"></i></div></div>
+    <div class="kpi-val" style="color:#d4af37">${moeda(d.ticketMedio)}</div>
+    <div class="kpi-bot"><span>por pedido (12m)</span></div>
+  </div>
+</div>
+<div class="crow c2">
+  <div class="cc tall"><span class="cc-title">Faturamento — 12 Meses</span><canvas id="ch-fat12"></canvas></div>
+  <div class="cc tall"><span class="cc-title">Orçamentos vs Aprovados</span><canvas id="ch-orc12"></canvas></div>
+</div>
+<div class="crow c21">
+  <div class="btc" style="margin-bottom:0">
+    <div class="btc-hd"><b>Ranking de Vendedores</b><small>Período selecionado</small></div>
+    <div style="overflow-x:auto"><table class="bt"><thead><tr><th>#</th><th>Vendedor</th><th>Pedidos</th><th>Faturamento</th><th>Ticket Médio</th></tr></thead><tbody>
+      ${d.vendedores.map((v,i)=>`<tr>
+        <td style="color:${i<3?'var(--primary)':'var(--text-dim)'};font-weight:600;">${i+1}</td>
+        <td style="font-weight:600;">${escapeHtml(v.nome||'—')}</td>
+        <td>${v.pedidos||0}</td>
+        <td style="color:#4ade80;font-weight:600;">${moeda(v.total)}</td>
+        <td>${moeda(v.ticket)}</td>
+      </tr>`).join('')||'<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text-dim);">Sem dados</td></tr>'}
+    </tbody></table></div>
+  </div>
+  <div class="cc"><span class="cc-title">Origem dos Clientes</span><canvas id="ch-origem"></canvas></div>
+</div>
+${d.leads&&d.leads.length?`
+<div class="btc" style="margin-top:14px;">
+  <div class="btc-hd"><b>Funil de Leads</b><small>Por etapa — período</small></div>
+  <div style="overflow-x:auto"><table class="bt"><thead><tr><th>Etapa</th><th>Qtd</th><th>Valor Est.</th><th>Distribuição</th></tr></thead><tbody>
+    ${d.leads.map(l=>{const tot=d.leads.reduce((s,x)=>s+(parseInt(x.qtd)||0),0);return`<tr>
+      <td style="font-weight:600;">${escapeHtml(l.etapa||'—')}</td>
+      <td>${l.qtd||0}</td><td>${moeda(l.valor)}</td>
+      <td style="min-width:120px;"><div class="prog-bar"><div class="prog-fill" style="width:${tot>0?Math.round((parseInt(l.qtd)||0)/tot*100):0}%"></div></div></td>
+    </tr>`}).join('')}
+  </tbody></table></div>
+</div>`:''}`;
+    lucide.createIcons();
+
+    const lb12=d.fat12m.map(r=>r.mes.slice(5)+'/'+r.mes.slice(2,4));
+    mkBar('ch-fat12',lb12,[{label:'Faturamento',data:d.fat12m.map(r=>parseFloat(r.faturamento)||0),backgroundColor:COR.bD,borderColor:COR.D,borderWidth:1.5}],
+      {plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR',{notation:'compact'})}}}});
+
+    const lb12o=d.orc12m.map(r=>r.mes.slice(5)+'/'+r.mes.slice(2,4));
+    mkBar('ch-orc12',lb12o,[
+      {label:'Total',     data:d.orc12m.map(r=>parseInt(r.total)||0),    backgroundColor:COR.bA,borderColor:COR.A,borderWidth:1.5},
+      {label:'Aprovados', data:d.orc12m.map(r=>parseInt(r.aprovados)||0),backgroundColor:COR.bV,borderColor:COR.V,borderWidth:1.5},
+    ]);
+
+    if(d.origens&&d.origens.length) {
+      const PC=[COR.D,COR.A,COR.V,COR.X,COR.C,COR.O,COR.R,COR.S];
+      mkDoughnut('ch-origem',d.origens.map(o=>o.origem),d.origens.map(o=>parseInt(o.qtd)||0),PC.slice(0,d.origens.length));
+    }
+  } catch(e){errView('Erro ao carregar comercial: '+e.message);}
+}
+
+// ═════════════════════════════════════════════════
+// VIEW: FINANCEIRO
+// ═════════════════════════════════════════════════
+async function financeiro() {
+  loading();
+  try {
+    const d = await Api.get(`/relatorios/financeiro?${params()}`);
+    const totRec  = d.rec12m.reduce((s,r)=>s+(parseFloat(r.v)||0),0);
+    const totDesp = d.desp12m.reduce((s,r)=>s+(parseFloat(r.v)||0),0);
+    document.getElementById('biView').innerHTML=`
+<div class="bi-view-hd"><h2>Fluxo de Caixa</h2><p>Receitas, despesas e posição financeira</p></div>
+<div class="krow k3">
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Receitas (12m)</span><div class="kico cV"><i data-lucide="arrow-up-circle"></i></div></div>
+    <div class="kpi-val" style="color:#4ade80">${moeda(totRec)}</div>
+    <div class="kpi-bot"><span>total recebido</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Despesas (12m)</span><div class="kico cR"><i data-lucide="arrow-down-circle"></i></div></div>
+    <div class="kpi-val" style="color:#f87171">${moeda(totDesp)}</div>
+    <div class="kpi-bot"><span>total pago</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Saldo Atual</span><div class="kico cC"><i data-lucide="landmark"></i></div></div>
+    <div class="kpi-val" style="color:${d.saldo>=0?'#22d3ee':'#f87171'}">${moeda(d.saldo)}</div>
+    <div class="kpi-bot"><span>contas bancárias ativas</span></div>
+  </div>
+</div>
+<div class="crow c1">
+  <div class="cc tall"><span class="cc-title">Receitas vs Despesas — 12 Meses</span><canvas id="ch-fl12"></canvas></div>
+</div>
+<div class="crow c21">
+  <div class="cc"><span class="cc-title">Fluxo — 6 Meses</span><canvas id="ch-fluxo6"></canvas></div>
+  <div class="cc"><span class="cc-title">Despesas por Categoria</span><canvas id="ch-catDesp"></canvas></div>
+</div>
+${d.venc30&&d.venc30.length?`
+<div class="btc">
+  <div class="btc-hd"><b>Vencimentos — Próximos 30 Dias</b><small>${d.venc30.length} lançamentos</small></div>
+  <div style="overflow-x:auto"><table class="bt"><thead><tr><th>Vencimento</th><th>Tipo</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>
+    ${d.venc30.map(l=>`<tr>
+      <td>${fmtDate(l.data_vencimento)}</td>
+      <td><span class="tag ${l.tipo==='receita'?'tag-v':'tag-r'}">${l.tipo}</span></td>
+      <td>${escapeHtml(l.descricao||'—')}</td>
+      <td style="font-weight:600;color:${l.tipo==='receita'?'#4ade80':'#f87171'}">${moeda(l.valor)}</td>
+    </tr>`).join('')}
+  </tbody></table></div>
+</div>`:''}`;
+    lucide.createIcons();
+
+    const map12=new Map();
+    d.rec12m.forEach(r=>map12.set(r.mes,{rec:parseFloat(r.v)||0,desp:0}));
+    d.desp12m.forEach(r=>{const o=map12.get(r.mes)||{rec:0,desp:0};o.desp=parseFloat(r.v)||0;map12.set(r.mes,o);});
+    const m12=[...map12.keys()].sort();
+    mkLine('ch-fl12',m12.map(m=>m.slice(5)+'/'+m.slice(2,4)),[
+      {label:'Receitas',data:m12.map(m=>(map12.get(m)||{}).rec||0),borderColor:COR.V,backgroundColor:COR.bV,fill:true},
+      {label:'Despesas',data:m12.map(m=>(map12.get(m)||{}).desp||0),borderColor:COR.R,backgroundColor:COR.bR,fill:true},
+    ],{scales:{y:{ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR',{notation:'compact'})}}}});
+
+    if(d.fluxo6m&&d.fluxo6m.length){
+      mkBar('ch-fluxo6',d.fluxo6m.map(r=>r.mes.slice(5)+'/'+r.mes.slice(2,4)),[
+        {label:'Receitas',data:d.fluxo6m.map(r=>parseFloat(r.receita)||0),backgroundColor:COR.bV,borderColor:COR.V,borderWidth:1.5},
+        {label:'Despesas',data:d.fluxo6m.map(r=>parseFloat(r.despesa)||0),backgroundColor:COR.bR,borderColor:COR.R,borderWidth:1.5},
+      ],{scales:{y:{ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR',{notation:'compact'})}}}});
+    }
+
+    if(d.catDesp&&d.catDesp.length){
+      const DC=[COR.R,'#ef4444','#dc2626',COR.O,'#f59e0b',COR.X,COR.A,COR.C,COR.S];
+      mkDoughnut('ch-catDesp',d.catDesp.map(c=>c.categoria),d.catDesp.map(c=>parseFloat(c.total)||0),DC.slice(0,d.catDesp.length));
+    }
+  } catch(e){errView('Erro ao carregar financeiro: '+e.message);}
+}
+
+// ═════════════════════════════════════════════════
+// VIEW: DRE
+// ═════════════════════════════════════════════════
+async function dre() {
+  loading();
+  try {
+    const d = await Api.get(`/relatorios/dre?${params()}`);
+    const lp = d.lucro_operacional>=0;
+    const dr = (lbl,val,cls='',indent=false)=>`<tr><td class="${indent?'indent':''}">${lbl}</td><td class="${cls}" style="text-align:right;">${moeda(val)}</td></tr>`;
+    document.getElementById('biView').innerHTML=`
+<div class="bi-view-hd"><h2>DRE — Demonstração do Resultado</h2><p>${fmtDate(_state.ini)} até ${fmtDate(_state.fim)}</p></div>
+<div class="krow k3">
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Receita Bruta</span><div class="kico cV"><i data-lucide="trending-up"></i></div></div>
+    <div class="kpi-val" style="color:#4ade80">${moeda(d.receita_bruta)}</div>
+    <div class="kpi-bot"><span>pedidos no período</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Receita Recebida</span><div class="kico cA"><i data-lucide="banknote"></i></div></div>
+    <div class="kpi-val" style="color:#60a5fa">${moeda(d.receita_paga)}</div>
+    <div class="kpi-bot"><span>efetivamente pago</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Lucro Operacional</span><div class="kico ${lp?'cX':'cR'}"><i data-lucide="award"></i></div></div>
+    <div class="kpi-val" style="color:${lp?'#a78bfa':'#f87171'}">${moeda(d.lucro_operacional)}</div>
+    <div class="kpi-bot"><span>margem: ${d.margem}%</span></div>
+  </div>
+</div>
+<div class="dre-card">
+  <div class="dre-hd"><h3>Demonstração do Resultado do Exercício</h3><small>${fmtDate(_state.ini)} a ${fmtDate(_state.fim)}</small></div>
+  <table class="dret"><thead><tr><th>Descrição</th><th style="text-align:right;">Valor (R$)</th></tr></thead><tbody>
+    <tr class="sec"><td>RECEITAS</td><td></td></tr>
+    ${dr('(+) Receita Bruta de Vendas (Pedidos)',d.receita_bruta,'pos')}
+    ${d.impostos>0?dr('(-) Impostos s/ Vendas (NF)',-d.impostos,'neg',true):''}
+    <tr class="sub"><td>= Receita Líquida</td><td class="${d.receita_liquida>=0?'pos':'neg'}" style="text-align:right;font-weight:700;">${moeda(d.receita_liquida)}</td></tr>
+    <tr class="sub"><td>= Receita Efetivamente Recebida</td><td class="pos" style="text-align:right;font-weight:700;">${moeda(d.receita_paga)}</td></tr>
+    <tr class="sec"><td>DESPESAS OPERACIONAIS</td><td></td></tr>
+    ${d.despesas_por_categoria.map(c=>dr('(-) '+c.categoria,-parseFloat(c.total)||0,'neg',true)).join('')}
+    ${d.comissoes>0?dr('(-) Comissões',-d.comissoes,'neg',true):''}
+    <tr class="sub"><td>= Total Despesas</td><td class="neg" style="text-align:right;font-weight:700;">${moeda(-d.total_despesas)}</td></tr>
+    <tr class="fin"><td>LUCRO OPERACIONAL</td><td class="${lp?'pos':'neg'}" style="text-align:right;">${moeda(d.lucro_operacional)}</td></tr>
+    <tr><td style="color:var(--text-dim);padding:6px 18px 14px;font-size:12px;">Margem líquida: ${d.margem}%</td><td></td></tr>
+  </tbody></table>
+</div>
+${d.despesas_por_categoria.length?`
+<div class="crow c2">
+  <div class="cc tall"><span class="cc-title">Composição das Despesas</span><canvas id="ch-dreDesp"></canvas></div>
+  <div class="cc tall"><span class="cc-title">Resultado Visual</span><canvas id="ch-dreRes"></canvas></div>
+</div>`:''}`;
+    lucide.createIcons();
+
+    if(d.despesas_por_categoria.length){
+      const DC=[COR.R,'#ef4444','#dc2626',COR.O,'#f59e0b',COR.X,COR.A,COR.C,COR.S];
+      mkDoughnut('ch-dreDesp',d.despesas_por_categoria.map(c=>c.categoria),d.despesas_por_categoria.map(c=>Math.abs(parseFloat(c.total)||0)),DC.slice(0,d.despesas_por_categoria.length));
+      mkBar('ch-dreRes',['Receita Recebida','Total Despesas','Lucro Operacional'],[{
+        data:[d.receita_paga,d.total_despesas,Math.max(d.lucro_operacional,0)],
+        backgroundColor:[COR.bV,COR.bR,lp?COR.bX:COR.bR],
+        borderColor:[COR.V,COR.R,lp?COR.X:COR.R],borderWidth:1.5
+      }],{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR',{notation:'compact'})}}}});
+    }
+  } catch(e){errView('Erro ao carregar DRE: '+e.message);}
+}
+
+// ═════════════════════════════════════════════════
+// VIEW: PRODUÇÃO
+// ═════════════════════════════════════════════════
+async function producao() {
+  loading();
+  try {
+    const d = await Api.get(`/relatorios/producao?${params()}`);
+    const emProd = d.porStatus.filter(r=>!['concluido','cancelado'].includes(r.status)).reduce((s,r)=>s+(parseInt(r.qtd)||0),0);
+    const SC = {confirmado:COR.A,em_producao:COR.O,aguardando_montagem:COR.X,concluido:COR.V,cancelado:COR.S,entregue:COR.C};
+    document.getElementById('biView').innerHTML=`
+<div class="bi-view-hd"><h2>Produção</h2><p>Status, prazos e ordens de serviço</p></div>
+<div class="krow k3">
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Em Produção</span><div class="kico cO"><i data-lucide="hammer"></i></div></div>
+    <div class="kpi-val" style="color:#fb923c">${emProd}</div>
+    <div class="kpi-bot"><span>pedidos em andamento</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Concluídos</span><div class="kico cV"><i data-lucide="check-circle-2"></i></div></div>
+    <div class="kpi-val" style="color:#4ade80">${d.concluidosMes}</div>
+    <div class="kpi-bot"><span>no período selecionado</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Atrasados</span><div class="kico cR"><i data-lucide="alarm-clock"></i></div></div>
+    <div class="kpi-val" style="color:#f87171">${d.atrasados.length}</div>
+    <div class="kpi-bot"><span>pedidos em atraso</span></div>
+  </div>
+</div>
+<div class="crow c21">
+  <div class="cc tall"><span class="cc-title">Pedidos — 12 Meses</span><canvas id="ch-prod12"></canvas></div>
+  <div class="cc tall"><span class="cc-title">Status dos Pedidos</span><canvas id="ch-prodStatus"></canvas></div>
+</div>
+${d.atrasados.length?`
+<div class="btc">
+  <div class="btc-hd"><b>Pedidos Atrasados</b><small style="color:#f87171;">${d.atrasados.length} pedidos</small></div>
+  <div style="overflow-x:auto"><table class="bt"><thead><tr><th>#</th><th>Cliente</th><th>Status</th><th>Previsão</th><th>Atraso</th><th>Valor</th></tr></thead><tbody>
+    ${d.atrasados.map(p=>`<tr>
+      <td style="color:var(--primary);font-weight:600;">${escapeHtml(p.numero||'—')}</td>
+      <td>${escapeHtml(p.cliente||'—')}</td>
+      <td><span class="tag tag-a">${p.status||'—'}</span></td>
+      <td>${fmtDate(p.data_prevista_entrega)}</td>
+      <td style="color:#f87171;font-weight:700;">${parseInt(p.dias_atraso)||0}d</td>
+      <td>${moeda(p.valor_final)}</td>
+    </tr>`).join('')}
+  </tbody></table></div>
+</div>`:`<div class="btc"><div class="btc-hd"><b>Pedidos Atrasados</b></div><div style="padding:30px;text-align:center;color:#4ade80;font-size:13px;">Nenhum pedido em atraso!</div></div>`}
+${d.osPorTipo&&d.osPorTipo.length?`
+<div class="btc">
+  <div class="btc-hd"><b>Ordens de Serviço por Tipo</b></div>
+  <div style="overflow-x:auto"><table class="bt"><thead><tr><th>Tipo</th><th>Total</th><th>Concluídas</th><th>Taxa</th></tr></thead><tbody>
+    ${d.osPorTipo.map(o=>{const tx=parseInt(o.qtd)>0?Math.round(parseInt(o.concluidos)/parseInt(o.qtd)*100):0;return`<tr>
+      <td style="font-weight:600;">${escapeHtml(o.tipo||'—')}</td>
+      <td>${o.qtd||0}</td><td style="color:#4ade80;">${o.concluidos||0}</td>
+      <td><span class="tag ${tx>=80?'tag-v':tx>=50?'tag-d':'tag-r'}">${tx}%</span></td>
+    </tr>`}).join('')}
+  </tbody></table></div>
+</div>`:''}`;
+    lucide.createIcons();
+
+    if(d.prod12m&&d.prod12m.length)
+      mkBar('ch-prod12',d.prod12m.map(r=>r.mes.slice(5)+'/'+r.mes.slice(2,4)),[
+        {label:'Total',data:d.prod12m.map(r=>parseInt(r.total)||0),backgroundColor:COR.bO,borderColor:COR.O,borderWidth:1.5},
+        {label:'Concluídos',data:d.prod12m.map(r=>parseInt(r.concluidos)||0),backgroundColor:COR.bV,borderColor:COR.V,borderWidth:1.5},
+      ]);
+
+    if(d.porStatus&&d.porStatus.length)
+      mkDoughnut('ch-prodStatus',d.porStatus.map(s=>s.status),d.porStatus.map(s=>parseInt(s.qtd)||0),d.porStatus.map(s=>SC[s.status]||COR.S));
+  } catch(e){errView('Erro ao carregar produção: '+e.message);}
+}
+
+// ═════════════════════════════════════════════════
+// VIEW: ESTOQUE
+// ═════════════════════════════════════════════════
+async function estoque() {
+  loading();
+  try {
+    const d = await Api.get(`/relatorios/estoque?${params()}`);
+    document.getElementById('biView').innerHTML=`
+<div class="bi-view-hd"><h2>Estoque</h2><p>Posição, movimentações e produtos críticos</p></div>
+<div class="krow k3">
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Valor do Estoque</span><div class="kico cD"><i data-lucide="boxes"></i></div></div>
+    <div class="kpi-val" style="color:#d4af37">${moeda(d.posicao.valor)}</div>
+    <div class="kpi-bot"><span>${d.posicao.total} produtos ativos</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Itens Críticos</span><div class="kico ${d.baixo.length>0?'cR':'cV'}"><i data-lucide="alert-triangle"></i></div></div>
+    <div class="kpi-val" style="color:${d.baixo.length>0?'#fbbf24':'#4ade80'}">${d.baixo.length}</div>
+    <div class="kpi-bot"><span>abaixo do mínimo</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Sem Estoque</span><div class="kico ${d.semEstoque>0?'cR':'cV'}"><i data-lucide="x-circle"></i></div></div>
+    <div class="kpi-val" style="color:${d.semEstoque>0?'#f87171':'#4ade80'}">${d.semEstoque}</div>
+    <div class="kpi-bot"><span>produtos zerados</span></div>
+  </div>
+</div>
+<div class="crow c2">
+  <div class="cc tall"><span class="cc-title">Movimentações — 6 Meses</span><canvas id="ch-estMov"></canvas></div>
+  <div class="cc tall"><span class="cc-title">Top Consumo (Período)</span><canvas id="ch-estConsumo"></canvas></div>
+</div>
+${d.baixo&&d.baixo.length?`
+<div class="btc">
+  <div class="btc-hd"><b>Produtos Abaixo do Mínimo</b><small style="color:#fbbf24;">${d.baixo.length} itens</small></div>
+  <div style="overflow-x:auto"><table class="bt"><thead><tr><th>Produto</th><th>Und</th><th>Atual</th><th>Mínimo</th><th>Valor Unit.</th><th>Status</th></tr></thead><tbody>
+    ${d.baixo.map(p=>{const pt=parseInt(p.estoque_minimo)>0?Math.round((parseInt(p.estoque_atual)||0)/parseInt(p.estoque_minimo)*100):0;return`<tr>
+      <td style="font-weight:600;">${escapeHtml(p.nome||'—')}</td>
+      <td style="color:var(--text-dim);">${p.unidade||'un'}</td>
+      <td style="color:${pt<=0?'#f87171':'#fbbf24'};font-weight:700;">${p.estoque_atual||0}</td>
+      <td>${p.estoque_minimo||0}</td><td>${moeda(p.valor_custo)}</td>
+      <td><span class="tag ${pt<=0?'tag-r':'tag-a'}">${pt<=0?'Zerado':'Crítico'}</span></td>
+    </tr>`}).join('')}
+  </tbody></table></div>
+</div>`:`<div class="btc"><div class="btc-hd"><b>Produtos Críticos</b></div><div style="padding:30px;text-align:center;color:#4ade80;font-size:13px;">Estoque dentro do ideal!</div></div>`}`;
+    lucide.createIcons();
+
+    if(d.movimentos&&d.movimentos.length)
+      mkBar('ch-estMov',d.movimentos.map(r=>r.mes.slice(5)+'/'+r.mes.slice(2,4)),[
+        {label:'Entradas',data:d.movimentos.map(r=>parseFloat(r.entradas)||0),backgroundColor:COR.bV,borderColor:COR.V,borderWidth:1.5},
+        {label:'Saídas',  data:d.movimentos.map(r=>parseFloat(r.saidas)||0),  backgroundColor:COR.bR,borderColor:COR.R,borderWidth:1.5},
+      ]);
+
+    if(d.topConsumo&&d.topConsumo.length)
+      mkBarH('ch-estConsumo',d.topConsumo.map(p=>(p.nome||'?').slice(0,22)),d.topConsumo.map(p=>parseFloat(p.consumo)||0),COR.bO,
+        {plugins:{tooltip:{callbacks:{label:ctx=>`Consumo: ${ctx.raw} un.`}}},scales:{x:{ticks:{callback:v=>v+' un.'}}}});
+  } catch(e){errView('Erro ao carregar estoque: '+e.message);}
+}
+
+// ═════════════════════════════════════════════════
+// VIEW: CLIENTES
+// ═════════════════════════════════════════════════
+async function clientes() {
+  loading();
+  try {
+    const d = await Api.get(`/relatorios/clientes?${params()}`);
+    const totNovos=d.novosMes.reduce((s,r)=>s+(parseInt(r.novos)||0),0);
+    document.getElementById('biView').innerHTML=`
+<div class="bi-view-hd"><h2>Clientes</h2><p>Ranking, origem, cidades e retenção</p></div>
+<div class="krow k3">
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Top 20 Clientes</span><div class="kico cC"><i data-lucide="users"></i></div></div>
+    <div class="kpi-val" style="color:#22d3ee">${d.ranking.length}</div>
+    <div class="kpi-bot"><span>por faturamento acumulado</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Novos (12m)</span><div class="kico cV"><i data-lucide="user-plus"></i></div></div>
+    <div class="kpi-val" style="color:#4ade80">${totNovos}</div>
+    <div class="kpi-bot"><span>últimos 12 meses</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Recorrentes</span><div class="kico cX"><i data-lucide="refresh-ccw"></i></div></div>
+    <div class="kpi-val" style="color:#a78bfa">${d.recorrentes}</div>
+    <div class="kpi-bot"><span>compraram mais de 1x</span></div>
+  </div>
+</div>
+<div class="crow c2">
+  <div class="cc"><span class="cc-title">Novos Clientes — 12 Meses</span><canvas id="ch-cliNovos"></canvas></div>
+  <div class="cc"><span class="cc-title">Origem dos Clientes</span><canvas id="ch-cliOrigem"></canvas></div>
+</div>
+${d.cidades&&d.cidades.length?`<div class="crow c1"><div class="cc"><span class="cc-title">Faturamento por Cidade</span><canvas id="ch-cliCid" style="max-height:180px;"></canvas></div></div>`:''}
+<div class="btc">
+  <div class="btc-hd"><b>Ranking de Clientes (Top 20)</b><small>Por faturamento total</small></div>
+  <div style="overflow-x:auto"><table class="bt"><thead><tr><th>#</th><th>Cliente</th><th>Cidade</th><th>Origem</th><th>Pedidos</th><th>Total</th><th>Última Compra</th></tr></thead><tbody>
+    ${d.ranking.map((c,i)=>`<tr>
+      <td style="color:${i<3?'var(--primary)':'var(--text-dim)'};font-weight:600;">${i+1}</td>
+      <td style="font-weight:600;">${escapeHtml(c.nome||'—')}</td>
+      <td style="color:var(--text-dim);">${escapeHtml(c.cidade||'—')}</td>
+      <td><span class="tag tag-s">${escapeHtml(c.origem||'Direto')}</span></td>
+      <td>${c.pedidos||0}</td>
+      <td style="color:#4ade80;font-weight:600;">${moeda(c.total)}</td>
+      <td style="color:var(--text-dim);">${c.ultima_compra?fmtDate(c.ultima_compra.split('T')[0]):'—'}</td>
+    </tr>`).join('')||'<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-dim);">Sem dados</td></tr>'}
+  </tbody></table></div>
+</div>`;
+    lucide.createIcons();
+
+    if(d.novosMes&&d.novosMes.length)
+      mkBar('ch-cliNovos',d.novosMes.map(r=>r.mes.slice(5)+'/'+r.mes.slice(2,4)),[{
+        label:'Novos',data:d.novosMes.map(r=>parseInt(r.novos)||0),backgroundColor:COR.bC,borderColor:COR.C,borderWidth:1.5
+      }],{plugins:{legend:{display:false}},scales:{y:{ticks:{stepSize:1}}}});
+
+    if(d.origens&&d.origens.length){
+      const PC=[COR.D,COR.A,COR.V,COR.X,COR.C,COR.O,COR.R,COR.S];
+      mkDoughnut('ch-cliOrigem',d.origens.map(o=>o.origem),d.origens.map(o=>parseInt(o.qtd)||0),PC.slice(0,d.origens.length));
+    }
+
+    if(d.cidades&&d.cidades.length)
+      mkBarH('ch-cliCid',d.cidades.map(c=>c.cidade.slice(0,20)),d.cidades.map(c=>parseFloat(c.faturamento)||0),COR.bA,
+        {plugins:{tooltip:{callbacks:{label:ctx=>'R$ '+ctx.raw.toLocaleString('pt-BR',{minimumFractionDigits:2})}}},
+         scales:{x:{ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR',{notation:'compact'})}}}});
+  } catch(e){errView('Erro ao carregar clientes: '+e.message);}
+}
+
+// ═════════════════════════════════════════════════
+// VIEW: FISCAL
+// ═════════════════════════════════════════════════
+async function fiscal() {
+  loading();
+  try {
+    const d = await Api.get(`/relatorios/fiscal?${params()}`);
+    const totNF  = d.porStatus.reduce((s,r)=>s+(parseInt(r.qtd)||0),0);
+    const totVal = d.porStatus.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+    const totImp = d.impostosMes.reduce((s,r)=>s+(parseFloat(r.icms)||0)+(parseFloat(r.pis)||0)+(parseFloat(r.cofins)||0)+(parseFloat(r.iss)||0),0);
+    document.getElementById('biView').innerHTML=`
+<div class="bi-view-hd"><h2>Fiscal / Notas Fiscais</h2><p>Emissão, status e impostos</p></div>
+<div class="krow k3">
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Total de NFs</span><div class="kico cA"><i data-lucide="receipt"></i></div></div>
+    <div class="kpi-val" style="color:#60a5fa">${totNF}</div>
+    <div class="kpi-bot"><span>no período</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Valor Total</span><div class="kico cV"><i data-lucide="file-check-2"></i></div></div>
+    <div class="kpi-val" style="color:#4ade80">${moeda(totVal)}</div>
+    <div class="kpi-bot"><span>NFs autorizadas</span></div>
+  </div>
+  <div class="bi-kpi">
+    <div class="kpi-top2"><span class="kpi-lbl">Total Impostos</span><div class="kico cR"><i data-lucide="landmark"></i></div></div>
+    <div class="kpi-val" style="color:#f87171">${moeda(totImp)}</div>
+    <div class="kpi-bot"><span>ICMS + ISS + PIS + COFINS</span></div>
+  </div>
+</div>
+${d.porStatus.length?`
+<div class="btc">
+  <div class="btc-hd"><b>Status das Notas Fiscais</b></div>
+  <div style="overflow-x:auto"><table class="bt"><thead><tr><th>Status</th><th>Quantidade</th><th>Valor Total</th></tr></thead><tbody>
+    ${d.porStatus.map(s=>{const cls={autorizada:'tag-v',cancelada:'tag-r',inutilizada:'tag-s',denegada:'tag-a'}[s.status]||'tag-s';return`<tr>
+      <td><span class="tag ${cls}">${s.status||'—'}</span></td>
+      <td>${s.qtd||0}</td>
+      <td style="font-weight:600;">${moeda(s.total)}</td>
+    </tr>`}).join('')}
+  </tbody></table></div>
+</div>`:`<div class="btc"><div class="btc-hd"><b>Notas Fiscais</b></div><div style="padding:30px;text-align:center;color:var(--text-dim);font-size:13px;">Nenhuma NF encontrada no período.</div></div>`}
+${d.impostosMes.length?`<div class="cc tall" style="margin-bottom:16px;"><span class="cc-title">Impostos por Mês</span><canvas id="ch-impost"></canvas></div>`:''}
+${d.cfop.length?`
+<div class="btc">
+  <div class="btc-hd"><b>CFOP — Top 10</b></div>
+  <div style="overflow-x:auto"><table class="bt"><thead><tr><th>CFOP</th><th>Quantidade</th><th>Valor</th></tr></thead><tbody>
+    ${d.cfop.map(c=>`<tr>
+      <td style="font-weight:700;color:var(--primary);">${c.cfop||'—'}</td>
+      <td>${c.qtd||0}</td>
+      <td style="font-weight:600;">${moeda(c.total)}</td>
+    </tr>`).join('')}
+  </tbody></table></div>
+</div>`:''}`;
+    lucide.createIcons();
+
+    if(d.impostosMes.length)
+      mkBar('ch-impost',d.impostosMes.map(r=>r.mes.slice(5)+'/'+r.mes.slice(2,4)),[
+        {label:'ICMS',   data:d.impostosMes.map(r=>parseFloat(r.icms)||0),   backgroundColor:COR.bR,borderColor:COR.R,borderWidth:1.5},
+        {label:'PIS',    data:d.impostosMes.map(r=>parseFloat(r.pis)||0),    backgroundColor:COR.bA,borderColor:COR.A,borderWidth:1.5},
+        {label:'COFINS', data:d.impostosMes.map(r=>parseFloat(r.cofins)||0), backgroundColor:COR.bX,borderColor:COR.X,borderWidth:1.5},
+        {label:'ISS',    data:d.impostosMes.map(r=>parseFloat(r.iss)||0),    backgroundColor:COR.bO,borderColor:COR.O,borderWidth:1.5},
+      ],{scales:{y:{ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR',{notation:'compact'})}}}});
+  } catch(e){errView('Erro ao carregar fiscal: '+e.message);}
+}
+
+// ═════════════════════════════════════════════════
+// VIEW: IA INSIGHTS
+// ═════════════════════════════════════════════════
+async function ia() {
+  loading();
+  try {
+    const insights = await Api.get(`/relatorios/ia?${params()}`);
+    document.getElementById('biView').innerHTML=`
+<div class="bi-view-hd"><h2>IA Insights</h2><p>Análise inteligente dos indicadores — ${fmtDate(_state.ini)} a ${fmtDate(_state.fim)}</p></div>
+<div class="ia-grid">
+  ${insights.map(ins=>`
+    <div class="ia-card ${escapeHtml(ins.tipo||'info')}">
+      <div class="ia-ico"><i data-lucide="${escapeHtml(ins.icone||'info')}"></i></div>
+      <div class="ia-body">
+        <h4>${escapeHtml(ins.titulo||'—')}</h4>
+        <p>${escapeHtml(ins.msg||'')}</p>
+      </div>
+    </div>
+  `).join('')}
+</div>
+<div style="margin-top:24px;padding:16px 20px;background:var(--bg-card2);border:1px solid var(--border);border-radius:12px;font-size:12px;color:var(--text-dim);display:flex;gap:10px;align-items:flex-start;">
+  <i data-lucide="info" style="width:15px;height:15px;flex-shrink:0;margin-top:1px;"></i>
+  <span>Insights gerados automaticamente com base nos dados do período. Altere o filtro de período para análises diferentes.</span>
+</div>`;
+    lucide.createIcons();
+  } catch(e){errView('Erro ao carregar insights: '+e.message);}
+}
+
+// ── Init ─────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  const p=calcPeriodo('mes');
+  _state={tipo:'mes',...p};
+  document.getElementById('dtIni').value=p.ini;
+  document.getElementById('dtFim').value=p.fim;
+  updateLabel();
+  setView('overview');
+});
+</script>
+</body>
+</html>

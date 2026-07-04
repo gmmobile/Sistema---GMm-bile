@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notas Fiscais — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Layout ─────────────────────────────────────────── */
+    .main-content { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+    .page-content { flex:1; min-height:0; display:flex; flex-direction:column;
+                    gap:10px; padding:14px 18px; overflow-y:auto; }
+
+    /* ── KPI Strip ───────────────────────────────────────── */
+    .kpi-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; flex-shrink:0; }
+    @media(max-width:1200px){ .kpi-strip { grid-template-columns:repeat(2,1fr); } }
+    .kpi-card {
+      background:var(--bg-card); border:1px solid var(--border); border-radius:11px;
+      padding:14px 16px; position:relative; overflow:hidden; transition:.15s;
+    }
+    .kpi-card::after { content:''; position:absolute; top:0; left:0; right:0; height:2.5px;
+                       border-radius:2px 2px 0 0; }
+    .kpi-verde::after   { background:linear-gradient(90deg,#22c55e,#4ade80); }
+    .kpi-vermelho::after{ background:linear-gradient(90deg,#f87171,#fb923c); }
+    .kpi-azul::after    { background:linear-gradient(90deg,#60a5fa,#818cf8); }
+    .kpi-dourado::after { background:linear-gradient(90deg,var(--primary),#f0d060); }
+    .kpi-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+    .kpi-icon { width:34px; height:34px; border-radius:8px; display:flex; align-items:center;
+                justify-content:center; flex-shrink:0; }
+    .kpi-icon svg { width:16px; height:16px; }
+    .kpi-icon.verde   { background:rgba(34,197,94,.12); color:#22c55e; }
+    .kpi-icon.vermelho{ background:rgba(248,113,113,.12); color:#f87171; }
+    .kpi-icon.azul    { background:rgba(96,165,250,.12); color:#60a5fa; }
+    .kpi-icon.dourado { background:rgba(196,162,74,.12); color:var(--primary); }
+    .kpi-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; }
+    .kpi-valor { font-size:22px; font-weight:800; color:var(--text); margin:4px 0 2px; line-height:1; }
+    .kpi-comp  { font-size:10px; color:var(--text-dim); }
+    .kpi-comp .up   { color:#22c55e; }
+    .kpi-comp .down { color:#f87171; }
+
+    /* ── Impostos strip ──────────────────────────────────── */
+    .imp-strip { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+    .imp-card  { background:var(--bg-card); border:1px solid var(--border); border-radius:9px;
+                 padding:10px 12px; text-align:center; }
+    .imp-label { font-size:9px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; margin-bottom:3px; }
+    .imp-val   { font-size:14px; font-weight:800; }
+
+    /* ── Filtros bar ─────────────────────────────────────── */
+    .filtros-bar {
+      display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; flex-shrink:0;
+      background:var(--bg-card); border:1px solid var(--border); border-radius:10px;
+      padding:10px 14px;
+    }
+    .filtros-bar .form-group { margin-bottom:0; }
+    .filtros-bar label { font-size:10px; color:var(--text-muted); margin-bottom:3px; display:block; }
+    .filtros-bar select, .filtros-bar input {
+      height:32px; font-size:12px; padding:0 8px; border-radius:7px;
+      background:var(--bg-card2); border:1px solid var(--border); color:var(--text); outline:none;
+    }
+    .filtros-bar .busca-wrap { position:relative; }
+    .filtros-bar .busca-wrap svg { position:absolute; left:8px; top:50%; transform:translateY(-50%); opacity:.35; pointer-events:none; }
+    .filtros-bar .busca-wrap input { padding-left:28px; }
+    .filtros-actions { display:flex; gap:6px; margin-left:auto; align-items:flex-end; }
+    .btn-sm { height:32px; padding:0 14px; font-size:12px; border-radius:7px; }
+
+    /* ── Layout tabela + sidebar ──────────────────────────── */
+    .nf-layout { display:flex; gap:12px; min-height:0; }
+    .nf-main   { flex:1; min-width:0; display:flex; flex-direction:column; gap:10px; }
+    .nf-sidebar{ width:230px; flex-shrink:0; display:flex; flex-direction:column; gap:10px; }
+
+    /* ── Tabela ──────────────────────────────────────────── */
+    .table-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .table-card table { width:100%; border-collapse:collapse; }
+    .table-card thead th {
+      padding:10px 12px; font-size:10px; font-weight:700; text-transform:uppercase;
+      letter-spacing:.4px; color:var(--text-muted); background:var(--bg-card2);
+      border-bottom:1px solid var(--border); text-align:left; white-space:nowrap;
+    }
+    .table-card tbody tr { border-bottom:1px solid rgba(51,65,85,.35); transition:.1s; cursor:pointer; }
+    .table-card tbody tr:last-child { border-bottom:none; }
+    .table-card tbody tr:hover { background:rgba(255,255,255,.025); }
+    .table-card tbody tr.expanded { background:rgba(196,162,74,.05); }
+    .table-card td { padding:10px 12px; font-size:12px; vertical-align:middle; }
+    .td-num { font-weight:800; color:var(--primary); white-space:nowrap; }
+    .td-cli { font-weight:600; }
+    .td-cli small { display:block; font-size:10px; color:var(--text-muted); font-weight:400; }
+    .td-val { font-weight:700; white-space:nowrap; }
+    .td-imp { font-size:11px; color:var(--text-dim); white-space:nowrap; }
+    .td-acoes { white-space:nowrap; }
+
+    /* Status badges */
+    .badge-nf { font-size:9px; font-weight:700; padding:2px 7px; border-radius:4px;
+                text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
+    .nf-rascunho     { background:rgba(100,116,139,.14); color:#94a3b8; border:1px solid rgba(100,116,139,.2); }
+    .nf-pendente     { background:rgba(251,191,36,.12);  color:#fbbf24; border:1px solid rgba(251,191,36,.25); }
+    .nf-transmitindo { background:rgba(96,165,250,.12);  color:#60a5fa; border:1px solid rgba(96,165,250,.25); }
+    .nf-autorizada   { background:rgba(34,197,94,.12);   color:#4ade80; border:1px solid rgba(34,197,94,.25); }
+    .nf-cancelada    { background:rgba(248,113,113,.1);  color:#f87171; border:1px solid rgba(248,113,113,.25); }
+    .nf-rejeitada    { background:rgba(239,68,68,.12);   color:#ef4444; border:1px solid rgba(239,68,68,.3); }
+    .nf-denegada     { background:rgba(168,85,247,.12);  color:#c084fc; border:1px solid rgba(168,85,247,.25); }
+    .nf-inutilizada  { background:rgba(30,30,30,.6);     color:#475569; border:1px solid rgba(255,255,255,.06); }
+
+    /* Tipo badges */
+    .tipo-saida    { color:#22c55e; font-weight:700; font-size:10px; }
+    .tipo-entrada  { color:#60a5fa; font-weight:700; font-size:10px; }
+    .tipo-ajuste   { color:#fbbf24; font-weight:700; font-size:10px; }
+    .tipo-devolucao{ color:#f87171; font-weight:700; font-size:10px; }
+
+    /* ── Linha expandida ─────────────────────────────────── */
+    .expand-row td { padding:0 !important; }
+    .expand-body {
+      padding:14px 16px; background:rgba(196,162,74,.04);
+      border-top:1px solid rgba(196,162,74,.15);
+      display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;
+    }
+    .expand-section h4 {
+      font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+      color:var(--primary); margin-bottom:8px; padding-bottom:4px;
+      border-bottom:1px solid rgba(196,162,74,.2);
+    }
+    .expand-row-item { display:flex; justify-content:space-between; padding:3px 0; font-size:11px; }
+    .expand-row-item .lbl { color:var(--text-muted); }
+    .expand-row-item .val { font-weight:600; }
+    .itens-mini { margin-top:6px; }
+    .item-mini { display:flex; gap:8px; padding:5px 0; border-bottom:1px solid rgba(51,65,85,.3); font-size:11px; }
+    .item-mini:last-child { border-bottom:none; }
+    .item-mini .desc { flex:1; }
+    .item-mini .val  { color:var(--primary); font-weight:700; }
+    .expand-acoes { display:flex; flex-wrap:wrap; gap:6px; padding-top:8px; border-top:1px solid rgba(51,65,85,.3); margin-top:8px; }
+
+    /* ── Sidebar ─────────────────────────────────────────── */
+    .sb-card { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
+    .sb-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); margin-bottom:10px; }
+    .sb-row { display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid rgba(51,65,85,.3); }
+    .sb-row:last-child { border-bottom:none; }
+    .sb-row .lbl { font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:5px; }
+    .sb-row .lbl i { width:6px; height:6px; border-radius:50%; display:inline-block; }
+    .sb-row .val { font-size:11px; font-weight:700; }
+    .alerta-item { padding:7px 0; border-bottom:1px solid rgba(51,65,85,.3); font-size:11px; display:flex; gap:7px; align-items:flex-start; cursor:pointer; }
+    .alerta-item:last-child { border-bottom:none; }
+    .alerta-item:hover { opacity:.8; }
+    .alerta-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; margin-top:3px; }
+    .a-erro    { background:#ef4444; }
+    .a-warning { background:#fbbf24; }
+    .a-info    { background:#60a5fa; }
+
+    /* ── Gráfico ─────────────────────────────────────────── */
+    .chart-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+    .chart-title { font-size:12px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+    .chart-title svg { opacity:.6; }
+
+    /* ── Pedidos para faturar ────────────────────────────── */
+    .ped-ativo { background:rgba(34,197,94,.06); border:1px solid rgba(34,197,94,.15);
+                 border-radius:8px; padding:7px 10px; margin-bottom:5px;
+                 display:flex; align-items:center; gap:8px; cursor:pointer; transition:.12s; }
+    .ped-ativo:hover { background:rgba(34,197,94,.1); }
+    .ped-num { font-size:12px; font-weight:700; color:#22c55e; }
+    .ped-cli { font-size:11px; color:var(--text-muted); flex:1; }
+    .vazio { padding:24px; text-align:center; color:var(--text-dim); font-size:12px; }
+
+    /* ── Botão mini ──────────────────────────────────────── */
+    .btn-mini { width:24px; height:24px; border-radius:5px; border:1px solid var(--border);
+                background:transparent; color:var(--text-muted); cursor:pointer;
+                display:inline-flex; align-items:center; justify-content:center; transition:.1s; }
+    .btn-mini:hover { background:var(--bg-hover); color:var(--text); }
+    .btn-mini svg { width:12px; height:12px; }
+
+    /* ── Modais ──────────────────────────────────────────── */
+    .modal { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; width:100%; }
+    .tipo-nf-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; }
+    .tipo-nf-btn  { padding:10px; border-radius:8px; border:2px solid var(--border);
+                    background:var(--bg-card2); color:var(--text-muted); cursor:pointer;
+                    text-align:center; font-size:11px; font-weight:600; transition:.15s; }
+    .tipo-nf-btn:hover { border-color:var(--primary); color:var(--text); }
+    .tipo-nf-btn.ativo { border-color:var(--primary); color:var(--primary); background:rgba(196,162,74,.08); }
+    .tipo-nf-btn .ico { font-size:18px; margin-bottom:3px; }
+    .itens-lista { border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:8px; }
+    .item-linha { display:grid; grid-template-columns:2fr 1fr 1fr 1fr 28px; gap:6px; padding:8px 10px;
+                  border-bottom:1px solid rgba(51,65,85,.3); align-items:center; }
+    .item-linha:last-child { border-bottom:none; }
+    .item-linha input { height:26px; font-size:11px; background:var(--bg-card2); border:1px solid var(--border);
+                        border-radius:5px; color:var(--text); padding:0 6px; width:100%; outline:none; }
+    .imp-field label { font-size:10px; color:var(--text-muted); margin-bottom:3px; display:block; }
+    .imp-field input { width:100%; height:28px; font-size:11px; background:var(--bg-card2);
+                       border:1px solid var(--border); border-radius:6px; color:var(--text);
+                       padding:0 8px; outline:none; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()"><i data-lucide="panel-left-close"></i></button>
+        <div class="topbar-breadcrumb">
+          <a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a>
+          &nbsp;/&nbsp;<strong>Notas Fiscais</strong>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-btn"><i data-lucide="bell"></i></div>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- ── KPI ────────────────────────────────────────── -->
+      <div class="kpi-strip">
+        <div class="kpi-card kpi-verde">
+          <div class="kpi-top">
+            <div>
+              <div class="kpi-label">Valor Faturado</div>
+              <div class="kpi-valor" id="kFaturado">—</div>
+              <div class="kpi-comp"><span id="kFatComp" class="up">—</span> vs mês anterior</div>
+            </div>
+            <div class="kpi-icon verde">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-azul">
+          <div class="kpi-top">
+            <div>
+              <div class="kpi-label">Notas Emitidas</div>
+              <div class="kpi-valor" id="kEmitidas">—</div>
+              <div class="kpi-comp"><span id="kEmitComp" class="up">—</span> vs mês anterior</div>
+            </div>
+            <div class="kpi-icon azul">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-dourado">
+          <div class="kpi-top">
+            <div>
+              <div class="kpi-label">Pendentes</div>
+              <div class="kpi-valor" id="kPendentes">—</div>
+              <div class="kpi-comp">aguardando emissão</div>
+            </div>
+            <div class="kpi-icon dourado">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-vermelho">
+          <div class="kpi-top">
+            <div>
+              <div class="kpi-label">Canceladas / Rejeitadas</div>
+              <div class="kpi-valor" id="kCanceladas">—</div>
+              <div class="kpi-comp" id="kRejeitadas">— rejeitadas</div>
+            </div>
+            <div class="kpi-icon vermelho">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Impostos strip ─────────────────────────────── -->
+      <div class="imp-strip">
+        <div class="imp-card">
+          <div class="imp-label">ICMS</div>
+          <div class="imp-val" id="iIcms" style="color:#60a5fa">—</div>
+        </div>
+        <div class="imp-card">
+          <div class="imp-label">IPI</div>
+          <div class="imp-val" id="iIpi" style="color:#818cf8">—</div>
+        </div>
+        <div class="imp-card">
+          <div class="imp-label">PIS</div>
+          <div class="imp-val" id="iPis" style="color:#34d399">—</div>
+        </div>
+        <div class="imp-card">
+          <div class="imp-label">COFINS</div>
+          <div class="imp-val" id="iCofins" style="color:#a3e635">—</div>
+        </div>
+        <div class="imp-card">
+          <div class="imp-label">ISS</div>
+          <div class="imp-val" id="iIss" style="color:#fbbf24">—</div>
+        </div>
+      </div>
+
+      <!-- ── Filtros ─────────────────────────────────────── -->
+      <div class="filtros-bar">
+        <div class="form-group">
+          <label>Status</label>
+          <select id="fStatus" onchange="carregar()" style="min-width:130px">
+            <option value="">Todos</option>
+            <option value="rascunho">Rascunho</option>
+            <option value="pendente">Pendente</option>
+            <option value="autorizada">Autorizada</option>
+            <option value="cancelada">Cancelada</option>
+            <option value="rejeitada">Rejeitada</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="fTipo" onchange="carregar()">
+            <option value="">Todos</option>
+            <option value="saida">Saída</option>
+            <option value="entrada">Entrada</option>
+            <option value="ajuste">Ajuste</option>
+            <option value="devolucao">Devolução</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Início</label>
+          <input type="date" id="fInicio" onchange="carregar()">
+        </div>
+        <div class="form-group">
+          <label>Fim</label>
+          <input type="date" id="fFim" onchange="carregar()">
+        </div>
+        <div class="form-group busca-wrap">
+          <label>Buscar</label>
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="fBusca" placeholder="Cliente, nº, chave..." oninput="debounceCarregar()" style="width:180px">
+        </div>
+        <div class="filtros-actions">
+          <button class="btn btn-ghost btn-sm" onclick="carregar()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+            Atualizar
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="abrirNovaNota()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nova NF
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="abrirFaturar()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Faturar Pedido
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Layout tabela + sidebar ──────────────────────── -->
+      <div class="nf-layout">
+
+        <!-- Tabela + gráfico -->
+        <div class="nf-main">
+          <!-- Gráfico faturamento -->
+          <div class="chart-card">
+            <div class="chart-title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Faturamento Mensal
+              <span style="font-size:10px;color:var(--text-muted);font-weight:400;margin-left:auto" id="chartPeriodo"></span>
+            </div>
+            <canvas id="chartFat" height="70"></canvas>
+          </div>
+
+          <!-- Tabela de notas -->
+          <div class="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nº / Série</th>
+                  <th>Tipo</th>
+                  <th>Cliente / Fornecedor</th>
+                  <th>Pedido</th>
+                  <th>Emissão</th>
+                  <th>Valor Total</th>
+                  <th>Impostos</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tabelaNotas">
+                <tr><td colspan="9" class="vazio">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="nf-sidebar">
+
+          <!-- Resumo -->
+          <div class="sb-card">
+            <div class="sb-title">Resumo do Mês</div>
+            <div class="sb-row">
+              <span class="lbl"><i style="background:#4ade80"></i>Autorizadas</span>
+              <span class="val" id="sbAut" style="color:#4ade80">—</span>
+            </div>
+            <div class="sb-row">
+              <span class="lbl"><i style="background:#fbbf24"></i>Pendentes</span>
+              <span class="val" id="sbPend" style="color:#fbbf24">—</span>
+            </div>
+            <div class="sb-row">
+              <span class="lbl"><i style="background:#f87171"></i>Canceladas</span>
+              <span class="val" id="sbCanc" style="color:#f87171">—</span>
+            </div>
+            <div class="sb-row">
+              <span class="lbl"><i style="background:#ef4444"></i>Rejeitadas</span>
+              <span class="val" id="sbRej" style="color:#ef4444">—</span>
+            </div>
+            <div class="sb-row">
+              <span class="lbl"><i style="background:#60a5fa"></i>Entradas</span>
+              <span class="val" id="sbEnt">—</span>
+            </div>
+            <div class="sb-row">
+              <span class="lbl"><i style="background:#22c55e"></i>Saídas</span>
+              <span class="val" id="sbSai">—</span>
+            </div>
+          </div>
+
+          <!-- Alertas -->
+          <div class="sb-card">
+            <div class="sb-title">Alertas</div>
+            <div id="sbAlertas"><p class="vazio" style="padding:12px 0;font-size:11px">Carregando...</p></div>
+          </div>
+
+          <!-- Pedidos prontos para faturar -->
+          <div class="sb-card">
+            <div class="sb-title">Prontos para Faturar</div>
+            <div id="sbPedidos"><p class="vazio" style="padding:12px 0;font-size:11px">Verificando...</p></div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ─── MODAL: Nova Nota ──────────────────────────────────────── -->
+<div class="modal-overlay" id="modalNovaNota">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-header">
+      <h2 class="modal-title">Nova Nota Fiscal</h2>
+      <button class="modal-close" onclick="fecharModal('modalNovaNota')"></button>
+    </div>
+    <div class="modal-body">
+      <!-- Tipo -->
+      <div class="form-group">
+        <label>Tipo de Nota</label>
+        <div class="tipo-nf-grid">
+          <div class="tipo-nf-btn ativo" onclick="setTipoNF('saida',this)"><div class="ico">📤</div>Saída (NF-e)</div>
+          <div class="tipo-nf-btn" onclick="setTipoNF('entrada',this)"><div class="ico">📥</div>Entrada</div>
+          <div class="tipo-nf-btn" onclick="setTipoNF('devolucao',this)"><div class="ico">↩️</div>Devolução</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label>Cliente <span class="required">*</span></label>
+          <select id="nCliente" style="width:100%"><option value="">Selecione...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Pedido vinculado</label>
+          <select id="nPedido" style="width:100%"><option value="">Nenhum</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Natureza da Operação</label>
+          <input type="text" id="nNatureza" value="Venda de Mercadoria">
+        </div>
+        <div class="form-group">
+          <label>CFOP</label>
+          <input type="text" id="nCfop" value="5102" style="width:80px">
+        </div>
+        <div class="form-group">
+          <label>Data Emissão</label>
+          <input type="date" id="nDataEmissao">
+        </div>
+        <div class="form-group">
+          <label>Forma Pagamento</label>
+          <select id="nFormaPgto">
+            <option value="dinheiro">Dinheiro</option>
+            <option value="pix">PIX</option>
+            <option value="cartao_credito">Cartão Crédito</option>
+            <option value="cartao_debito">Cartão Débito</option>
+            <option value="boleto">Boleto</option>
+            <option value="transferencia">Transferência</option>
+            <option value="outros" selected>Outros</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Itens -->
+      <div class="form-group">
+        <label style="display:flex;align-items:center;justify-content:space-between">
+          Itens da Nota
+          <button class="btn btn-ghost" style="height:24px;padding:0 8px;font-size:11px" onclick="addItemNF()">+ Item</button>
+        </label>
+        <div class="itens-lista">
+          <div class="item-linha" style="background:var(--bg-card2);font-size:10px;font-weight:700;color:var(--text-muted)">
+            <span>Descrição</span><span>Qtd</span><span>Vl. Unit.</span><span>Total</span><span></span>
+          </div>
+          <div id="itensNF"></div>
+        </div>
+      </div>
+
+      <!-- Totais -->
+      <div class="form-row" style="background:var(--bg-card2);border-radius:8px;padding:10px 12px;gap:16px;flex-wrap:wrap">
+        <div class="imp-field">
+          <label>Produtos</label>
+          <input type="number" id="nVlProd" placeholder="0.00" step="0.01" readonly style="color:var(--primary)">
+        </div>
+        <div class="imp-field">
+          <label>Frete</label>
+          <input type="number" id="nVlFrete" placeholder="0.00" step="0.01" value="0" oninput="calcTotaisNF()">
+        </div>
+        <div class="imp-field">
+          <label>Desconto</label>
+          <input type="number" id="nVlDesc" placeholder="0.00" step="0.01" value="0" oninput="calcTotaisNF()">
+        </div>
+        <div class="imp-field">
+          <label>ICMS (12%)</label>
+          <input type="number" id="nVlIcms" placeholder="0.00" step="0.01" value="0">
+        </div>
+        <div class="imp-field">
+          <label>PIS (0.65%)</label>
+          <input type="number" id="nVlPis" placeholder="0.00" step="0.01" value="0">
+        </div>
+        <div class="imp-field">
+          <label>COFINS (3%)</label>
+          <input type="number" id="nVlCofins" placeholder="0.00" step="0.01" value="0">
+        </div>
+        <div style="display:flex;flex-direction:column;justify-content:flex-end">
+          <label style="font-size:10px;color:var(--text-muted)">TOTAL NF</label>
+          <div id="nTotal" style="font-size:18px;font-weight:800;color:var(--primary)">R$ 0,00</div>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:8px">
+        <label>Observações</label>
+        <textarea id="nObs" rows="2" style="width:100%;resize:none;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px;font-size:12px" placeholder="Informações complementares..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modalNovaNota')">Cancelar</button>
+      <button class="btn btn-ghost" onclick="salvarNota('rascunho')">Salvar Rascunho</button>
+      <button class="btn btn-primary" onclick="salvarNota('pendente')">Salvar e Enviar para Emissão</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL: Emitir ────────────────────────────────────────── -->
+<div class="modal-overlay" id="modalEmitir">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h2 class="modal-title">Emitir Nota Fiscal</h2>
+      <button class="modal-close" onclick="fecharModal('modalEmitir')"></button>
+    </div>
+    <div class="modal-body">
+      <div id="emitirInfo" style="padding:12px;background:var(--bg-card2);border-radius:8px;margin-bottom:14px;font-size:12px;line-height:1.6"></div>
+      <div style="padding:10px 12px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:8px;font-size:12px;color:#4ade80">
+        <strong>Atenção:</strong> A nota será transmitida para a SEFAZ. Após autorizada, só poderá ser cancelada dentro de 24h.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modalEmitir')">Cancelar</button>
+      <button class="btn btn-primary" id="btnConfirmarEmitir" onclick="confirmarEmitir()">Confirmar Emissão</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL: Cancelar ──────────────────────────────────────── -->
+<div class="modal-overlay" id="modalCancelar">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2 class="modal-title">Cancelar Nota Fiscal</h2>
+      <button class="modal-close" onclick="fecharModal('modalCancelar')"></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
+        Informe o motivo do cancelamento (mínimo 15 caracteres):
+      </p>
+      <textarea id="cancelMotivo" rows="4" style="width:100%;resize:none;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px;font-size:12px" placeholder="Motivo do cancelamento..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modalCancelar')">Voltar</button>
+      <button class="btn" style="background:#ef4444;color:#fff" onclick="confirmarCancelar()">Cancelar Nota</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL: Carta de Correção ─────────────────────────────── -->
+<div class="modal-overlay" id="modalCorrecao">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2 class="modal-title">Carta de Correção</h2>
+      <button class="modal-close" onclick="fecharModal('modalCorrecao')"></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
+        Descreva a correção a ser realizada (mínimo 15 caracteres):
+      </p>
+      <textarea id="correcaoDesc" rows="4" style="width:100%;resize:none;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px;font-size:12px" placeholder="Descrição da correção..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modalCorrecao')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarCorrecao()">Enviar CC-e</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL: Faturar Pedido ──────────────────────────────── -->
+<div class="modal-overlay" id="modalFaturar">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2 class="modal-title">Faturar Pedido</h2>
+      <button class="modal-close" onclick="fecharModal('modalFaturar')"></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
+        Selecione o pedido para gerar a nota fiscal automaticamente com os itens e impostos calculados:
+      </p>
+      <div id="listaPedidosFaturar">
+        <div class="vazio">Carregando pedidos...</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modalFaturar')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+checkAuth();
+
+// ── Estado ──────────────────────────────────────────────────
+let _notas    = [];
+let _clientes = [];
+let _pedidos  = [];
+let _notaAtiva = null;
+let _tipoNF   = 'saida';
+let _chartFat = null;
+let _debTimer = null;
+let _itemCount = 0;
+
+function fmtDataBr(s) {
+  if (!s) return '—';
+  return new Date(s + 'T12:00:00').toLocaleDateString('pt-BR');
+}
+
+const _STATUS_LABEL = {
+  rascunho:'Rascunho', pendente:'Pendente', transmitindo:'Transmitindo',
+  autorizada:'Autorizada', cancelada:'Cancelada', rejeitada:'Rejeitada',
+  denegada:'Denegada', inutilizada:'Inutilizada',
+};
+const _TIPO_LABEL = { saida:'Saída', entrada:'Entrada', ajuste:'Ajuste', devolucao:'Devolução' };
+const _PGTO = {
+  dinheiro:'Dinheiro', pix:'PIX', cartao_credito:'Cartão Créd.',
+  cartao_debito:'Cartão Déb.', boleto:'Boleto', transferencia:'TED/PIX', outros:'Outros',
+};
+
+function debounceCarregar() {
+  clearTimeout(_debTimer);
+  _debTimer = setTimeout(carregar, 400);
+}
+
+// ── Init ─────────────────────────────────────────────────────
+async function init() {
+  try {
+    [_clientes, _pedidos] = await Promise.all([
+      Api.get('/clientes?limit=200'),
+      Api.get('/orcamentos?status=pedido&limit=100').catch(() => []),
+    ]);
+    const selCli = document.getElementById('nCliente');
+    _clientes.forEach(c => selCli.insertAdjacentHTML('beforeend',
+      `<option value="${c.id}">${escapeHtml(c.nome)}${c.cnpj?' — '+c.cnpj:c.cpf?' — '+c.cpf:''}</option>`
+    ));
+    const selPed = document.getElementById('nPedido');
+    _pedidos.forEach(p => selPed.insertAdjacentHTML('beforeend',
+      `<option value="${p.id}">Pedido #${p.numero||p.id}</option>`
+    ));
+
+    const hoje = new Date();
+    const y = hoje.getFullYear(), mo = hoje.getMonth();
+    const m = String(mo+1).padStart(2,'0');
+    const ult = new Date(y, mo+1, 0).getDate();
+    document.getElementById('fInicio').value = `${y}-${m}-01`;
+    document.getElementById('fFim').value    = `${y}-${m}-${String(ult).padStart(2,'0')}`;
+    document.getElementById('nDataEmissao').value = hoje.toISOString().split('T')[0];
+
+    addItemNF();
+    await Promise.all([carregar(), carregarDashboard(), carregarAlertas(), carregarPedidosFaturar()]);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
+async function carregarDashboard() {
+  try {
+    const mes = new Date().toISOString().slice(0,7);
+    const d = await Api.get(`/notas-fiscais/dashboard?mes=${mes}`);
+
+    const a = d.atual || {}, ant = d.anterior || {};
+    document.getElementById('kFaturado').textContent  = moeda(a.valor_faturado || 0);
+    document.getElementById('kEmitidas').textContent  = a.emitidas || 0;
+    document.getElementById('kPendentes').textContent = a.pendentes || 0;
+    document.getElementById('kCanceladas').textContent= a.canceladas || 0;
+    document.getElementById('kRejeitadas').textContent= `${a.rejeitadas || 0} rejeitada(s)`;
+
+    if (ant.valor_faturado > 0) {
+      const dif = ((a.valor_faturado - ant.valor_faturado) / ant.valor_faturado * 100).toFixed(1);
+      const el = document.getElementById('kFatComp');
+      el.textContent = `${dif > 0 ? '+' : ''}${dif}%`;
+      el.className = dif >= 0 ? 'up' : 'down';
+    }
+    if (ant.emitidas > 0) {
+      const dif = ((a.emitidas - ant.emitidas) / ant.emitidas * 100).toFixed(1);
+      const el = document.getElementById('kEmitComp');
+      el.textContent = `${dif > 0 ? '+' : ''}${dif}% (${ant.emitidas})`;
+      el.className = dif >= 0 ? 'up' : 'down';
+    }
+
+    document.getElementById('iIcms').textContent   = moeda(a.total_icms || 0);
+    document.getElementById('iIpi').textContent    = moeda(a.total_ipi || 0);
+    document.getElementById('iPis').textContent    = moeda(a.total_pis || 0);
+    document.getElementById('iCofins').textContent = moeda(a.total_cofins || 0);
+    document.getElementById('iIss').textContent    = moeda(a.total_iss || 0);
+
+    document.getElementById('sbAut').textContent   = a.emitidas || 0;
+    document.getElementById('sbPend').textContent  = a.pendentes || 0;
+    document.getElementById('sbCanc').textContent  = a.canceladas || 0;
+    document.getElementById('sbRej').textContent   = a.rejeitadas || 0;
+    document.getElementById('sbEnt').textContent   = a.entradas || 0;
+    document.getElementById('sbSai').textContent   = a.saidas || 0;
+
+    renderChart(d.historico || []);
+  } catch(e) { console.warn('[dashboard nf]', e.message); }
+}
+
+function renderChart(hist) {
+  const ctx = document.getElementById('chartFat').getContext('2d');
+  const labels = hist.map(h => h.mes);
+  const values = hist.map(h => parseFloat(h.faturado)||0);
+
+  if (hist.length >= 2) {
+    document.getElementById('chartPeriodo').textContent =
+      `${hist[0].mes} → ${hist[hist.length-1].mes}`;
+  }
+
+  if (_chartFat) _chartFat.destroy();
+  _chartFat = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Faturamento',
+        data: values,
+        backgroundColor: 'rgba(196,162,74,.35)',
+        borderColor: 'rgba(196,162,74,.8)',
+        borderWidth: 1,
+        borderRadius: 4,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend:{ display:false }, tooltip:{
+        callbacks:{ label: ctx => moeda(ctx.raw) },
+      }},
+      scales: {
+        x: { grid:{ color:'rgba(255,255,255,.04)' }, ticks:{ color:'#64748b', font:{ size:10 } } },
+        y: { grid:{ color:'rgba(255,255,255,.04)' }, ticks:{ color:'#64748b', font:{ size:10 },
+               callback: v => 'R$' + (v>=1000 ? (v/1000).toFixed(0)+'k' : v) } },
+      },
+    },
+  });
+}
+
+async function carregarAlertas() {
+  try {
+    const alertas = await Api.get('/notas-fiscais/alertas');
+    const el = document.getElementById('sbAlertas');
+    if (!alertas.length) {
+      el.innerHTML = '<p style="font-size:11px;color:var(--text-dim);padding:8px 0">Sem alertas</p>';
+      return;
+    }
+    el.innerHTML = alertas.map(a => `
+      <div class="alerta-item">
+        <div class="alerta-dot a-${a.tipo}"></div>
+        <span>${escapeHtml(a.msg)}</span>
+      </div>`
+    ).join('');
+  } catch(e) {}
+}
+
+async function carregarPedidosFaturar() {
+  try {
+    const pedidos = await Api.get('/notas-fiscais/pedidos/sem-nota');
+    const el = document.getElementById('sbPedidos');
+    if (!pedidos.length) {
+      el.innerHTML = '<p style="font-size:11px;color:var(--text-dim);padding:8px 0">Todos os pedidos têm NF</p>';
+      return;
+    }
+    el.innerHTML = pedidos.slice(0,4).map(p => `
+      <div class="ped-ativo" onclick="gerarDePedido(${p.id}, '${p.numero||p.id}')">
+        <div class="ped-num">#${p.numero||p.id}</div>
+        <div class="ped-cli">${escapeHtml(p.cliente_nome||'—')}</div>
+        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>`
+    ).join('') + (pedidos.length > 4 ? `<p style="font-size:10px;color:var(--text-dim);margin-top:4px">+${pedidos.length-4} outros</p>` : '');
+  } catch(e) {}
+}
+
+// ── Listar notas ──────────────────────────────────────────────
+async function carregar() {
+  const p = new URLSearchParams();
+  const status = document.getElementById('fStatus').value;
+  const tipo   = document.getElementById('fTipo').value;
+  const inicio = document.getElementById('fInicio').value;
+  const fim    = document.getElementById('fFim').value;
+  const busca  = document.getElementById('fBusca').value;
+  if (status) p.set('status', status);
+  if (tipo)   p.set('tipo', tipo);
+  if (inicio) p.set('inicio', inicio);
+  if (fim)    p.set('fim', fim);
+  if (busca)  p.set('busca', busca);
+
+  try {
+    _notas = await Api.get('/notas-fiscais?' + p);
+    if (!Array.isArray(_notas)) _notas = _notas.notas || _notas.data || [];
+    renderTabela();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function renderTabela() {
+  const tbody = document.getElementById('tabelaNotas');
+  if (!_notas.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="vazio">Nenhuma nota encontrada no período</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _notas.map(n => {
+    const impostos = (n.valor_icms||0) + (n.valor_ipi||0) + (n.valor_pis||0) + (n.valor_cofins||0) + (n.valor_iss||0);
+    return `
+    <tr onclick="toggleExpand(${n.id}, this)" data-id="${n.id}">
+      <td class="td-num">#${n.numero||'—'}<small style="display:block;font-size:9px;font-weight:400;color:var(--text-muted)">Série ${n.serie||1}</small></td>
+      <td><span class="tipo-${n.tipo}">${_TIPO_LABEL[n.tipo]||n.tipo}</span></td>
+      <td class="td-cli">${escapeHtml(n.cliente_nome||'—')}<small>${n.cpf_cnpj||''}</small></td>
+      <td style="font-size:11px;color:var(--text-muted)">${n.pedido_numero?'#'+n.pedido_numero:'—'}</td>
+      <td style="font-size:11px;white-space:nowrap">${fmtDataBr(n.data_emissao)}</td>
+      <td class="td-val" style="color:${n.tipo==='saida'?'#22c55e':'#60a5fa'}">${moeda(n.valor_total)}</td>
+      <td class="td-imp">${impostos > 0 ? moeda(impostos) : '—'}</td>
+      <td><span class="badge-nf nf-${n.status}">${_STATUS_LABEL[n.status]||n.status}</span></td>
+      <td class="td-acoes" onclick="event.stopPropagation()">
+        ${n.status==='autorizada' ? `
+          <button class="btn-mini" title="Cancelar" onclick="abrirCancelar(${n.id})" style="color:#f87171">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </button>
+          <button class="btn-mini" title="Carta de Correção" onclick="abrirCorrecao(${n.id})">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+        ` : ''}
+        ${['rascunho','pendente','rejeitada'].includes(n.status) ? `
+          <button class="btn-mini" title="Emitir" onclick="abrirEmitir(${n.id})" style="color:#22c55e">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </button>
+        ` : ''}
+        ${['rascunho','pendente'].includes(n.status) ? `
+          <button class="btn-mini" title="Excluir" onclick="excluir(${n.id})" style="color:#64748b">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
+        ` : ''}
+        ${n.xml ? `
+          <button class="btn-mini" title="Download XML" onclick="downloadXml(${n.id},${n.numero})">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          </button>
+        ` : ''}
+      </td>
+    </tr>
+    <tr class="expand-row" id="expand-${n.id}" style="display:none">
+      <td colspan="9">
+        <div class="expand-body">
+          <div class="expand-section">
+            <h4>Dados Fiscais</h4>
+            <div class="expand-row-item"><span class="lbl">Chave de Acesso</span><span class="val" style="font-size:9px;font-family:monospace;word-break:break-all">${n.chave_acesso||'—'}</span></div>
+            <div class="expand-row-item"><span class="lbl">Protocolo</span><span class="val">${n.protocolo||'—'}</span></div>
+            <div class="expand-row-item"><span class="lbl">Natureza</span><span class="val">${n.natureza_operacao||'—'}</span></div>
+            <div class="expand-row-item"><span class="lbl">CFOP</span><span class="val">${n.cfop||'—'}</span></div>
+            <div class="expand-row-item"><span class="lbl">Forma Pagamento</span><span class="val">${_PGTO[n.forma_pagamento]||n.forma_pagamento||'—'}</span></div>
+            ${n.motivo_rejeicao?`<div class="expand-row-item" style="color:#f87171"><span class="lbl">Motivo Rejeição</span><span class="val">${escapeHtml(n.motivo_rejeicao)}</span></div>`:''}
+          </div>
+          <div class="expand-section">
+            <h4>Valores e Impostos</h4>
+            <div class="expand-row-item"><span class="lbl">Produtos</span><span class="val">${moeda(n.valor_produtos)}</span></div>
+            <div class="expand-row-item"><span class="lbl">Frete</span><span class="val">${moeda(n.valor_frete)}</span></div>
+            <div class="expand-row-item"><span class="lbl">Desconto</span><span class="val">${moeda(n.valor_desconto)}</span></div>
+            <div class="expand-row-item" style="font-weight:700"><span class="lbl">Total</span><span class="val" style="color:var(--primary)">${moeda(n.valor_total)}</span></div>
+            <div style="height:6px"></div>
+            <div class="expand-row-item"><span class="lbl">ICMS</span><span class="val">${moeda(n.valor_icms)}</span></div>
+            <div class="expand-row-item"><span class="lbl">IPI</span><span class="val">${moeda(n.valor_ipi)}</span></div>
+            <div class="expand-row-item"><span class="lbl">PIS</span><span class="val">${moeda(n.valor_pis)}</span></div>
+            <div class="expand-row-item"><span class="lbl">COFINS</span><span class="val">${moeda(n.valor_cofins)}</span></div>
+            <div class="expand-row-item"><span class="lbl">ISS</span><span class="val">${moeda(n.valor_iss)}</span></div>
+          </div>
+          <div class="expand-section">
+            <h4>Itens</h4>
+            <div class="itens-mini" id="itens-expand-${n.id}">
+              <p style="font-size:11px;color:var(--text-dim)">Carregando itens...</p>
+            </div>
+            <div class="expand-acoes">
+              ${n.status==='autorizada'?`
+              <button class="btn btn-ghost" style="height:26px;padding:0 10px;font-size:11px" onclick="downloadXml(${n.id},${n.numero})">⬇ XML</button>
+              <button class="btn btn-ghost" style="height:26px;padding:0 10px;font-size:11px" onclick="toast('DANFE disponível após integração SEFAZ real','info')">🖨 DANFE</button>
+              `:''}
+              ${n.observacoes?`<p style="font-size:10px;color:var(--text-muted);width:100%;margin-top:4px">${escapeHtml(n.observacoes)}</p>`:''}
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Toggle linha expandida ────────────────────────────────────
+async function toggleExpand(id, row) {
+  const exp = document.getElementById(`expand-${id}`);
+  const visible = exp.style.display !== 'none';
+  document.querySelectorAll('.expand-row').forEach(r => r.style.display = 'none');
+  document.querySelectorAll('#tabelaNotas tr[data-id]').forEach(r => r.classList.remove('expanded'));
+  if (!visible) {
+    exp.style.display = '';
+    row.classList.add('expanded');
+    const itensEl = document.getElementById(`itens-expand-${id}`);
+    if (itensEl) {
+      try {
+        const nota = await Api.get(`/notas-fiscais/${id}`);
+        if (nota.itens?.length) {
+          itensEl.innerHTML = nota.itens.map(it => `
+            <div class="item-mini">
+              <span class="desc">${escapeHtml(it.descricao)}${it.quantidade>1?` (${it.quantidade} un.)`:''}</span>
+              <span class="val">${moeda(it.valor_total)}</span>
+            </div>`).join('');
+        } else {
+          itensEl.innerHTML = '<p style="font-size:11px;color:var(--text-dim)">Sem itens cadastrados</p>';
+        }
+      } catch(e) { itensEl.innerHTML = '<p style="font-size:11px;color:#f87171">Erro ao carregar itens</p>'; }
+    }
+  }
+}
+
+// ── Emitir ────────────────────────────────────────────────────
+function abrirEmitir(id) {
+  const n = _notas.find(x => x.id === id);
+  if (!n) return;
+  _notaAtiva = id;
+  document.getElementById('emitirInfo').innerHTML = `
+    <strong>NF #${n.numero||'S/N'}</strong> — ${escapeHtml(n.cliente_nome||'—')}<br>
+    Valor: <strong style="color:var(--primary)">${moeda(n.valor_total)}</strong> ·
+    Data: ${fmtDataBr(n.data_emissao)}<br>
+    CFOP: ${n.cfop||'—'} · ${n.natureza_operacao||'—'}
+  `;
+  document.getElementById('modalEmitir').classList.add('open');
+}
+
+async function confirmarEmitir() {
+  const btn = document.getElementById('btnConfirmarEmitir');
+  btn.disabled = true; btn.textContent = 'Transmitindo...';
+  try {
+    const r = await Api.post(`/notas-fiscais/${_notaAtiva}/emitir`, {});
+    fecharModal('modalEmitir');
+    toast(`NF emitida com sucesso! Protocolo: ${r.protocolo}`, 'success');
+    await Promise.all([carregar(), carregarDashboard(), carregarAlertas()]);
+  } catch(e) { toast(e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Confirmar Emissão'; }
+}
+
+// ── Cancelar ──────────────────────────────────────────────────
+function abrirCancelar(id) {
+  _notaAtiva = id;
+  document.getElementById('cancelMotivo').value = '';
+  document.getElementById('modalCancelar').classList.add('open');
+}
+async function confirmarCancelar() {
+  const motivo = document.getElementById('cancelMotivo').value.trim();
+  if (motivo.length < 15) { toast('Motivo muito curto (mínimo 15 caracteres)', 'warning'); return; }
+  try {
+    await Api.post(`/notas-fiscais/${_notaAtiva}/cancelar`, { motivo });
+    fecharModal('modalCancelar');
+    toast('Nota cancelada com sucesso', 'success');
+    await Promise.all([carregar(), carregarDashboard()]);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Carta de Correção ─────────────────────────────────────────
+function abrirCorrecao(id) {
+  _notaAtiva = id;
+  document.getElementById('correcaoDesc').value = '';
+  document.getElementById('modalCorrecao').classList.add('open');
+}
+async function confirmarCorrecao() {
+  const descricao = document.getElementById('correcaoDesc').value.trim();
+  if (descricao.length < 15) { toast('Descrição muito curta (mínimo 15 caracteres)', 'warning'); return; }
+  try {
+    await Api.post(`/notas-fiscais/${_notaAtiva}/carta-correcao`, { descricao });
+    fecharModal('modalCorrecao');
+    toast('Carta de Correção registrada!', 'success');
+    await carregar();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Faturar pedido ────────────────────────────────────────────
+async function gerarDePedido(pedidoId, numero) {
+  try {
+    const r = await Api.post(`/notas-fiscais/gerar-de-pedido/${pedidoId}`, {});
+    toast(`NF #${r.numero} gerada do Pedido #${numero}! Revise e emita.`, 'success');
+    fecharModal('modalFaturar');
+    await Promise.all([carregar(), carregarDashboard(), carregarPedidosFaturar()]);
+    setTimeout(() => {
+      _notas = [..._notas];
+      const n = _notas.find(x => x.id === r.id);
+      if (n) abrirEmitir(r.id);
+    }, 600);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function abrirFaturar() {
+  document.getElementById('listaPedidosFaturar').innerHTML = '<div class="vazio">Carregando...</div>';
+  document.getElementById('modalFaturar').classList.add('open');
+  try {
+    const pedidos = await Api.get('/notas-fiscais/pedidos/sem-nota');
+    const el = document.getElementById('listaPedidosFaturar');
+    if (!pedidos.length) {
+      el.innerHTML = '<div class="vazio">Nenhum pedido concluído sem nota fiscal</div>';
+    } else {
+      el.innerHTML = pedidos.map(p => `
+        <div class="ped-ativo" onclick="gerarDePedido(${p.id},'${p.numero||p.id}')">
+          <div>
+            <div class="ped-num">Pedido #${p.numero||p.id}</div>
+            <div class="ped-cli">${escapeHtml(p.cliente_nome||'—')} · ${moeda(p.valor_total)}</div>
+          </div>
+          <span style="font-size:10px;color:#22c55e;margin-left:auto">Gerar NF →</span>
+        </div>`
+      ).join('');
+    }
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Excluir ───────────────────────────────────────────────────
+async function excluir(id) {
+  if (!confirm('Excluir esta nota fiscal?')) return;
+  try {
+    await Api.delete(`/notas-fiscais/${id}`);
+    toast('Nota excluída', 'success');
+    await carregar();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Download XML ──────────────────────────────────────────────
+async function downloadXml(id, numero) {
+  try {
+    const n = await Api.get(`/notas-fiscais/${id}`);
+    if (!n.xml) { toast('XML não disponível', 'warning'); return; }
+    const blob = new Blob([n.xml], { type:'text/xml' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `NF-${numero||id}.xml`;
+    a.click();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Modal Nova Nota ───────────────────────────────────────────
+function abrirNovaNota() {
+  _itemCount = 0;
+  document.getElementById('itensNF').innerHTML = '';
+  document.getElementById('nVlProd').value  = '';
+  document.getElementById('nVlFrete').value = '0';
+  document.getElementById('nVlDesc').value  = '0';
+  document.getElementById('nVlIcms').value  = '0';
+  document.getElementById('nVlPis').value   = '0';
+  document.getElementById('nVlCofins').value= '0';
+  document.getElementById('nTotal').textContent = 'R$ 0,00';
+  document.getElementById('nObs').value = '';
+  _tipoNF = 'saida';
+  document.querySelectorAll('.tipo-nf-btn').forEach((b,i) => b.classList.toggle('ativo', i===0));
+  addItemNF();
+  document.getElementById('modalNovaNota').classList.add('open');
+}
+
+function addItemNF() {
+  const idx = _itemCount++;
+  const div = document.createElement('div');
+  div.className = 'item-linha';
+  div.id = `item-nf-${idx}`;
+  div.innerHTML = `
+    <input type="text"   placeholder="Descrição do produto" id="iDesc-${idx}">
+    <input type="number" placeholder="1" min="0.01" step="0.01" id="iQtd-${idx}" value="1" oninput="calcItemNF(${idx})">
+    <input type="number" placeholder="0.00" min="0" step="0.01" id="iVUnit-${idx}" oninput="calcItemNF(${idx})">
+    <input type="number" placeholder="0.00" id="iVTotal-${idx}" readonly style="color:var(--primary)">
+    <button class="btn-mini" onclick="removerItemNF(${idx})" style="color:#f87171;border:none">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>`;
+  document.getElementById('itensNF').appendChild(div);
+}
+
+function removerItemNF(idx) {
+  document.getElementById(`item-nf-${idx}`)?.remove();
+  calcTotaisNF();
+}
+
+function calcItemNF(idx) {
+  const qtd   = parseFloat(document.getElementById(`iQtd-${idx}`)?.value) || 0;
+  const vunit = parseFloat(document.getElementById(`iVUnit-${idx}`)?.value) || 0;
+  const el = document.getElementById(`iVTotal-${idx}`);
+  if (el) el.value = (qtd * vunit).toFixed(2);
+  calcTotaisNF();
+}
+
+function calcTotaisNF() {
+  let totalProd = 0;
+  document.querySelectorAll('[id^="iVTotal-"]').forEach(el => {
+    totalProd += parseFloat(el.value) || 0;
+  });
+  document.getElementById('nVlProd').value = totalProd.toFixed(2);
+  const frete = parseFloat(document.getElementById('nVlFrete').value) || 0;
+  const desc  = parseFloat(document.getElementById('nVlDesc').value)  || 0;
+  const total = totalProd + frete - desc;
+  document.getElementById('nVlIcms').value   = (totalProd * 0.12).toFixed(2);
+  document.getElementById('nVlPis').value    = (totalProd * 0.0065).toFixed(2);
+  document.getElementById('nVlCofins').value = (totalProd * 0.03).toFixed(2);
+  document.getElementById('nTotal').textContent = moeda(total);
+}
+
+function setTipoNF(tipo, el) {
+  _tipoNF = tipo;
+  document.querySelectorAll('.tipo-nf-btn').forEach(b => b.classList.remove('ativo'));
+  el.classList.add('ativo');
+}
+
+async function salvarNota(statusFinal) {
+  const cliente_id = document.getElementById('nCliente').value;
+  if (!cliente_id) { toast('Selecione um cliente', 'warning'); return; }
+
+  const itens = [];
+  document.querySelectorAll('[id^="item-nf-"]').forEach(el => {
+    const idx = el.id.replace('item-nf-','');
+    const desc  = document.getElementById(`iDesc-${idx}`)?.value?.trim();
+    const qtd   = parseFloat(document.getElementById(`iQtd-${idx}`)?.value) || 0;
+    const vunit = parseFloat(document.getElementById(`iVUnit-${idx}`)?.value) || 0;
+    if (desc) itens.push({ descricao: desc, quantidade: qtd, valor_unitario: vunit });
+  });
+
+  if (!itens.length) { toast('Adicione pelo menos um item', 'warning'); return; }
+
+  try {
+    const r = await Api.post('/notas-fiscais', {
+      tipo: _tipoNF,
+      natureza_operacao: document.getElementById('nNatureza').value,
+      cfop: document.getElementById('nCfop').value,
+      cliente_id,
+      pedido_id: document.getElementById('nPedido').value || null,
+      data_emissao: document.getElementById('nDataEmissao').value,
+      forma_pagamento: document.getElementById('nFormaPgto').value,
+      valor_produtos: parseFloat(document.getElementById('nVlProd').value) || 0,
+      valor_frete:    parseFloat(document.getElementById('nVlFrete').value) || 0,
+      valor_desconto: parseFloat(document.getElementById('nVlDesc').value) || 0,
+      valor_icms:     parseFloat(document.getElementById('nVlIcms').value) || 0,
+      valor_pis:      parseFloat(document.getElementById('nVlPis').value) || 0,
+      valor_cofins:   parseFloat(document.getElementById('nVlCofins').value) || 0,
+      observacoes:    document.getElementById('nObs').value,
+      itens,
+    });
+    fecharModal('modalNovaNota');
+    toast(`NF #${r.numero} criada como rascunho!`, 'success');
+    await carregar();
+    if (statusFinal === 'pendente') setTimeout(() => abrirEmitir(r.id), 500);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Utilitários ───────────────────────────────────────────────
+function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
+
+init();
+</script>
+</body>
+</html>

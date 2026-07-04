@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estoque — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    /* KPI cards */
+    .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+    .kpi-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:18px 20px; display:flex; align-items:center; gap:14px; }
+    .kpi-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .kpi-icon svg { width:18px; height:18px; }
+    .kpi-info .label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; margin-bottom:3px; }
+    .kpi-info .valor { font-size:22px; font-weight:800; color:var(--text); }
+
+    /* Barra de ações */
+    .action-bar { display:flex; gap:10px; align-items:center; margin-bottom:18px; flex-wrap:wrap; }
+    .action-bar input[type=text] { flex:1; min-width:200px; }
+    .action-bar select { width:160px; }
+
+    /* Tabs */
+    .tabs-mini { display:flex; gap:4px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:3px; }
+    .tab-mini { padding:6px 14px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; color:var(--text-muted); border:none; background:transparent; transition:.15s; }
+    .tab-mini.ativo { background:var(--primary); color:#fff; }
+
+    /* Tabela de produtos */
+    .tabela-estoque { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .tabela-estoque table { width:100%; border-collapse:collapse; }
+    .tabela-estoque thead th { padding:11px 14px; text-align:left; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); background:var(--bg-card2); border-bottom:1px solid var(--border); white-space:nowrap; }
+    .tabela-estoque tbody tr { border-bottom:1px solid rgba(51,65,85,.5); transition:.1s; }
+    .tabela-estoque tbody tr:last-child { border-bottom:none; }
+    .tabela-estoque tbody tr:hover { background:rgba(255,255,255,.025); }
+    .tabela-estoque td { padding:12px 14px; font-size:13px; color:var(--text); vertical-align:middle; }
+
+    /* Barra de progresso estoque */
+    .stock-bar { width:80px; height:6px; background:var(--bg-card2); border-radius:3px; overflow:hidden; display:inline-block; vertical-align:middle; margin-left:6px; }
+    .stock-fill { height:100%; border-radius:3px; transition:.3s; }
+
+    .alerta-low { color:#f87171; font-weight:700; }
+    .alerta-ok  { color:#22c55e; }
+
+    /* Painel movimentação */
+    .painel-mov { position:fixed; right:0; top:0; height:100vh; width:380px; background:var(--bg-card); border-left:1px solid var(--border); z-index:300; transform:translateX(100%); transition:.3s ease; display:flex; flex-direction:column; }
+    .painel-mov.open { transform:translateX(0); }
+    .painel-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:299; opacity:0; pointer-events:none; transition:.3s; }
+    .painel-overlay.open { opacity:1; pointer-events:auto; }
+    .painel-mov-header { padding:18px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+    .painel-mov-header h3 { font-size:15px; font-weight:700; }
+    .painel-mov-body { flex:1; overflow-y:auto; padding:20px; }
+    .painel-mov-footer { padding:16px 20px; border-top:1px solid var(--border); display:flex; gap:8px; }
+
+    /* Histórico de movimentos */
+    .mov-linha { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid rgba(51,65,85,.4); }
+    .mov-linha:last-child { border-bottom:none; }
+    .mov-tipo { width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .mov-tipo svg { width:11px; height:11px; }
+    .mov-info { flex:1; min-width:0; }
+    .mov-info strong { font-size:12px; display:block; }
+    .mov-info span { font-size:11px; color:var(--text-muted); }
+    .mov-qtd { font-size:13px; font-weight:700; }
+    .mov-entrada { background:rgba(34,197,94,.15); color:#22c55e; }
+    .mov-saida   { background:rgba(239,68,68,.15);  color:#f87171; }
+    .mov-ajuste  { background:rgba(245,158,11,.15); color:#fbbf24; }
+    @media (max-width:900px) {
+      .kpi-grid   { grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom:12px; }
+      .kpi-card   { padding: 10px 12px; gap: 10px; border-radius:10px; }
+      .kpi-icon   { width: 30px; height: 30px; border-radius: 8px; }
+      .kpi-icon svg { width:14px; height:14px; }
+      .kpi-val    { font-size: 16px !important; }
+      .kpi-label  { font-size: 10px; }
+      .action-bar input[type=text] { min-width: 0; }
+      /* Cards: Produto linha1+2, Estoque Atual à direita */
+      .tabela-estoque table { min-width: 0; }
+      .tabela-estoque thead { display: none; }
+      .tabela-estoque tbody tr {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-rows: auto auto;
+        padding: 8px 10px;
+        gap: 2px 8px;
+        border-bottom: 1px solid rgba(51,65,85,.5);
+      }
+      .tabela-estoque tbody tr:last-child { border-bottom: none; }
+      .tabela-estoque td { padding: 0; border: none; }
+      .tabela-estoque td:nth-child(1) { display:none; }
+      .tabela-estoque td:nth-child(2) { grid-row:1 / span 2; grid-column:1; font-size:13px; font-weight:600; display:flex; align-items:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .tabela-estoque td:nth-child(3) { display:none; }
+      .tabela-estoque td:nth-child(4) { display:none; }
+      .tabela-estoque td:nth-child(5) { grid-row:1; grid-column:2; font-size:13px; font-weight:700; text-align:right; }
+      .tabela-estoque td:nth-child(6) { grid-row:2; grid-column:2; font-size:10px; color:var(--text-muted); text-align:right; }
+      .tabela-estoque td:nth-child(7) { display:none; }
+      .tabela-estoque td:nth-child(8) { display:none; }
+      .tabela-estoque td:nth-child(9) { display:none; }
+      .painel-mov { width: min(380px, 95vw); }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()"><i data-lucide="panel-left-close"></i></button>
+        <div class="topbar-breadcrumb"><a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a> &nbsp;/&nbsp;<strong>Estoque</strong></div>
+      </div>
+      <div class="topbar-right"><div class="topbar-btn"><i data-lucide="bell"></i></div></div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title"><h1>Controle de Estoque</h1><p>Produtos, movimentações e alertas de reposição</p></div>
+        <div class="page-actions">
+          <button class="btn btn-ghost" onclick="abrirHistorico()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="15" y1="14" x2="12" y2="12"/></svg>
+            Histórico
+          </button>
+          <button class="btn btn-primary" onclick="abrirNovo()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Produto
+          </button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:rgba(99,102,241,.15)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          </div>
+          <div class="kpi-info"><div class="label">Produtos</div><div class="valor" id="kTotalProd">—</div></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:rgba(239,68,68,.15)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div class="kpi-info"><div class="label">Alertas</div><div class="valor" id="kAlertas" style="color:#f87171">—</div></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:rgba(34,197,94,.15)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+          </div>
+          <div class="kpi-info"><div class="label">Valor em estoque</div><div class="valor" id="kValor">—</div></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:rgba(245,158,11,.15)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div class="kpi-info"><div class="label">Itens totais</div><div class="valor" id="kItens">—</div></div>
+        </div>
+      </div>
+
+      <!-- Barra de ações -->
+      <div class="action-bar">
+        <input type="text" id="busca" placeholder="Buscar produto ou código..." oninput="filtrar()">
+        <select id="fCategoria" onchange="filtrar()">
+          <option value="">Todas as categorias</option>
+        </select>
+        <div class="tabs-mini">
+          <button class="tab-mini ativo" onclick="setFiltroAlerta(null, this)">Todos</button>
+          <button class="tab-mini" onclick="setFiltroAlerta('1', this)" style="color:inherit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:3px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+            Alerta
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabela -->
+      <div class="tabela-estoque">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Produto</th>
+              <th>Categoria</th>
+              <th>Unidade</th>
+              <th>Estoque Atual</th>
+              <th>Mínimo</th>
+              <th>Custo Unit.</th>
+              <th>Valor Total</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Overlay + Painel de movimentação -->
+<div class="painel-overlay" id="movOverlay" onclick="fecharPainel()"></div>
+<div class="painel-mov" id="painelMov">
+  <div class="painel-mov-header">
+    <h3 id="painelTitulo">Movimentação</h3>
+    <button class="btn btn-ghost" style="padding:6px" onclick="fecharPainel()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+    </button>
+  </div>
+  <div class="painel-mov-body" id="painelBody"></div>
+  <div class="painel-mov-footer" id="painelFooter"></div>
+</div>
+
+<!-- Modal produto -->
+<div class="modal-overlay" id="modalProd">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modalTitulo">Novo Produto</h2>
+      <button class="modal-close" onclick="fecharModal()"></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pId">
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label>Nome <span class="required">*</span></label>
+          <input type="text" id="pNome" placeholder="Ex: Dobradiça hidráulica">
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Código</label>
+          <input type="text" id="pCodigo" placeholder="SKU-001">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Categoria</label>
+          <input type="text" id="pCategoria" placeholder="Ex: Ferragens, Madeira...">
+        </div>
+        <div class="form-group">
+          <label>Unidade</label>
+          <select id="pUnidade">
+            <option value="un">un (unidade)</option>
+            <option value="m">m (metro)</option>
+            <option value="m²">m² (metro quadrado)</option>
+            <option value="kg">kg (quilograma)</option>
+            <option value="cx">cx (caixa)</option>
+            <option value="pc">pc (peça)</option>
+            <option value="rolo">rolo</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Estoque inicial</label>
+          <input type="number" id="pEstoqueInicial" value="0" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Estoque mínimo</label>
+          <input type="number" id="pEstoqueMin" value="0" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Custo unitário (R$)</label>
+          <input type="number" id="pCusto" value="0" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Descrição / Observação</label>
+        <textarea id="pDesc" rows="2" placeholder="Detalhes adicionais..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarProduto()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+checkAuth();
+
+let _produtos = [];
+let _filtroAlerta = null;
+let _painelModo = null; // 'mov' | 'historico'
+let _prodAtual = null;
+
+const _SVG_PLUS  = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+const _SVG_MINUS = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+const _SVG_PENCIL= `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+const _SVG_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+const _SVG_HIST  = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="15" y1="14" x2="12" y2="12"/></svg>`;
+const _SVG_UP    = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>`;
+const _SVG_DOWN  = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>`;
+
+async function init() {
+  await carregarResumo();
+  await carregarProdutos();
+}
+
+async function carregarResumo() {
+  try {
+    const r = await Api.get('/estoque/resumo');
+    document.getElementById('kTotalProd').textContent = r.total_produtos;
+    document.getElementById('kAlertas').textContent   = r.alertas;
+    document.getElementById('kValor').textContent     = moeda(r.valor_total);
+    document.getElementById('kItens').textContent     = r.itens_total % 1 === 0 ? r.itens_total : r.itens_total.toFixed(2);
+  } catch(e) {}
+}
+
+async function carregarProdutos() {
+  try {
+    _produtos = await Api.get('/estoque/produtos');
+
+    // Categorias
+    const cats = [...new Set(_produtos.map(p=>p.categoria).filter(Boolean))];
+    const selCat = document.getElementById('fCategoria');
+    selCat.innerHTML = '<option value="">Todas as categorias</option>';
+    cats.forEach(c => selCat.insertAdjacentHTML('beforeend', `<option value="${c}">${c}</option>`));
+
+    filtrar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function filtrar() {
+  const busca = document.getElementById('busca').value.toLowerCase();
+  const cat   = document.getElementById('fCategoria').value;
+
+  let lista = _produtos.filter(p => {
+    if (busca && !p.nome.toLowerCase().includes(busca) && !(p.codigo||'').toLowerCase().includes(busca)) return false;
+    if (cat && p.categoria !== cat) return false;
+    if (_filtroAlerta && p.estoque_atual > p.estoque_minimo) return false;
+    return true;
+  });
+
+  renderTabela(lista);
+}
+
+function setFiltroAlerta(v, btn) {
+  _filtroAlerta = v;
+  document.querySelectorAll('.tab-mini').forEach(b => b.classList.remove('ativo'));
+  btn.classList.add('ativo');
+  filtrar();
+}
+
+function renderTabela(lista) {
+  const tbody = document.getElementById('tbody');
+  if (!lista.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-dim)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:block;margin:0 auto 8px;opacity:.3"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+      Nenhum produto encontrado</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = lista.map(p => {
+    const alerta = p.estoque_atual <= p.estoque_minimo;
+    const pct = p.estoque_minimo > 0 ? Math.min(100, (p.estoque_atual / (p.estoque_minimo * 2)) * 100) : 100;
+    const cor  = alerta ? '#f87171' : pct < 60 ? '#fbbf24' : '#22c55e';
+    const valorTotal = p.estoque_atual * p.valor_custo;
+    return `<tr>
+      <td style="color:var(--text-muted)">${p.codigo || '—'}</td>
+      <td>
+        <strong>${p.nome}</strong>
+        ${p.descricao ? `<br><span style="font-size:11px;color:var(--text-muted)">${p.descricao}</span>` : ''}
+      </td>
+      <td>${p.categoria ? `<span class="badge badge-info">${p.categoria}</span>` : '—'}</td>
+      <td style="color:var(--text-muted)">${p.unidade}</td>
+      <td>
+        <span class="${alerta ? 'alerta-low' : 'alerta-ok'}">${formatQtd(p.estoque_atual)} ${p.unidade}</span>
+        <div class="stock-bar"><div class="stock-fill" style="width:${pct}%;background:${cor}"></div></div>
+      </td>
+      <td style="color:var(--text-muted)">${formatQtd(p.estoque_minimo)} ${p.unidade}</td>
+      <td>${p.valor_custo > 0 ? moeda(p.valor_custo) : '—'}</td>
+      <td><strong>${valorTotal > 0 ? moeda(valorTotal) : '—'}</strong></td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="acao-btn" title="Entrada" onclick="abrirMovimento(${p.id},'entrada')" style="color:#22c55e">${_SVG_PLUS}</button>
+          <button class="acao-btn" title="Saída" onclick="abrirMovimento(${p.id},'saida')" style="color:#f87171">${_SVG_MINUS}</button>
+          <button class="acao-btn" title="Histórico" onclick="abrirHistoricoProd(${p.id})">${_SVG_HIST}</button>
+          <button class="acao-btn" title="Editar" onclick="editarProduto(${p.id})">${_SVG_PENCIL}</button>
+          <button class="acao-btn" title="Remover" onclick="removerProduto(${p.id})" style="color:#f87171">${_SVG_TRASH}</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function formatQtd(v) { return v % 1 === 0 ? v : parseFloat(v).toFixed(2); }
+
+// ── Movimentação ──
+function abrirMovimento(prodId, tipo) {
+  _prodAtual = _produtos.find(p => p.id === prodId);
+  _painelModo = 'mov';
+  const tLabel = tipo === 'entrada' ? 'Entrada' : 'Saída';
+  const cor    = tipo === 'entrada' ? '#22c55e' : '#f87171';
+  document.getElementById('painelTitulo').textContent = `${tLabel} — ${_prodAtual.nome}`;
+  document.getElementById('painelBody').innerHTML = `
+    <div class="form-group">
+      <label>Tipo</label>
+      <select id="movTipo">
+        <option value="entrada" ${tipo==='entrada'?'selected':''}>Entrada</option>
+        <option value="saida"   ${tipo==='saida'?'selected':''}>Saída</option>
+        <option value="ajuste">Ajuste de estoque</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Quantidade (${_prodAtual.unidade}) <span class="required">*</span></label>
+      <input type="number" id="movQtd" placeholder="0" min="0.01" step="0.01">
+    </div>
+    <div class="form-group">
+      <label>Valor unitário (R$)</label>
+      <input type="number" id="movValor" placeholder="Opcional" min="0" step="0.01">
+    </div>
+    <div class="form-group">
+      <label>Observação</label>
+      <textarea id="movObs" rows="2" placeholder="Motivo, fornecedor, nota fiscal..."></textarea>
+    </div>
+    <div style="background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">ESTOQUE ATUAL</div>
+      <div style="font-size:20px;font-weight:800;color:${cor}">${formatQtd(_prodAtual.estoque_atual)} ${_prodAtual.unidade}</div>
+    </div>
+  `;
+  document.getElementById('painelFooter').innerHTML = `
+    <button class="btn btn-ghost" style="flex:1" onclick="fecharPainel()">Cancelar</button>
+    <button class="btn btn-primary" style="flex:2" onclick="salvarMovimento()">Registrar</button>
+  `;
+  abrirPainel();
+}
+
+async function salvarMovimento() {
+  const tipo  = document.getElementById('movTipo').value;
+  const qtd   = parseFloat(document.getElementById('movQtd').value);
+  const valor = document.getElementById('movValor').value;
+  const obs   = document.getElementById('movObs').value;
+  if (!qtd || qtd <= 0) { toast('Informe a quantidade','warning'); return; }
+  try {
+    const r = await Api.post('/estoque/movimentos', {
+      produto_id: _prodAtual.id, tipo, quantidade: qtd,
+      valor_unitario: valor || null, observacao: obs || null
+    });
+    toast(`Movimento registrado! Estoque: ${formatQtd(r.estoque_atual)} ${_prodAtual.unidade}`, 'success');
+    fecharPainel();
+    init();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+// ── Histórico ──
+function abrirHistorico() {
+  _prodAtual = null;
+  _carregarHistorico(null);
+}
+
+function abrirHistoricoProd(prodId) {
+  _prodAtual = _produtos.find(p => p.id === prodId);
+  _carregarHistorico(prodId);
+}
+
+async function _carregarHistorico(prodId) {
+  _painelModo = 'historico';
+  document.getElementById('painelTitulo').textContent = prodId ? `Histórico — ${_prodAtual?.nome}` : 'Histórico Geral';
+  document.getElementById('painelBody').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</div>';
+  document.getElementById('painelFooter').innerHTML = '';
+  abrirPainel();
+  try {
+    const params = prodId ? `?produto_id=${prodId}` : '';
+    const data = await Api.get('/estoque/movimentos' + params);
+    const TIPO_CLS = { entrada:'mov-entrada', saida:'mov-saida', ajuste:'mov-ajuste' };
+    const TIPO_LBL = { entrada:'Entrada', saida:'Saída', ajuste:'Ajuste' };
+    if (!data.length) {
+      document.getElementById('painelBody').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim)">Nenhuma movimentação registrada</div>';
+      return;
+    }
+    document.getElementById('painelBody').innerHTML = data.map(m => `
+      <div class="mov-linha">
+        <div class="mov-tipo ${TIPO_CLS[m.tipo]}">
+          ${m.tipo==='entrada'?_SVG_UP:m.tipo==='saida'?_SVG_DOWN:'~'}
+        </div>
+        <div class="mov-info">
+          <strong>${m.produto_nome} ${m.observacao ? '— '+m.observacao : ''}</strong>
+          <span>${new Date(m.criado_em).toLocaleDateString('pt-BR')} ${m.usuario_nome ? '· '+m.usuario_nome : ''}</span>
+        </div>
+        <div class="mov-qtd" style="color:${m.tipo==='entrada'?'#22c55e':m.tipo==='saida'?'#f87171':'#fbbf24'}">
+          ${m.tipo==='entrada'?'+':m.tipo==='saida'?'-':''}${formatQtd(m.quantidade)} ${m.unidade}
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function abrirPainel() {
+  document.getElementById('painelMov').classList.add('open');
+  document.getElementById('movOverlay').classList.add('open');
+}
+function fecharPainel() {
+  document.getElementById('painelMov').classList.remove('open');
+  document.getElementById('movOverlay').classList.remove('open');
+}
+
+// ── CRUD produto ──
+function abrirNovo() {
+  document.getElementById('pId').value = '';
+  document.getElementById('pNome').value = '';
+  document.getElementById('pCodigo').value = '';
+  document.getElementById('pCategoria').value = '';
+  document.getElementById('pUnidade').value = 'un';
+  document.getElementById('pEstoqueInicial').value = 0;
+  document.getElementById('pEstoqueMin').value = 0;
+  document.getElementById('pCusto').value = 0;
+  document.getElementById('pDesc').value = '';
+  document.getElementById('modalTitulo').textContent = 'Novo Produto';
+  document.getElementById('modalProd').classList.add('open');
+}
+
+function editarProduto(id) {
+  const p = _produtos.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('pId').value = p.id;
+  document.getElementById('pNome').value = p.nome;
+  document.getElementById('pCodigo').value = p.codigo || '';
+  document.getElementById('pCategoria').value = p.categoria || '';
+  document.getElementById('pUnidade').value = p.unidade;
+  document.getElementById('pEstoqueInicial').value = p.estoque_atual;
+  document.getElementById('pEstoqueMin').value = p.estoque_minimo;
+  document.getElementById('pCusto').value = p.valor_custo;
+  document.getElementById('pDesc').value = p.descricao || '';
+  document.getElementById('modalTitulo').textContent = 'Editar Produto';
+  document.getElementById('modalProd').classList.add('open');
+}
+
+async function salvarProduto() {
+  const id   = document.getElementById('pId').value;
+  const nome = document.getElementById('pNome').value.trim();
+  if (!nome) { toast('Nome é obrigatório','warning'); return; }
+
+  const body = {
+    nome,
+    codigo:       document.getElementById('pCodigo').value.trim() || null,
+    categoria:    document.getElementById('pCategoria').value.trim() || null,
+    unidade:      document.getElementById('pUnidade').value,
+    estoque_atual:  parseFloat(document.getElementById('pEstoqueInicial').value) || 0,
+    estoque_minimo: parseFloat(document.getElementById('pEstoqueMin').value) || 0,
+    valor_custo:    parseFloat(document.getElementById('pCusto').value) || 0,
+    descricao:    document.getElementById('pDesc').value.trim() || null,
+  };
+
+  try {
+    if (id) {
+      await Api.put(`/estoque/produtos/${id}`, body);
+      toast('Produto atualizado','success');
+    } else {
+      await Api.post('/estoque/produtos', body);
+      toast('Produto criado','success');
+    }
+    fecharModal();
+    init();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function removerProduto(id) {
+  const p = _produtos.find(x => x.id === id);
+  if (!confirm(`Remover "${p?.nome}"?`)) return;
+  try {
+    await Api.delete(`/estoque/produtos/${id}`);
+    toast('Produto removido','success');
+    init();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function fecharModal() { document.getElementById('modalProd').classList.remove('open'); }
+
+init();
+</script>
+</body>
+</html>

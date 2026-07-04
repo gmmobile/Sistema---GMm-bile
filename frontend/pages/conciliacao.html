@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conciliação Bancária — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    /* ── Layout principal ─────────────────────────────────── */
+    .main-content { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+    .page-content  { flex:1; min-height:0; display:flex; flex-direction:column;
+                     gap:10px; padding:14px 18px; overflow:hidden; }
+
+    /* ── KPI strip ───────────────────────────────────────── */
+    .kpi-strip { display:grid; grid-template-columns:repeat(8,1fr); gap:8px; flex-shrink:0; }
+    @media(max-width:1400px){ .kpi-strip { grid-template-columns:repeat(4,1fr); } }
+    .kpi-card {
+      background:var(--bg-card); border:1px solid var(--border); border-radius:10px;
+      padding:10px 14px; display:flex; flex-direction:column; gap:4px; position:relative;
+      overflow:hidden; transition:.15s;
+    }
+    .kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+    .kpi-card.verde::before   { background:#22c55e; }
+    .kpi-card.vermelho::before{ background:#f87171; }
+    .kpi-card.azul::before    { background:#60a5fa; }
+    .kpi-card.amarelo::before { background:#fbbf24; }
+    .kpi-card.dourado::before { background:var(--primary); }
+    .kpi-card.cinza::before   { background:#64748b; }
+    .kpi-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; }
+    .kpi-valor { font-size:16px; font-weight:800; color:var(--text); line-height:1; }
+    .kpi-sub   { font-size:10px; color:var(--text-dim); }
+
+    /* ── Filtros bar ─────────────────────────────────────── */
+    .filtros-bar {
+      display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; flex-shrink:0;
+      background:var(--bg-card); border:1px solid var(--border); border-radius:10px;
+      padding:10px 14px;
+    }
+    .filtros-bar .form-group { margin-bottom:0; }
+    .filtros-bar label { font-size:10px; color:var(--text-muted); margin-bottom:3px; display:block; }
+    .filtros-bar select,
+    .filtros-bar input[type="date"],
+    .filtros-bar input[type="text"] {
+      height:32px; font-size:12px; padding:0 8px; border-radius:7px;
+      background:var(--bg-card2); border:1px solid var(--border); color:var(--text);
+      outline:none; transition:.15s;
+    }
+    .filtros-bar select:focus,
+    .filtros-bar input:focus { border-color:var(--primary); }
+    .filtros-bar .busca-wrap { position:relative; }
+    .filtros-bar .busca-wrap input { padding-left:28px; min-width:160px; }
+    .filtros-bar .busca-wrap svg { position:absolute; left:8px; top:50%; transform:translateY(-50%);
+                                   opacity:.4; pointer-events:none; }
+    .filtros-actions { display:flex; gap:6px; margin-left:auto; align-items:flex-end; }
+
+    /* ── Layout 3 colunas + sidebar ─────────────────────── */
+    .conc-layout { flex:1; min-height:0; display:flex; gap:10px; overflow:hidden; }
+    .conc-cols   { flex:1; min-width:0; display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+
+    /* ── Painel genérico ─────────────────────────────────── */
+    .painel {
+      background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
+      overflow:hidden; display:flex; flex-direction:column; min-height:0;
+    }
+    .painel-head {
+      padding:10px 14px; border-bottom:1px solid var(--border); flex-shrink:0;
+      display:flex; align-items:center; gap:8px;
+    }
+    .painel-head h3 { font-size:12px; font-weight:700; flex:1; display:flex; align-items:center; gap:6px; }
+    .painel-head h3 svg { opacity:.6; }
+    .painel-search { padding:8px 10px; border-bottom:1px solid var(--border); flex-shrink:0; }
+    .painel-search input {
+      width:100%; height:28px; font-size:11px; padding:0 8px 0 28px;
+      background:var(--bg-card2); border:1px solid var(--border); border-radius:6px;
+      color:var(--text); outline:none;
+    }
+    .painel-search { position:relative; }
+    .painel-search svg { position:absolute; left:18px; top:50%; transform:translateY(-50%); opacity:.35; }
+    .painel-body  { overflow-y:auto; flex:1; }
+    .painel-foot  { padding:8px 14px; border-top:1px solid var(--border); flex-shrink:0; }
+
+    /* ── Batch bar (col 1) ───────────────────────────────── */
+    .batch-bar {
+      display:flex; align-items:center; gap:6px; padding:6px 10px;
+      border-bottom:1px solid var(--border); flex-shrink:0; background:var(--bg-card2);
+    }
+    .batch-bar input[type="checkbox"] { width:14px; height:14px; accent-color:var(--primary); cursor:pointer; }
+    .batch-bar span { font-size:11px; color:var(--text-muted); flex:1; }
+
+    /* ── Linha extrato (col 1) ───────────────────────────── */
+    .linha-ext {
+      display:flex; align-items:center; gap:8px; padding:9px 12px;
+      border-bottom:1px solid rgba(51,65,85,.4); cursor:pointer;
+      transition:.12s; position:relative; border-left:3px solid transparent;
+    }
+    .linha-ext:last-child { border-bottom:none; }
+    .linha-ext:hover       { background:rgba(255,255,255,.03); }
+    .linha-ext.ativa       { background:rgba(196,162,74,.08); border-left-color:var(--primary); }
+    .linha-ext.conciliada  { opacity:.5; }
+    .linha-ext input[type="checkbox"] { flex-shrink:0; width:13px; height:13px; accent-color:var(--primary); }
+    .le-data  { font-size:10px; color:var(--text-muted); width:36px; flex-shrink:0; text-align:center; line-height:1.2; }
+    .le-data strong { display:block; font-size:14px; font-weight:700; color:var(--text); }
+    .le-body  { flex:1; min-width:0; }
+    .le-body strong { font-size:12px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .le-body span   { font-size:10px; color:var(--text-muted); }
+    .le-right { display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0; }
+    .le-valor { font-size:13px; font-weight:800; }
+    .le-valor.credito { color:#22c55e; }
+    .le-valor.debito  { color:#f87171; }
+    .le-acoes { display:flex; gap:2px; }
+    .btn-mini {
+      width:22px; height:22px; border-radius:5px; border:1px solid var(--border);
+      background:transparent; color:var(--text-muted); cursor:pointer; display:flex;
+      align-items:center; justify-content:center; transition:.1s;
+    }
+    .btn-mini:hover { background:var(--bg-hover); color:var(--text); }
+    .btn-mini svg   { width:11px; height:11px; }
+
+    /* ── Status badges ───────────────────────────────────── */
+    .badge-st {
+      font-size:9px; font-weight:700; padding:2px 6px; border-radius:4px;
+      text-transform:uppercase; letter-spacing:.4px; white-space:nowrap;
+    }
+    .st-nao_analisado { background:rgba(100,116,139,.14); color:#94a3b8; border:1px solid rgba(100,116,139,.2); }
+    .st-sugestao      { background:rgba(96,165,250,.14);  color:#60a5fa; border:1px solid rgba(96,165,250,.25); }
+    .st-conciliado    { background:rgba(34,197,94,.12);   color:#4ade80; border:1px solid rgba(34,197,94,.25); }
+    .st-divergencia   { background:rgba(251,191,36,.12);  color:#fbbf24; border:1px solid rgba(251,191,36,.25); }
+    .st-ignorado      { background:rgba(30,30,30,.6);     color:#475569; border:1px solid rgba(255,255,255,.05); }
+
+    /* ── Coluna 2: Sugestões ─────────────────────────────── */
+    .sugestao-empty {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      height:100%; gap:10px; padding:30px; text-align:center; color:var(--text-dim);
+    }
+    .sugestao-empty svg { opacity:.2; }
+    .sugestao-empty p   { font-size:12px; line-height:1.5; }
+
+    .sug-card {
+      margin:8px; border-radius:10px; border:1px solid var(--border);
+      overflow:hidden; transition:.15s;
+    }
+    .sug-card:hover { border-color:rgba(196,162,74,.35); }
+    .sug-header {
+      padding:10px 12px; display:flex; align-items:center; gap:8px;
+      border-bottom:1px solid var(--border); background:var(--bg-card2);
+    }
+    .sug-score-wrap { display:flex; flex-direction:column; align-items:center; gap:1px; flex-shrink:0; }
+    .sug-pct   { font-size:18px; font-weight:800; line-height:1; }
+    .sug-stars { font-size:11px; }
+    .sug-motivos { display:flex; flex-wrap:wrap; gap:3px; flex:1; }
+    .motivo-pill {
+      font-size:9px; padding:2px 6px; border-radius:4px; font-weight:600;
+      background:rgba(196,162,74,.12); color:var(--primary); border:1px solid rgba(196,162,74,.2);
+    }
+    .sug-body { padding:10px 12px; display:flex; flex-direction:column; gap:4px; }
+    .sug-body strong { font-size:12px; }
+    .sug-meta { display:flex; gap:6px; align-items:center; }
+    .sug-meta .label { font-size:9px; color:var(--text-muted); }
+    .sug-meta .val   { font-size:11px; font-weight:600; }
+    .sug-vals { display:flex; justify-content:space-between; align-items:center; margin-top:4px; }
+    .sug-vals .v  { font-size:14px; font-weight:800; }
+    .sug-vals .dt { font-size:10px; color:var(--text-muted); }
+    .sug-diff { font-size:10px; color:#fbbf24; margin-top:2px; }
+    .sug-foot { padding:8px 12px; display:flex; gap:6px; border-top:1px solid var(--border); }
+
+    /* Vincular manual (topo col 2 quando lanc. selecionado) */
+    .vincular-banner {
+      margin:8px; padding:10px 12px; border-radius:8px;
+      background:rgba(196,162,74,.1); border:1px solid rgba(196,162,74,.3);
+      display:flex; flex-direction:column; gap:6px;
+    }
+    .vincular-banner p { font-size:11px; color:var(--text-muted); }
+    .vincular-banner strong { font-size:12px; color:var(--primary); }
+
+    /* ── Coluna 3: Lançamentos ───────────────────────────── */
+    .linha-lanc {
+      display:flex; align-items:center; gap:8px; padding:9px 12px;
+      border-bottom:1px solid rgba(51,65,85,.4); cursor:pointer;
+      transition:.12s; border-left:3px solid transparent;
+    }
+    .linha-lanc:last-child { border-bottom:none; }
+    .linha-lanc:hover    { background:rgba(255,255,255,.03); }
+    .linha-lanc.selecionado { background:rgba(196,162,74,.1); border-left-color:var(--primary); }
+    .ll-data { font-size:10px; color:var(--text-muted); width:36px; flex-shrink:0; text-align:center; line-height:1.2; }
+    .ll-data strong { display:block; font-size:14px; font-weight:700; color:var(--text); }
+    .ll-body { flex:1; min-width:0; }
+    .ll-body strong { font-size:12px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ll-body span   { font-size:10px; color:var(--text-muted); }
+    .ll-valor { font-size:12px; font-weight:700; flex-shrink:0; text-align:right; }
+    .ll-tipo-receita { color:#22c55e; }
+    .ll-tipo-despesa { color:#f87171; }
+
+    /* ── Sidebar direita ─────────────────────────────────── */
+    .conc-sidebar {
+      width:210px; flex-shrink:0; display:flex; flex-direction:column;
+      gap:8px; overflow-y:auto;
+    }
+    .sb-card {
+      background:var(--bg-card); border:1px solid var(--border); border-radius:10px;
+      padding:12px 14px; flex-shrink:0;
+    }
+    .sb-title {
+      font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.6px;
+      color:var(--text-muted); margin-bottom:10px;
+    }
+    .sb-row { display:flex; justify-content:space-between; align-items:center; padding:4px 0;
+              border-bottom:1px solid rgba(51,65,85,.3); }
+    .sb-row:last-child { border-bottom:none; }
+    .sb-row .lbl { font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:5px; }
+    .sb-row .lbl i { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+    .sb-row .val { font-size:11px; font-weight:700; }
+
+    .progress-wrap { margin-top:8px; }
+    .progress-label { display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted); margin-bottom:4px; }
+    .progress-bar { height:6px; background:var(--bg-card2); border-radius:3px; overflow:hidden; }
+    .progress-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,var(--primary),#22c55e); transition:.4s; }
+
+    .conta-item {
+      padding:7px 0; border-bottom:1px solid rgba(51,65,85,.3); cursor:pointer;
+      display:flex; align-items:center; gap:8px; transition:.12s;
+    }
+    .conta-item:last-child { border-bottom:none; }
+    .conta-item:hover { opacity:.8; }
+    .conta-item.ativa-sb .conta-dot { box-shadow:0 0 0 3px rgba(196,162,74,.3); }
+    .conta-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+    .conta-info { flex:1; min-width:0; }
+    .conta-info strong { font-size:11px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .conta-info span   { font-size:10px; color:var(--text-muted); }
+
+    /* ── Empty state ─────────────────────────────────────── */
+    .vazio { padding:40px 20px; text-align:center; color:var(--text-dim); font-size:12px; }
+    .vazio svg { opacity:.15; margin-bottom:10px; }
+
+    /* ── Btn sizes ───────────────────────────────────────── */
+    .btn-xs { padding:4px 10px; font-size:11px; border-radius:6px; height:26px; }
+    .btn-sm { padding:5px 12px; font-size:12px; border-radius:7px; height:30px; }
+
+    /* ── Modals ──────────────────────────────────────────── */
+    .modal { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; }
+    .formato-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
+    .formato-btn {
+      padding:10px 8px; border-radius:8px; border:2px solid var(--border);
+      background:var(--bg-card2); color:var(--text-muted); cursor:pointer;
+      text-align:center; font-size:11px; font-weight:600; transition:.15s;
+    }
+    .formato-btn:hover  { border-color:var(--primary); color:var(--text); }
+    .formato-btn.ativo  { border-color:var(--primary); color:var(--primary); background:rgba(196,162,74,.08); }
+    .formato-btn .ext   { font-size:16px; font-weight:800; margin-bottom:2px; }
+    .drop-zone {
+      border:2px dashed var(--border); border-radius:10px; padding:30px;
+      text-align:center; cursor:pointer; transition:.2s; position:relative;
+    }
+    .drop-zone:hover, .drop-zone.drag-over { border-color:var(--primary); background:rgba(196,162,74,.05); }
+    .drop-zone input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; }
+    .drop-zone p   { font-size:12px; color:var(--text-muted); margin-top:6px; }
+    .drop-zone svg { opacity:.3; }
+    .csv-area { width:100%; min-height:100px; font-family:monospace; font-size:11px;
+                background:var(--bg-card2); border:1px solid var(--border); border-radius:8px;
+                color:var(--text); padding:10px; resize:vertical; }
+
+    /* Criar lançamento */
+    .tipo-toggle { display:flex; gap:0; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+    .tipo-toggle button {
+      flex:1; padding:7px; font-size:12px; font-weight:600; border:none; cursor:pointer;
+      background:var(--bg-card2); color:var(--text-muted); transition:.15s;
+    }
+    .tipo-toggle button.ativo { background:var(--primary); color:#000; }
+
+    /* Score mini na linha */
+    .score-mini { font-size:9px; font-weight:700; padding:1px 5px; border-radius:3px; }
+
+    /* Progress bar inline para score */
+    .score-bar { height:2px; border-radius:1px; margin-top:3px; }
+
+    @media(max-width:1100px) {
+      .conc-cols { grid-template-columns:1fr 1fr; }
+      .conc-cols > .painel:last-child { display:none; }
+    }
+    @media(max-width:800px) {
+      .conc-cols { grid-template-columns:1fr; }
+      .conc-sidebar { display:none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()">
+          <i data-lucide="panel-left-close"></i>
+        </button>
+        <div class="topbar-breadcrumb">
+          <a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a>
+          &nbsp;/&nbsp;<strong>Conciliação Bancária</strong>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-btn" title="Notificações"><i data-lucide="bell"></i></div>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- ── KPI Strip ──────────────────────────────────── -->
+      <div class="kpi-strip">
+        <div class="kpi-card verde">
+          <div class="kpi-label">Entradas</div>
+          <div class="kpi-valor" id="kCredito">—</div>
+          <div class="kpi-sub">no período</div>
+        </div>
+        <div class="kpi-card vermelho">
+          <div class="kpi-label">Saídas</div>
+          <div class="kpi-valor" id="kDebito">—</div>
+          <div class="kpi-sub">no período</div>
+        </div>
+        <div class="kpi-card dourado">
+          <div class="kpi-label">Saldo Extrato</div>
+          <div class="kpi-valor" id="kSaldo">—</div>
+          <div class="kpi-sub">créditos − débitos</div>
+        </div>
+        <div class="kpi-card azul">
+          <div class="kpi-label">Total Linhas</div>
+          <div class="kpi-valor" id="kTotal">—</div>
+          <div class="kpi-sub">no extrato</div>
+        </div>
+        <div class="kpi-card verde">
+          <div class="kpi-label">Conciliados</div>
+          <div class="kpi-valor" id="kConc">—</div>
+          <div class="kpi-sub" id="kConcPct">—</div>
+        </div>
+        <div class="kpi-card amarelo">
+          <div class="kpi-label">Pendentes</div>
+          <div class="kpi-valor" id="kPend">—</div>
+          <div class="kpi-sub">aguardando</div>
+        </div>
+        <div class="kpi-card amarelo">
+          <div class="kpi-label">Com Sugestão</div>
+          <div class="kpi-valor" id="kSug">—</div>
+          <div class="kpi-sub">prontos p/ conciliar</div>
+        </div>
+        <div class="kpi-card cinza">
+          <div class="kpi-label">Divergências</div>
+          <div class="kpi-valor" id="kDiv">—</div>
+          <div class="kpi-sub">valores diferentes</div>
+        </div>
+      </div>
+
+      <!-- ── Filtros ────────────────────────────────────── -->
+      <div class="filtros-bar">
+        <div class="form-group">
+          <label>Conta</label>
+          <select id="fConta" onchange="carregar()" style="min-width:150px">
+            <option value="">Todas as contas</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Início</label>
+          <input type="date" id="fInicio" onchange="carregar()">
+        </div>
+        <div class="form-group">
+          <label>Fim</label>
+          <input type="date" id="fFim" onchange="carregar()">
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="fStatus" onchange="carregar()" style="min-width:130px">
+            <option value="">Todos</option>
+            <option value="nao_analisado">Não analisado</option>
+            <option value="sugestao">Com sugestão</option>
+            <option value="conciliado">Conciliado</option>
+            <option value="divergencia">Divergência</option>
+            <option value="ignorado">Ignorado</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="fTipo" onchange="carregar()">
+            <option value="">Todos</option>
+            <option value="credito">Crédito</option>
+            <option value="debito">Débito</option>
+          </select>
+        </div>
+        <div class="form-group busca-wrap">
+          <label>Buscar</label>
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="fBusca" placeholder="Descrição, cliente..." oninput="debounceCarregar()" style="width:160px">
+        </div>
+        <div class="filtros-actions">
+          <button class="btn btn-ghost btn-sm" onclick="carregar()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+            Atualizar
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="abrirImportar()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+            Importar
+          </button>
+          <button class="btn btn-ghost btn-sm" id="btnLote" onclick="conciliarLote()" style="display:none">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+            Conciliar Selecionados (<span id="cntLote">0</span>)
+          </button>
+          <button class="btn btn-primary btn-sm" id="btnAuto" onclick="autoConciliar()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Auto-Conciliar
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="abrirNovaLinha()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+            Nova Linha
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Layout principal ───────────────────────────── -->
+      <div class="conc-layout">
+
+        <!-- 3 colunas -->
+        <div class="conc-cols">
+
+          <!-- ── COLUNA 1: EXTRATO BANCÁRIO ── -->
+          <div class="painel">
+            <div class="painel-head">
+              <h3>
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                Extrato Bancário
+              </h3>
+              <span class="badge badge-info" id="badgeExtrato">0</span>
+            </div>
+            <div class="batch-bar">
+              <input type="checkbox" id="checkAll" onchange="toggleCheckAll(this)">
+              <span id="batchInfo">Selecionar todos</span>
+            </div>
+            <div class="painel-body" id="listaExtrato">
+              <div class="vazio">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                <p>Selecione uma conta e período,<br>ou importe um extrato</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── COLUNA 2: SUGESTÕES INTELIGENTES ── -->
+          <div class="painel">
+            <div class="painel-head">
+              <h3>
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Sugestões Inteligentes
+              </h3>
+              <span class="badge badge-warning" id="badgeSug">—</span>
+            </div>
+            <div class="painel-body" id="listaSugestoes">
+              <div class="sugestao-empty">
+                <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <p>Selecione uma linha do extrato<br>para ver as sugestões de conciliação</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── COLUNA 3: LANÇAMENTOS DO SISTEMA ── -->
+          <div class="painel">
+            <div class="painel-head">
+              <h3>
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+                Lançamentos Pendentes
+              </h3>
+              <span class="badge badge-secondary" id="badgeLanc">0</span>
+            </div>
+            <div class="painel-search">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input type="text" id="buscaLanc" placeholder="Buscar lançamento..." oninput="debounceCarregarLanc()">
+            </div>
+            <div class="painel-body" id="listaLancamentos">
+              <div class="vazio">
+                <p>Carregando lançamentos...</p>
+              </div>
+            </div>
+            <div class="painel-foot" id="lancFooter" style="display:none">
+              <p style="font-size:10px;color:var(--text-muted)">
+                Selecione um lançamento e clique em <strong>Vincular</strong> na coluna de sugestões
+              </p>
+            </div>
+          </div>
+
+        </div><!-- /conc-cols -->
+
+        <!-- ── SIDEBAR DIREITA ── -->
+        <div class="conc-sidebar">
+          <!-- Resumo do período -->
+          <div class="sb-card">
+            <div class="sb-title">Resumo do Período</div>
+            <div class="sb-row">
+              <span class="lbl"><i style="background:#22c55e"></i>Entradas</span>
+              <span class="val" id="sCredito" style="color:#22c55e">—</span>
+            </div>
+            <div class="sb-row">
+              <span class="lbl"><i style="background:#f87171"></i>Saídas</span>
+              <span class="val" id="sDebito" style="color:#f87171">—</span>
+            </div>
+            <div class="sb-row">
+              <span class="lbl"><i style="background:var(--primary)"></i>Saldo</span>
+              <span class="val" id="sSaldo">—</span>
+            </div>
+            <div class="sb-row">
+              <span class="lbl"><i style="background:#fbbf24"></i>Pendentes</span>
+              <span class="val" id="sPend" style="color:#fbbf24">—</span>
+            </div>
+            <div class="sb-row">
+              <span class="lbl"><i style="background:#4ade80"></i>Conciliados</span>
+              <span class="val" id="sConc" style="color:#4ade80">—</span>
+            </div>
+            <div class="sb-row">
+              <span class="lbl"><i style="background:#f87171"></i>Divergências</span>
+              <span class="val" id="sDiv" style="color:#fbbf24">—</span>
+            </div>
+            <div class="progress-wrap">
+              <div class="progress-label">
+                <span>% Conciliado</span>
+                <span id="pct">0%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width:0%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Contas bancárias -->
+          <div class="sb-card">
+            <div class="sb-title">Contas Bancárias</div>
+            <div id="sbContas">
+              <p style="font-size:11px;color:var(--text-dim);padding:8px 0">Carregando...</p>
+            </div>
+          </div>
+
+          <!-- Última atualização -->
+          <div class="sb-card">
+            <div class="sb-title">Info</div>
+            <div class="sb-row">
+              <span class="lbl">Atualizado</span>
+              <span class="val" id="sUltAtu" style="font-size:10px">—</span>
+            </div>
+            <div class="sb-row">
+              <span class="lbl">Conta ativa</span>
+              <span class="val" id="sContaAtiva" style="font-size:10px;color:var(--primary)">Todas</span>
+            </div>
+          </div>
+        </div><!-- /sidebar -->
+
+      </div><!-- /conc-layout -->
+    </main>
+  </div>
+</div>
+
+<!-- ──────────────────────────────────────────────────────── -->
+<!-- MODAL: Importar Extrato                                  -->
+<!-- ──────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="modalImportar">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <h2 class="modal-title">Importar Extrato Bancário</h2>
+      <button class="modal-close" onclick="fecharModal('modalImportar')"></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Conta bancária <span class="required">*</span></label>
+        <select id="iConta" style="width:100%"><option value="">Selecione...</option></select>
+      </div>
+      <div class="form-group">
+        <label>Formato do arquivo</label>
+        <div class="formato-grid">
+          <div class="formato-btn ativo" onclick="setFormato('csv',this)">
+            <div class="ext">CSV</div>Excel / Banco
+          </div>
+          <div class="formato-btn" onclick="setFormato('ofx',this)">
+            <div class="ext">OFX</div>Open Financial
+          </div>
+          <div class="formato-btn" onclick="setFormato('ofc',this)">
+            <div class="ext">OFC</div>MS Money
+          </div>
+        </div>
+      </div>
+      <div id="csvSection">
+        <div class="form-group">
+          <label>Cole o conteúdo CSV</label>
+          <textarea class="csv-area" id="iConteudo" rows="7"
+            placeholder="data;descricao;valor&#10;2026-06-01;PIX João Silva;2500.00&#10;2026-06-02;Pagamento fornecedor;-800.00"></textarea>
+          <p style="font-size:10px;color:var(--text-muted);margin-top:5px">
+            Formato: <code>data;descricao;valor</code> — valor positivo=crédito, negativo=débito.<br>
+            Também suporta: <code>data;descricao;credito;debito</code>
+          </p>
+        </div>
+      </div>
+      <div id="ofxSection" style="display:none">
+        <div class="form-group">
+          <label>Arquivo OFX / OFC</label>
+          <div class="drop-zone" id="dropZone">
+            <input type="file" id="iArquivo" accept=".ofx,.ofc,.txt" onchange="lerArquivo(this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p id="dropLabel">Clique para selecionar ou arraste o arquivo aqui</p>
+          </div>
+          <textarea class="csv-area" id="iConteudoOfx" rows="4" placeholder="Ou cole o conteúdo OFX aqui..." style="margin-top:8px"></textarea>
+        </div>
+      </div>
+      <div id="previewImport" style="display:none;margin-top:8px;padding:10px;background:var(--bg-card2);border-radius:8px;font-size:11px">
+        <strong id="previewInfo"></strong>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modalImportar')">Cancelar</button>
+      <button class="btn btn-ghost btn-sm" onclick="previewImport()">Pré-visualizar</button>
+      <button class="btn btn-primary" onclick="importar()">Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────────────────────────────────────────────── -->
+<!-- MODAL: Nova Linha Manual                                 -->
+<!-- ──────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="modalNovaLinha">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2 class="modal-title">Adicionar Linha de Extrato</h2>
+      <button class="modal-close" onclick="fecharModal('modalNovaLinha')"></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Conta <span class="required">*</span></label>
+          <select id="nConta" style="width:100%"><option value="">Selecione...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Data <span class="required">*</span></label>
+          <input type="date" id="nData">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Descrição <span class="required">*</span></label>
+        <input type="text" id="nDesc" placeholder="Ex: PIX recebido João Silva">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tipo <span class="required">*</span></label>
+          <select id="nTipo">
+            <option value="credito">Crédito (entrada)</option>
+            <option value="debito">Débito (saída)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Valor <span class="required">*</span></label>
+          <input type="number" id="nValor" placeholder="0.00" step="0.01" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Observações</label>
+        <input type="text" id="nMemo" placeholder="Nota interna...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modalNovaLinha')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarNovaLinha()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────────────────────────────────────────────── -->
+<!-- MODAL: Criar Lançamento a partir do extrato             -->
+<!-- ──────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="modalCriarLanc">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h2 class="modal-title">Criar Lançamento</h2>
+      <button class="modal-close" onclick="fecharModal('modalCriarLanc')"></button>
+    </div>
+    <div class="modal-body">
+      <div id="criarLancInfo" style="padding:10px;background:var(--bg-card2);border-radius:8px;margin-bottom:14px;font-size:12px"></div>
+      <div class="form-group">
+        <label>Tipo</label>
+        <div class="tipo-toggle" id="criarTipoToggle">
+          <button onclick="setTipoCriar('receita',this)" style="flex:1">Receita</button>
+          <button onclick="setTipoCriar('despesa',this)" style="flex:1">Despesa</button>
+          <button onclick="setTipoCriar('transferencia',this)" style="flex:1">Transferência</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Descrição <span class="required">*</span></label>
+        <input type="text" id="criarDesc" placeholder="Descrição do lançamento">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Categoria</label>
+          <select id="criarCat" style="width:100%"><option value="">Sem categoria</option></select>
+        </div>
+        <div class="form-group">
+          <label>Conta</label>
+          <select id="criarConta" style="width:100%"><option value="">Sem conta</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modalCriarLanc')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarCriarLanc()">Criar e Conciliar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+checkAuth();
+
+// ── Estado ──────────────────────────────────────────────────────────────────
+let _extrato      = [];
+let _lancamentos  = [];
+let _contas       = [];
+let _extratoSel   = null;   // id da linha do extrato selecionada
+let _lancSel      = null;   // id do lançamento selecionado (col 3)
+let _checked      = new Set(); // ids marcados para lote
+let _formato      = 'csv';
+let _criarExtId   = null;
+let _criarTipo    = 'receita';
+let _categorias   = [];
+let _debTimer     = null;
+let _debLancTimer = null;
+
+// ── Utilitários ──────────────────────────────────────────────────────────────
+const moedaC = v => moeda(v).replace('R$','').trim();
+function fmtData(s) {
+  if (!s) return '—';
+  const d = new Date(s + 'T12:00:00');
+  return { dia: String(d.getDate()).padStart(2,'0'), mes: d.toLocaleString('pt-BR',{month:'short'}) };
+}
+function fmtDataStr(s) {
+  if (!s) return '—';
+  const d = new Date(s + 'T12:00:00');
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+}
+function scoreCor(n) {
+  return n >= 90 ? '#22c55e' : n >= 75 ? '#86efac' : n >= 60 ? '#fbbf24' : '#fb923c';
+}
+function estrelas(n) {
+  const c = n >= 90 ? 5 : n >= 75 ? 4 : n >= 60 ? 3 : n >= 45 ? 2 : 1;
+  return '★'.repeat(c) + '☆'.repeat(5 - c);
+}
+function debounceCarregar() {
+  clearTimeout(_debTimer);
+  _debTimer = setTimeout(carregar, 400);
+}
+function debounceCarregarLanc() {
+  clearTimeout(_debLancTimer);
+  _debLancTimer = setTimeout(carregarLancamentos, 400);
+}
+
+const _LABEL = {
+  nao_analisado: 'Não analisado',
+  sugestao:      'Sugestão',
+  conciliado:    'Conciliado',
+  divergencia:   'Divergência',
+  ignorado:      'Ignorado',
+};
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    [_contas, _categorias] = await Promise.all([
+      Api.get('/financeiro/contas'),
+      Api.get('/financeiro/categorias'),
+    ]);
+
+    // Popula selects
+    ['fConta','iConta','nConta','criarConta'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      _contas.forEach(c => sel.insertAdjacentHTML('beforeend',
+        `<option value="${c.id}">${c.nome}${c.banco?' — '+c.banco:''}</option>`
+      ));
+    });
+    _categorias.forEach(c => {
+      document.getElementById('criarCat').insertAdjacentHTML('beforeend',
+        `<option value="${c.id}">[${c.tipo}] ${c.nome}</option>`
+      );
+    });
+
+    // Datas padrão: mês atual
+    const hoje = new Date();
+    const y = hoje.getFullYear(), mo = hoje.getMonth();
+    const m = String(mo + 1).padStart(2, '0');
+    const ultimoDia = new Date(y, mo + 1, 0).getDate();
+    document.getElementById('fInicio').value = `${y}-${m}-01`;
+    document.getElementById('fFim').value    = `${y}-${m}-${String(ultimoDia).padStart(2,'0')}`;
+    document.getElementById('nData').value   = hoje.toISOString().split('T')[0];
+
+    renderSidebarContas();
+    await carregar();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Sidebar: lista contas ─────────────────────────────────────────────────────
+function renderSidebarContas() {
+  const el = document.getElementById('sbContas');
+  if (!_contas.length) { el.innerHTML = '<p style="font-size:11px;color:var(--text-dim);padding:6px 0">Nenhuma conta cadastrada</p>'; return; }
+  el.innerHTML = _contas.map(c => `
+    <div class="conta-item" onclick="filtrarConta('${c.id}')" id="sbC-${c.id}">
+      <div class="conta-dot" style="background:${c.cor||'#6366f1'}"></div>
+      <div class="conta-info">
+        <strong>${escapeHtml(c.nome)}</strong>
+        <span>${c.banco||'Conta'}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filtrarConta(id) {
+  document.getElementById('fConta').value = id;
+  document.querySelectorAll('.conta-item').forEach(el => el.classList.remove('ativa-sb'));
+  const el = document.getElementById(`sbC-${id}`);
+  if (el) el.classList.add('ativa-sb');
+  document.getElementById('sContaAtiva').textContent =
+    _contas.find(c => c.id == id)?.nome || 'Todas';
+  carregar();
+}
+
+// ── Carregar dados ────────────────────────────────────────────────────────────
+async function carregar() {
+  const conta  = document.getElementById('fConta').value;
+  const inicio = document.getElementById('fInicio').value;
+  const fim    = document.getElementById('fFim').value;
+  const status = document.getElementById('fStatus').value;
+  const tipo   = document.getElementById('fTipo').value;
+  const busca  = document.getElementById('fBusca').value;
+
+  const p = new URLSearchParams();
+  if (conta)  p.set('conta_id', conta);
+  if (inicio) p.set('inicio', inicio);
+  if (fim)    p.set('fim', fim);
+  if (status) p.set('status', status);
+  if (tipo)   p.set('tipo', tipo);
+  if (busca)  p.set('busca', busca);
+
+  try {
+    const [extrato, resumo] = await Promise.all([
+      Api.get('/conciliacao?' + p),
+      Api.get('/conciliacao/resumo?' + new URLSearchParams({ conta_id:conta, inicio, fim })),
+    ]);
+    _extrato = extrato;
+    _checked.clear();
+    _extratoSel = null;
+    renderResumo(resumo);
+    renderExtrato(extrato);
+    renderSugestoes([]);
+    document.getElementById('sUltAtu').textContent =
+      new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+  } catch (e) { toast(e.message, 'error'); }
+
+  await carregarLancamentos();
+}
+
+async function carregarLancamentos() {
+  const conta  = document.getElementById('fConta').value;
+  const inicio = document.getElementById('fInicio').value;
+  const fim    = document.getElementById('fFim').value;
+  const busca  = document.getElementById('buscaLanc').value;
+  const p = new URLSearchParams();
+  if (conta)  p.set('conta_id', conta);
+  if (inicio) p.set('inicio', inicio);
+  if (fim)    p.set('fim', fim);
+  if (busca)  p.set('busca', busca);
+  try {
+    _lancamentos = await Api.get('/conciliacao/lancamentos-pendentes?' + p);
+    renderLancamentos(_lancamentos);
+  } catch(e) { /* silencioso */ }
+}
+
+// ── Render: Resumo ────────────────────────────────────────────────────────────
+function renderResumo(r) {
+  const cred  = parseFloat(r.total_credito) || 0;
+  const deb   = parseFloat(r.total_debito)  || 0;
+  const saldo = cred - deb;
+  const tot   = parseInt(r.total_linhas)  || 0;
+  const conc  = parseInt(r.conciliados)   || 0;
+  const pend  = parseInt(r.pendentes)     || 0;
+  const div   = parseInt(r.divergencias)  || 0;
+  const sug   = parseInt(r.com_sugestao)  || 0;
+  const pct   = tot > 0 ? Math.round(conc / tot * 100) : 0;
+
+  document.getElementById('kCredito').textContent = moeda(cred);
+  document.getElementById('kDebito').textContent  = moeda(deb);
+  document.getElementById('kSaldo').textContent   = moeda(saldo);
+  document.getElementById('kSaldo').style.color   = saldo >= 0 ? '#22c55e' : '#f87171';
+  document.getElementById('kTotal').textContent   = tot;
+  document.getElementById('kConc').textContent    = conc;
+  document.getElementById('kConcPct').textContent = `${pct}% conciliado`;
+  document.getElementById('kPend').textContent    = pend;
+  document.getElementById('kSug').textContent     = sug;
+  document.getElementById('kDiv').textContent     = div;
+
+  document.getElementById('sCredito').textContent = moeda(cred);
+  document.getElementById('sDebito').textContent  = moeda(deb);
+  document.getElementById('sSaldo').textContent   = moeda(saldo);
+  document.getElementById('sSaldo').style.color   = saldo >= 0 ? '#22c55e' : '#f87171';
+  document.getElementById('sPend').textContent    = pend;
+  document.getElementById('sConc').textContent    = conc;
+  document.getElementById('sDiv').textContent     = div;
+  document.getElementById('pct').textContent      = pct + '%';
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+// ── Render: Extrato (col 1) ───────────────────────────────────────────────────
+function renderExtrato(data) {
+  document.getElementById('badgeExtrato').textContent = data.length;
+  const el = document.getElementById('listaExtrato');
+  if (!data.length) {
+    el.innerHTML = `<div class="vazio">
+      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+      <p>Nenhuma linha no período selecionado</p></div>`;
+    return;
+  }
+
+  el.innerHTML = data.map(e => {
+    const dt = fmtData(e.data);
+    const isConciliado = e.status === 'conciliado';
+    const scoreHtml = e.score_sugestao
+      ? `<span class="score-mini" style="background:${scoreCor(e.score_sugestao)}22;color:${scoreCor(e.score_sugestao)};border:1px solid ${scoreCor(e.score_sugestao)}44">${Math.round(e.score_sugestao)}%</span>`
+      : '';
+    return `
+    <div class="linha-ext ${isConciliado?'conciliada':''} ${_extratoSel===e.id?'ativa':''}"
+         data-id="${e.id}" onclick="selecionarExtrato(${e.id}, this)">
+      <input type="checkbox" onclick="event.stopPropagation();toggleCheck(event,${e.id})"
+             ${_checked.has(e.id)?'checked':''} ${isConciliado?'disabled':''}>
+      <div class="le-data">
+        <strong>${dt.dia}</strong>${dt.mes}
+      </div>
+      <div class="le-body">
+        <strong title="${escapeHtml(e.descricao)}">${escapeHtml(e.descricao)}</strong>
+        <span>${e.conta_nome||''} ${e.lancamento_descricao?'· ✓ '+escapeHtml(e.lancamento_descricao):''}</span>
+      </div>
+      <div class="le-right">
+        <div class="le-valor ${e.tipo}">${e.tipo==='credito'?'+':'-'}${moedaC(e.valor)}</div>
+        <div style="display:flex;gap:3px;align-items:center">
+          <span class="badge-st st-${e.status}">${_LABEL[e.status]||e.status}</span>
+          ${scoreHtml}
+        </div>
+      </div>
+      <div class="le-acoes" onclick="event.stopPropagation()">
+        ${!isConciliado ? `
+          <button class="btn-mini" title="Ignorar" onclick="ignorar(${e.id})">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          </button>` : `
+          <button class="btn-mini" title="Desfazer conciliação" onclick="desconciliar(${e.id})" style="color:#fbbf24">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18.84 12.25 1.72-1.71a5 5 0 0 0-7.07-7.07l-1.71 1.71"/><path d="m5.17 11.75-1.72 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </button>`}
+        <button class="btn-mini" title="Remover" onclick="remover(${e.id})" style="color:#f87171">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Render: Sugestões (col 2) ─────────────────────────────────────────────────
+function renderSugestoes(data, extratoId) {
+  const el  = document.getElementById('listaSugestoes');
+  const ext = _extrato.find(e => e.id === extratoId);
+
+  // Banner de vincular se há lançamento selecionado
+  let vinculoBanner = '';
+  if (_lancSel && extratoId && ext && ext.status !== 'conciliado') {
+    const lanc = _lancamentos.find(l => l.id === _lancSel);
+    if (lanc) {
+      vinculoBanner = `
+        <div class="vincular-banner">
+          <strong>Lançamento selecionado:</strong>
+          <p>${escapeHtml(lanc.descricao)} — ${moeda(lanc.valor)}</p>
+          <button class="btn btn-primary btn-sm" style="width:100%" onclick="vincularManual()">
+            Vincular com esta linha do extrato
+          </button>
+        </div>`;
+    }
+  }
+
+  document.getElementById('badgeSug').textContent = data.length || '—';
+
+  if (!extratoId) {
+    el.innerHTML = `<div class="sugestao-empty">
+      <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      <p>Selecione uma linha do extrato<br>para ver as sugestões de conciliação</p>
+    </div>`;
+    return;
+  }
+
+  const extLabel = ext
+    ? `<div style="padding:8px 10px 0;font-size:11px;color:var(--text-muted)">
+         Extrato: <strong style="color:var(--text)">${escapeHtml(ext.descricao)}</strong>
+         &nbsp;·&nbsp;<span style="color:${ext.tipo==='credito'?'#22c55e':'#f87171'}">${moeda(ext.valor)}</span>
+       </div>`
+    : '';
+
+  if (!data.length) {
+    el.innerHTML = extLabel + vinculoBanner + `
+      <div class="sugestao-empty">
+        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <p>Nenhuma sugestão encontrada<br>para esta movimentação</p>
+        <button class="btn btn-ghost btn-sm" onclick="abrirCriarLanc(${extratoId})">
+          Criar Lançamento manualmente
+        </button>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = extLabel + vinculoBanner + data.map(s => {
+    const cor = scoreCor(s.score);
+    const diff = Math.abs((ext?.valor||0) - s.valor);
+    const diffHtml = diff > 0.01
+      ? `<div class="sug-diff">⚠ Diferença de ${moeda(diff)} — verifique antes de conciliar</div>`
+      : '';
+    return `
+    <div class="sug-card">
+      <div class="sug-header">
+        <div class="sug-score-wrap">
+          <div class="sug-pct" style="color:${cor}">${s.score}%</div>
+          <div class="sug-stars" style="color:${cor}">${estrelas(s.score)}</div>
+        </div>
+        <div class="sug-motivos">
+          ${(s.motivos||[]).map(m => `<span class="motivo-pill">${m}</span>`).join('')}
+        </div>
+      </div>
+      <div class="sug-body">
+        <strong>${escapeHtml(s.descricao)}</strong>
+        ${s.cliente_nome  ? `<div class="sug-meta"><span class="label">Cliente</span><span class="val">${escapeHtml(s.cliente_nome)}</span></div>` : ''}
+        ${s.fornecedor_nome ? `<div class="sug-meta"><span class="label">Fornec.</span><span class="val">${escapeHtml(s.fornecedor_nome)}</span></div>` : ''}
+        ${s.categoria_nome ? `<div class="sug-meta"><span class="label">Categ.</span><span class="val">${escapeHtml(s.categoria_nome)}</span></div>` : ''}
+        <div class="sug-vals">
+          <span class="v">${moeda(s.valor)}</span>
+          <span class="dt">${fmtDataStr(s.data_vencimento)}</span>
+        </div>
+        ${diffHtml}
+      </div>
+      <div class="sug-foot">
+        <button class="btn btn-primary btn-xs" style="flex:1" onclick="conciliar(${extratoId}, ${s.id})">
+          Conciliar
+        </button>
+        <button class="btn btn-ghost btn-xs" onclick="abrirCriarLanc(${extratoId})">
+          Criar Lançamento
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Render: Lançamentos (col 3) ───────────────────────────────────────────────
+function renderLancamentos(data) {
+  document.getElementById('badgeLanc').textContent = data.length;
+  document.getElementById('lancFooter').style.display = data.length ? 'block' : 'none';
+  const el = document.getElementById('listaLancamentos');
+  if (!data.length) {
+    el.innerHTML = `<div class="vazio"><p>Todos os lançamentos já estão conciliados ✓</p></div>`;
+    return;
+  }
+  el.innerHTML = data.map(l => {
+    const dt = fmtData(l.data_vencimento);
+    return `
+    <div class="linha-lanc ${_lancSel===l.id?'selecionado':''}"
+         data-id="${l.id}" onclick="selecionarLanc(${l.id}, this)">
+      <div class="ll-data"><strong>${dt.dia}</strong>${dt.mes}</div>
+      <div class="ll-body">
+        <strong title="${escapeHtml(l.descricao)}">${escapeHtml(l.descricao)}</strong>
+        <span>${escapeHtml(l.cliente_nome||l.fornecedor_nome||l.categoria_nome||l.tipo)}</span>
+      </div>
+      <div class="ll-valor ll-tipo-${l.tipo}">${moedaC(l.valor)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Interações ────────────────────────────────────────────────────────────────
+async function selecionarExtrato(id, el) {
+  if (_extratoSel === id) {
+    _extratoSel = null;
+    document.querySelectorAll('.linha-ext').forEach(e => e.classList.remove('ativa'));
+    renderSugestoes([], null);
+    return;
+  }
+  _extratoSel = id;
+  document.querySelectorAll('.linha-ext').forEach(e => e.classList.remove('ativa'));
+  el.classList.add('ativa');
+  document.getElementById('listaSugestoes').innerHTML =
+    `<div class="vazio"><p>Buscando sugestões...</p></div>`;
+  document.getElementById('badgeSug').textContent = '...';
+  try {
+    const sugs = await Api.get(`/conciliacao/${id}/sugestoes`);
+    renderSugestoes(sugs, id);
+    // Refresh status badge na linha
+    const linha = _extrato.find(e => e.id === id);
+    if (linha && sugs.length > 0 && linha.status === 'nao_analisado') {
+      linha.status = 'sugestao';
+      linha.score_sugestao = sugs[0].score;
+      renderExtrato(_extrato);
+      document.querySelector(`.linha-ext[data-id="${id}"]`)?.classList.add('ativa');
+    }
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function selecionarLanc(id, el) {
+  if (_lancSel === id) {
+    _lancSel = null;
+    document.querySelectorAll('.linha-lanc').forEach(e => e.classList.remove('selecionado'));
+  } else {
+    _lancSel = id;
+    document.querySelectorAll('.linha-lanc').forEach(e => e.classList.remove('selecionado'));
+    el.classList.add('selecionado');
+    toast('Lançamento selecionado — agora clique na linha do extrato', 'info');
+  }
+  // Atualiza col 2 se tiver extrato selecionado
+  if (_extratoSel) {
+    const sugs = document.getElementById('listaSugestoes');
+    const ext = _extrato.find(e => e.id === _extratoSel);
+    const existing = []; // manter sugestões existentes
+    renderSugestoes(existing, _extratoSel);
+    selecionarExtrato(_extratoSel, document.querySelector(`.linha-ext[data-id="${_extratoSel}"]`));
+  }
+}
+
+async function vincularManual() {
+  if (!_extratoSel || !_lancSel) { toast('Selecione extrato e lançamento', 'warning'); return; }
+  await conciliar(_extratoSel, _lancSel);
+  _lancSel = null;
+}
+
+async function conciliar(extratoId, lancId) {
+  try {
+    const r = await Api.patch(`/conciliacao/${extratoId}/conciliar`, { lancamento_id: lancId });
+    toast(r.divergencia > 0
+      ? `Conciliado com divergência de ${moeda(r.divergencia)}`
+      : 'Conciliado com sucesso!', r.divergencia > 0 ? 'warning' : 'success');
+    _extratoSel = null;
+    _lancSel = null;
+    await carregar();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function desconciliar(id) {
+  try {
+    await Api.patch(`/conciliacao/${id}/desconciliar`, {});
+    toast('Conciliação desfeita', 'success');
+    await carregar();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function ignorar(id) {
+  try {
+    await Api.patch(`/conciliacao/${id}/status`, { status: 'ignorado' });
+    const e = _extrato.find(x => x.id === id);
+    if (e) { e.status = 'ignorado'; renderExtrato(_extrato); }
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function remover(id) {
+  if (!confirm('Remover esta linha do extrato?')) return;
+  try {
+    await Api.delete(`/conciliacao/${id}`);
+    toast('Linha removida', 'success');
+    await carregar();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Batch ─────────────────────────────────────────────────────────────────────
+function toggleCheck(ev, id) {
+  if (ev.target.checked) _checked.add(id); else _checked.delete(id);
+  atualizarBatch();
+}
+function toggleCheckAll(cb) {
+  _extrato.filter(e => e.status !== 'conciliado').forEach(e => {
+    if (cb.checked) _checked.add(e.id); else _checked.delete(e.id);
+  });
+  renderExtrato(_extrato);
+  atualizarBatch();
+}
+function atualizarBatch() {
+  const n = _checked.size;
+  document.getElementById('batchInfo').textContent = n ? `${n} selecionado(s)` : 'Selecionar todos';
+  const btn = document.getElementById('btnLote');
+  btn.style.display = n ? 'flex' : 'none';
+  document.getElementById('cntLote').textContent = n;
+}
+
+async function conciliarLote() {
+  if (!_checked.size) return;
+  const btn = document.getElementById('btnLote');
+  btn.disabled = true;
+  try {
+    const r = await Api.post('/conciliacao/lote-conciliar', { ids: [..._checked] });
+    toast(`${r.conciliados} de ${r.total} conciliado(s) automaticamente`, 'success');
+    _checked.clear();
+    atualizarBatch();
+    await carregar();
+  } catch(e) { toast(e.message, 'error'); }
+  finally { btn.disabled = false; }
+}
+
+async function autoConciliar() {
+  const conta  = document.getElementById('fConta').value;
+  const inicio = document.getElementById('fInicio').value;
+  const fim    = document.getElementById('fFim').value;
+  const btn    = document.getElementById('btnAuto');
+  btn.disabled = true;
+  btn.textContent = 'Processando...';
+  try {
+    const r = await Api.post('/conciliacao/auto-conciliar', { conta_id: conta||null, inicio, fim });
+    if (r.conciliados > 0)
+      toast(`✓ ${r.conciliados} lançamento(s) conciliado(s) de ${r.total} no extrato!`, 'success');
+    else
+      toast('Nenhum par encontrado com confiança ≥ 70%. Tente conciliação manual.', 'warning');
+    await carregar();
+  } catch(e) { toast(e.message, 'error'); }
+  finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Auto-Conciliar`;
+  }
+}
+
+// ── Criar lançamento ──────────────────────────────────────────────────────────
+function abrirCriarLanc(extratoId) {
+  _criarExtId = extratoId;
+  const ext = _extrato.find(e => e.id === extratoId);
+  if (!ext) return;
+  _criarTipo = ext.tipo === 'credito' ? 'receita' : 'despesa';
+  document.getElementById('criarLancInfo').innerHTML =
+    `<strong>${escapeHtml(ext.descricao)}</strong><br>
+     <span style="color:${ext.tipo==='credito'?'#22c55e':'#f87171'}">${moeda(ext.valor)}</span>
+     &nbsp;·&nbsp;<span style="color:var(--text-muted)">${fmtDataStr(ext.data)}</span>`;
+  document.getElementById('criarDesc').value = ext.descricao;
+  // Set tipo
+  const btns = document.querySelectorAll('#criarTipoToggle button');
+  btns.forEach(b => b.classList.remove('ativo'));
+  const idx = ['receita','despesa','transferencia'].indexOf(_criarTipo);
+  if (btns[idx]) btns[idx].classList.add('ativo');
+  document.getElementById('modalCriarLanc').classList.add('open');
+}
+
+function setTipoCriar(tipo, el) {
+  _criarTipo = tipo;
+  document.querySelectorAll('#criarTipoToggle button').forEach(b => b.classList.remove('ativo'));
+  el.classList.add('ativo');
+}
+
+async function salvarCriarLanc() {
+  const descricao = document.getElementById('criarDesc').value.trim();
+  const categoria_id = document.getElementById('criarCat').value;
+  const conta_id     = document.getElementById('criarConta').value;
+  if (!descricao) { toast('Informe a descrição', 'warning'); return; }
+  try {
+    await Api.post(`/conciliacao/criar-lancamento/${_criarExtId}`, {
+      descricao, categoria_id: categoria_id||null, conta_id: conta_id||null,
+    });
+    fecharModal('modalCriarLanc');
+    toast('Lançamento criado e conciliado!', 'success');
+    await carregar();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Modal: Nova linha manual ──────────────────────────────────────────────────
+function abrirNovaLinha() {
+  document.getElementById('nDesc').value = '';
+  document.getElementById('nValor').value = '';
+  document.getElementById('nMemo').value = '';
+  document.getElementById('modalNovaLinha').classList.add('open');
+}
+async function salvarNovaLinha() {
+  const conta_id  = document.getElementById('nConta').value;
+  const data      = document.getElementById('nData').value;
+  const descricao = document.getElementById('nDesc').value.trim();
+  const tipo      = document.getElementById('nTipo').value;
+  const valor     = document.getElementById('nValor').value;
+  const memo      = document.getElementById('nMemo').value.trim();
+  if (!conta_id || !data || !descricao || !valor) { toast('Preencha todos os campos obrigatórios', 'warning'); return; }
+  try {
+    await Api.post('/conciliacao', { conta_id, data, descricao, tipo, valor, memo });
+    fecharModal('modalNovaLinha');
+    toast('Linha adicionada', 'success');
+    await carregar();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Modal: Importar ───────────────────────────────────────────────────────────
+let _formatoAtual = 'csv';
+
+function setFormato(fmt, el) {
+  _formatoAtual = fmt;
+  document.querySelectorAll('.formato-btn').forEach(b => b.classList.remove('ativo'));
+  el.classList.add('ativo');
+  document.getElementById('csvSection').style.display = fmt === 'csv' ? 'block' : 'none';
+  document.getElementById('ofxSection').style.display = fmt !== 'csv' ? 'block' : 'none';
+}
+
+function lerArquivo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('dropLabel').textContent = `✓ ${file.name}`;
+  const reader = new FileReader();
+  reader.onload = e => { document.getElementById('iConteudoOfx').value = e.target.result; };
+  reader.readAsText(file, 'ISO-8859-1');
+}
+
+function previewImport() {
+  const conteudo = _formatoAtual === 'csv'
+    ? document.getElementById('iConteudo').value
+    : (document.getElementById('iConteudoOfx').value || '');
+  if (!conteudo.trim()) { toast('Cole ou carregue o conteúdo antes', 'warning'); return; }
+  const linhas = conteudo.trim().split('\n').length;
+  const div = document.getElementById('previewImport');
+  div.style.display = 'block';
+  document.getElementById('previewInfo').textContent =
+    `Formato: ${_formatoAtual.toUpperCase()} · ${linhas} linha(s) detectada(s) · Clique em Importar para confirmar`;
+}
+
+async function abrirImportar() {
+  document.getElementById('iConteudo').value = '';
+  document.getElementById('iConteudoOfx').value = '';
+  document.getElementById('previewImport').style.display = 'none';
+  document.getElementById('dropLabel').textContent = 'Clique para selecionar ou arraste o arquivo aqui';
+  document.getElementById('modalImportar').classList.add('open');
+}
+
+async function importar() {
+  const conta_id = document.getElementById('iConta').value;
+  if (!conta_id) { toast('Selecione uma conta bancária', 'warning'); return; }
+  const conteudo = _formatoAtual === 'csv'
+    ? document.getElementById('iConteudo').value.trim()
+    : (document.getElementById('iConteudoOfx').value.trim() || '');
+  if (!conteudo) { toast('Nenhum conteúdo para importar', 'warning'); return; }
+  try {
+    const r = await Api.post('/conciliacao/importar', {
+      conta_id, formato: _formatoAtual, conteudo,
+    });
+    fecharModal('modalImportar');
+    toast(`${r.importados} linha(s) importada(s)${r.pulados?' · '+r.pulados+' duplicada(s) ignorada(s)':''}`, 'success');
+    await carregar();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Utilitários ───────────────────────────────────────────────────────────────
+function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Arrastar arquivo
+const dropZone = document.getElementById('dropZone');
+if (dropZone) {
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    document.getElementById('dropLabel').textContent = `✓ ${file.name}`;
+    const reader = new FileReader();
+    reader.onload = ev => { document.getElementById('iConteudoOfx').value = ev.target.result; };
+    reader.readAsText(file, 'ISO-8859-1');
+  });
+}
+
+init();
+</script>
+</body>
+</html>

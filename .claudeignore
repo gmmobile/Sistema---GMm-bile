@@ -1,0 +1,18 @@
+# Dependências
+backend/node_modules/
+
+# Uploads (arquivos binários - fotos, contratos, renders)
+backend/uploads/contratos/
+backend/uploads/fotos/
+backend/uploads/imoveis/
+backend/uploads/renders/
+backend/uploads/logo/
+
+# Locks e logs
+backend/package-lock.json
+*.log
+
+# Imagens da raiz
+*.jpeg
+*.jpg
+*.png

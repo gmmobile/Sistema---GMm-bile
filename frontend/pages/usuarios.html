@@ -1,0 +1,639 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Usuários — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .users-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+    .user-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:20px; display:flex; flex-direction:column; align-items:center; gap:12px; transition:.15s; position:relative; }
+    .user-card:hover { border-color:rgba(99,102,241,.3); }
+    .user-card.inativo { opacity:.5; }
+    .user-avatar-wrap { position:relative; }
+    .user-avatar { width:64px; height:64px; border-radius:50%; object-fit:cover; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; color:#fff; }
+    .user-avatar img { width:64px; height:64px; border-radius:50%; object-fit:cover; }
+    .perfil-badge { position:absolute; bottom:-4px; right:-4px; padding:2px 7px; border-radius:8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+    .perfil-gestor    { background:#6366f1; color:#fff; }
+    .perfil-vendedor  { background:#22c55e; color:#fff; }
+    .perfil-tecnico   { background:#f97316; color:#fff; }
+    .perfil-financeiro{ background:#eab308; color:#000; }
+    .user-info-wrap { display:contents; }
+    .user-nome { font-size:14px; font-weight:700; color:var(--text); text-align:center; }
+    .user-email { font-size:12px; color:var(--text-muted); text-align:center; }
+    .user-actions { display:flex; gap:8px; }
+    .user-actions .acao-btn { padding:5px 10px; font-size:12px; display:inline-flex; align-items:center; gap:4px; }
+    .foto-preview { width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid var(--border); display:block; margin:0 auto 8px; background:var(--bg); }
+    .foto-upload-btn { display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; font-size:12px; color:var(--primary); padding:6px; border:1px dashed var(--primary); border-radius:8px; transition:.15s; }
+    .foto-upload-btn:hover { background:rgba(99,102,241,.08); }
+    .strength-bar { height:4px; border-radius:2px; background:var(--border); overflow:hidden; margin-top:4px; }
+    .strength-fill { height:100%; border-radius:2px; transition:.3s; }
+    .tag-ativo { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; background:rgba(34,197,94,.15); color:#22c55e; }
+    .tag-inativo { background:rgba(239,68,68,.15); color:#ef4444; }
+
+    /* Permissões */
+    .perm-tabs { display:flex; gap:8px; margin-bottom:16px; }
+    .perm-tab { padding:7px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg-card2); color:var(--text-muted); transition:.15s; }
+    .perm-tab.ativo { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .perm-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .perm-table th { padding:8px 12px; text-align:left; color:var(--text-muted); font-weight:600; font-size:12px; border-bottom:1px solid var(--border); }
+    .perm-table th.nivel { text-align:center; min-width:80px; }
+    .perm-table td { padding:9px 12px; border-bottom:1px solid rgba(51,65,85,.4); }
+    .perm-table td.nivel { text-align:center; }
+    .perm-table tr:last-child td { border-bottom:none; }
+    .perm-table tr:hover td { background:rgba(51,65,85,.2); }
+    .perm-radio { appearance:none; -webkit-appearance:none; width:18px; height:18px; border-radius:50%; border:2px solid var(--border); cursor:pointer; transition:.15s; position:relative; margin:0; }
+    .perm-radio:checked { border-color:var(--primary); background:var(--primary); box-shadow:inset 0 0 0 3px var(--bg-card); }
+    .perm-radio.r-sem:checked { border-color:#64748b; background:#64748b; }
+    .perm-radio.r-leitura:checked { border-color:#3b82f6; background:#3b82f6; }
+    .perm-radio.r-edicao:checked { border-color:#f59e0b; background:#f59e0b; }
+    .perm-radio.r-total:checked { border-color:#22c55e; background:#22c55e; }
+    .perm-legend { display:flex; gap:16px; flex-wrap:wrap; margin-top:12px; padding-top:12px; border-top:1px solid var(--border); }
+    .perm-legend-item { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-muted); }
+    .perm-dot { width:10px; height:10px; border-radius:50%; }
+    @media (max-width:900px) {
+      .users-grid { grid-template-columns: 1fr; gap:4px; }
+      .user-card  { flex-direction:row; align-items:center; padding:8px 10px; gap:8px; border-radius:8px; }
+      .user-avatar-wrap { flex-shrink:0; }
+      .user-avatar { width:32px !important; height:32px !important; font-size:12px !important; border-radius:8px !important; }
+      .user-avatar img { width:32px !important; height:32px !important; border-radius:8px !important; }
+      .perfil-badge { display:none; }
+      .user-info-wrap { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+      .user-nome  { font-size:12px; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .user-email { font-size:10px; color:var(--text-dim); text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .tag-ativo, .tag-inativo { display:none; }
+      .user-actions { flex-shrink:0; flex-direction:row; gap:4px; }
+      .user-actions .acao-btn { width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
+      .user-actions .acao-btn svg { width:13px !important; height:13px !important; }
+      .btn-label { display:none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()"><i data-lucide="panel-left-close"></i></button>
+        <div class="topbar-breadcrumb"><a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a> &nbsp;/&nbsp;<strong>Usuários</strong></div>
+      </div>
+      <div class="topbar-right"><div class="topbar-btn"><i data-lucide="bell"></i></div></div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title"><h1>Usuários</h1><p>Gerenciar equipe e permissões de acesso</p></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-ghost" id="btnPermissoes" onclick="abrirPermissoes()" style="display:none"><i data-lucide="shield-check"></i> Nível de Acesso</button>
+          <button class="btn btn-primary" onclick="abrirNovo()"><i data-lucide="user-plus"></i> Novo Usuário</button>
+        </div>
+      </div>
+
+      <div class="table-wrap" style="margin-bottom:0">
+        <div class="table-header">
+          <input type="text" id="busca" class="search-input" placeholder="Buscar usuário..." oninput="carregar()">
+          <select id="filPerfil" onchange="carregar()" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:13px">
+            <option value="">Todos os perfis</option>
+            <option value="gestor">Gestor</option>
+            <option value="vendedor">Vendedor</option>
+            <option value="tecnico">Técnico</option>
+            <option value="financeiro">Financeiro</option>
+          </select>
+        </div>
+        <div style="padding:16px">
+          <div class="users-grid" id="listaUsuarios"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Modal Novo/Editar Usuário -->
+<div class="modal-overlay" id="modalForm">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2 id="mTitulo"><i data-lucide="user-plus"></i> Novo Usuário</h2>
+      <button class="modal-close" onclick="fecharModais()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="text-align:center;margin-bottom:16px">
+        <img id="fotoPreview" class="foto-preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='1.5'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 20c0-4 3.6-7 8-7s8 3 8 7'/%3E%3C/svg%3E" alt="">
+        <label class="foto-upload-btn" for="fotoInput"><i data-lucide="camera"></i> Alterar foto</label>
+        <input type="file" id="fotoInput" accept="image/*" style="display:none" onchange="previewFoto(event)">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nome completo *</label>
+          <input type="text" id="fNome" placeholder="João Silva">
+        </div>
+        <div class="form-group">
+          <label>Perfil *</label>
+          <select id="fPerfil">
+            <option value="vendedor">Vendedor</option>
+            <option value="tecnico">Técnico</option>
+            <option value="financeiro">Financeiro</option>
+            <option value="gestor">Gestor</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>E-mail *</label>
+        <input type="email" id="fEmail" placeholder="usuario@empresa.com">
+      </div>
+      <div id="senhaSection">
+        <div class="form-group">
+          <label id="senhaLabel">Senha *</label>
+          <input type="password" id="fSenha" placeholder="Mínimo 6 caracteres" oninput="medirSenha()">
+          <div class="strength-bar"><div class="strength-fill" id="strengthBar"></div></div>
+        </div>
+      </div>
+      <input type="hidden" id="fId">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModais()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvar()"><i data-lucide="save"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Trocar Senha -->
+<div class="modal-overlay" id="modalSenha">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h2><i data-lucide="key"></i> Redefinir Senha</h2>
+      <button class="modal-close" onclick="fecharModais()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p id="sNomeUsuario" style="font-size:13px;color:var(--text-muted);margin-bottom:14px"></p>
+      <div class="form-group" id="sSenhaAtualWrap">
+        <label>Senha atual</label>
+        <input type="password" id="sSenhaAtual" placeholder="Senha atual">
+      </div>
+      <div class="form-group">
+        <label>Nova senha *</label>
+        <input type="password" id="sNovaSenha" placeholder="Mínimo 6 caracteres">
+      </div>
+      <div class="form-group">
+        <label>Confirmar nova senha</label>
+        <input type="password" id="sConfirmar" placeholder="Repita a nova senha">
+      </div>
+      <input type="hidden" id="sId">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModais()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarSenha()"><i data-lucide="check"></i> Alterar Senha</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Permissões por Usuário -->
+<div class="modal-overlay" id="modalPermUser">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <h2><i data-lucide="shield-half"></i> Permissões Individuais</h2>
+      <button class="modal-close" onclick="fecharModais()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div>
+          <p id="puNome" style="font-size:15px;font-weight:700"></p>
+          <p id="puPerfil" style="font-size:12px;color:var(--text-muted);margin-top:2px"></p>
+        </div>
+        <button class="btn btn-ghost" style="font-size:12px;color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="resetarPermUser()">
+          <i data-lucide="rotate-ccw"></i> Redefinir para padrão do perfil
+        </button>
+      </div>
+      <div id="puOverrideAlert" style="display:none;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--warning);margin-bottom:14px;display:flex;align-items:center;gap:8px">
+        <i data-lucide="alert-triangle"></i>
+        <span>Este usuário tem permissões personalizadas que divergem do padrão do perfil.</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="perm-table" id="tabelaPermUser">
+          <thead>
+            <tr>
+              <th>Módulo</th>
+              <th class="nivel">Sem Acesso</th>
+              <th class="nivel">Visualizar</th>
+              <th class="nivel">Editar</th>
+              <th class="nivel">Total</th>
+            </tr>
+          </thead>
+          <tbody id="corpoPermUser"></tbody>
+        </table>
+      </div>
+      <div class="perm-legend">
+        <div class="perm-legend-item"><div class="perm-dot" style="background:#64748b"></div>Sem Acesso</div>
+        <div class="perm-legend-item"><div class="perm-dot" style="background:#3b82f6"></div>Visualizar</div>
+        <div class="perm-legend-item"><div class="perm-dot" style="background:#f59e0b"></div>Editar</div>
+        <div class="perm-legend-item"><div class="perm-dot" style="background:#22c55e"></div>Total</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModais()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarPermUser()"><i data-lucide="save"></i> Salvar Permissões</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Permissões por Perfil -->
+<div class="modal-overlay" id="modalPermissoes">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <h2><i data-lucide="shield-check"></i> Nível de Acesso por Perfil</h2>
+      <button class="modal-close" onclick="fecharModais()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Configure o que cada perfil pode visualizar e fazer no sistema. As alterações se aplicam a todos os usuários daquele perfil.</p>
+      <div class="perm-tabs">
+        <button class="perm-tab ativo" onclick="mudarAbaPerm('vendedor',this)">Vendedor</button>
+        <button class="perm-tab" onclick="mudarAbaPerm('tecnico',this)">Técnico</button>
+        <button class="perm-tab" onclick="mudarAbaPerm('financeiro',this)">Financeiro</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="perm-table" id="tabelaPerm">
+          <thead>
+            <tr>
+              <th>Módulo</th>
+              <th class="nivel">Sem Acesso</th>
+              <th class="nivel">Visualizar</th>
+              <th class="nivel">Editar</th>
+              <th class="nivel">Total</th>
+            </tr>
+          </thead>
+          <tbody id="corpoPerm"></tbody>
+        </table>
+      </div>
+      <div class="perm-legend">
+        <div class="perm-legend-item"><div class="perm-dot" style="background:#64748b"></div>Sem Acesso — página oculta na sidebar</div>
+        <div class="perm-legend-item"><div class="perm-dot" style="background:#3b82f6"></div>Visualizar — apenas leitura</div>
+        <div class="perm-legend-item"><div class="perm-dot" style="background:#f59e0b"></div>Editar — criar e editar, sem excluir</div>
+        <div class="perm-legend-item"><div class="perm-dot" style="background:#22c55e"></div>Total — acesso completo</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModais()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarPermissoes()"><i data-lucide="save"></i> Salvar Permissões</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+checkAuth();
+
+const eu = getUsuario();
+const PERFIL_COR = { gestor:'perfil-gestor', vendedor:'perfil-vendedor', tecnico:'perfil-tecnico', financeiro:'perfil-financeiro' };
+const PERFIL_LABEL = { gestor:'Gestor', vendedor:'Vendedor', tecnico:'Técnico', financeiro:'Financeiro' };
+
+async function carregar() {
+  const busca = document.getElementById('busca').value.toLowerCase();
+  const perfil = document.getElementById('filPerfil').value;
+  let url = '/usuarios';
+  if (perfil) url += `?perfil=${perfil}`;
+  const data = await Api.get(url);
+  const filtrado = busca ? data.filter(u=>u.nome.toLowerCase().includes(busca)||u.email.toLowerCase().includes(busca)) : data;
+  renderGrid(filtrado);
+}
+
+function renderGrid(data) {
+  const el = document.getElementById('listaUsuarios');
+  if (!data.length) { el.innerHTML='<div class="empty-state"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><p>Nenhum usuário encontrado</p></div>'; return; }
+  const _P = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
+  const _K = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>`;
+  const _SH = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`;
+  const _UX = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="11" x2="23" y2="17"/><line x1="23" y1="11" x2="17" y2="17"/></svg>`;
+  const _UC = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>`;
+  el.innerHTML = data.map(u => {
+    const iniciais = u.nome.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase();
+    const avatar = u.foto
+      ? `<img src="${u.foto}" alt="${u.nome}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;" onerror="this.outerHTML='<div class=\\'user-avatar\\'>${iniciais}</div>'">`
+      : `<div class="user-avatar">${iniciais}</div>`;
+    const isMe = u.id === eu?.id;
+    return `
+    <div class="user-card ${u.ativo?'':'inativo'}">
+      <div class="user-avatar-wrap">
+        ${avatar}
+        <span class="perfil-badge ${PERFIL_COR[u.perfil]||''}">${PERFIL_LABEL[u.perfil]||u.perfil}</span>
+      </div>
+      <div class="user-info-wrap">
+        <div class="user-nome">${u.nome} ${isMe?'<span style="font-size:10px;color:var(--text-dim)">(você)</span>':''}</div>
+        <div class="user-email">${u.email}</div>
+        <span class="${u.ativo?'tag-ativo':'tag-inativo'}">${u.ativo?'Ativo':'Inativo'}</span>
+      </div>
+      <div class="user-actions">
+        <button class="btn btn-ghost acao-btn" title="Editar" onclick="editar(${u.id})">${_P}<span class="btn-label"> Editar</span></button>
+        <button class="btn btn-ghost acao-btn" title="Senha" data-uid="${u.id}" data-nome="${u.nome.replace(/"/g,'&quot;')}" onclick="abrirSenha(+this.dataset.uid,this.dataset.nome)">${_K}<span class="btn-label"> Senha</span></button>
+        ${eu?.perfil==='gestor'&&!isMe&&u.perfil!=='gestor' ? `<button class="btn btn-ghost acao-btn" style="color:var(--primary-light)" title="Permissões individuais" data-uid="${u.id}" data-nome="${u.nome.replace(/"/g,'&quot;')}" data-perfil="${u.perfil}" onclick="abrirPermUser(+this.dataset.uid,this.dataset.nome,this.dataset.perfil)">${_SH}</button>` : ''}
+        ${eu?.perfil==='gestor'&&!isMe ? `<button class="btn btn-ghost acao-btn" style="color:${u.ativo?'var(--danger)':'var(--success)'}" title="${u.ativo?'Desativar':'Ativar'}" onclick="toggleAtivo(${u.id},${u.ativo})">${u.ativo?_UX:_UC}</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function previewFoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => document.getElementById('fotoPreview').src = ev.target.result;
+  reader.readAsDataURL(file);
+}
+
+function medirSenha() {
+  const s = document.getElementById('fSenha').value;
+  const bar = document.getElementById('strengthBar');
+  let score = 0;
+  if (s.length >= 6) score++;
+  if (s.length >= 10) score++;
+  if (/[A-Z]/.test(s)) score++;
+  if (/[0-9]/.test(s)) score++;
+  if (/[^a-zA-Z0-9]/.test(s)) score++;
+  const cores = ['#ef4444','#f97316','#eab308','#22c55e','#16a34a'];
+  bar.style.width = (score*20)+'%';
+  bar.style.background = cores[score-1]||'var(--border)';
+}
+
+function limparForm() {
+  ['fNome','fEmail','fSenha'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fId').value='';
+  document.getElementById('fPerfil').value='vendedor';
+  document.getElementById('fotoPreview').src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='1.5'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 20c0-4 3.6-7 8-7s8 3 8 7'/%3E%3C/svg%3E";
+  document.getElementById('fotoInput').value='';
+  document.getElementById('strengthBar').style.width='0';
+}
+
+function abrirNovo() {
+  limparForm();
+  document.getElementById('mTitulo').innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg> Novo Usuário';
+  document.getElementById('senhaLabel').textContent='Senha *';
+  document.getElementById('fSenha').placeholder='Mínimo 6 caracteres';
+  document.getElementById('senhaSection').style.display='';
+  document.getElementById('modalForm').classList.add('open');
+}
+
+async function editar(id) {
+  const u = await Api.get(`/usuarios/${id}`);
+  document.getElementById('fId').value    = u.id;
+  document.getElementById('fNome').value  = u.nome;
+  document.getElementById('fEmail').value = u.email;
+  document.getElementById('fPerfil').value= u.perfil;
+  document.getElementById('fSenha').value = '';
+  if (u.foto) document.getElementById('fotoPreview').src = u.foto;
+  document.getElementById('mTitulo').innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> Editar Usuário';
+  document.getElementById('senhaLabel').textContent='Nova senha (deixe em branco para manter)';
+  document.getElementById('fSenha').placeholder='Deixe em branco para não alterar';
+  document.getElementById('senhaSection').style.display='';
+  document.getElementById('modalForm').classList.add('open');
+}
+
+async function salvar() {
+  const id = document.getElementById('fId').value;
+  const form = new FormData();
+  form.append('nome', document.getElementById('fNome').value);
+  form.append('email', document.getElementById('fEmail').value);
+  form.append('perfil', document.getElementById('fPerfil').value);
+  const senha = document.getElementById('fSenha').value;
+  if (!id && !senha) { toast('Informe a senha para novo usuário','warning'); return; }
+  if (senha) form.append('senha', senha);
+  const foto = document.getElementById('fotoInput').files[0];
+  if (foto) form.append('foto', foto);
+  if (!form.get('nome') || !form.get('email')) { toast('Nome e e-mail são obrigatórios','warning'); return; }
+  try {
+    const token = localStorage.getItem('token');
+    const url = id ? `${window.location.origin}/api/usuarios/${id}` : `${window.location.origin}/api/usuarios`;
+    const resp = await fetch(url, { method: id?'PUT':'POST', headers:{ Authorization:`Bearer ${token}` }, body: form });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.erro||'Erro ao salvar');
+    toast(id?'Usuário atualizado!':'Usuário criado!','success');
+
+    // Se atualizou o próprio usuário, sincroniza localStorage e sidebar em tempo real
+    if (id && eu && +id === eu.id) {
+      const atualizado = await Api.get(`/usuarios/${id}`);
+      const usuarioLocal = JSON.parse(localStorage.getItem('usuario') || '{}');
+      const novo = { ...usuarioLocal, nome: atualizado.nome, email: atualizado.email, foto: atualizado.foto || null };
+      localStorage.setItem('usuario', JSON.stringify(novo));
+      atualizarSidebarUsuario(novo);
+    }
+
+    fecharModais(); carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function atualizarSidebarUsuario(u) {
+  const inner = document.querySelector('.sidebar-user-inner');
+  if (!inner) return;
+  const inicial = (u.nome || 'U')[0].toUpperCase();
+  const avatarEl = inner.querySelector('img, .user-avatar');
+  if (avatarEl) {
+    if (u.foto) {
+      const img = document.createElement('img');
+      img.src = u.foto;
+      img.alt = '';
+      img.style.cssText = 'width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0';
+      img.onerror = function() { this.outerHTML = `<div class="user-avatar">${inicial}</div>`; };
+      avatarEl.replaceWith(img);
+    } else {
+      const div = document.createElement('div');
+      div.className = 'user-avatar';
+      div.textContent = inicial;
+      avatarEl.replaceWith(div);
+    }
+  }
+  const nomeEl = inner.querySelector('.user-info strong');
+  if (nomeEl) nomeEl.textContent = u.nome;
+}
+
+function abrirSenha(id, nome) {
+  document.getElementById('sId').value = id;
+  document.getElementById('sNomeUsuario').textContent = `Alterando senha de: ${nome}`;
+  document.getElementById('sSenhaAtual').value='';
+  document.getElementById('sNovaSenha').value='';
+  document.getElementById('sConfirmar').value='';
+  // Gestor não precisa da senha atual ao trocar a de outro usuário
+  document.getElementById('sSenhaAtualWrap').style.display = (id===eu?.id?'':'none');
+  document.getElementById('modalSenha').classList.add('open');
+}
+
+async function salvarSenha() {
+  const id = document.getElementById('sId').value;
+  const nova = document.getElementById('sNovaSenha').value;
+  const conf = document.getElementById('sConfirmar').value;
+  if (!nova || nova.length<6) { toast('Senha mínima de 6 caracteres','warning'); return; }
+  if (nova !== conf) { toast('As senhas não coincidem','warning'); return; }
+  const body = { nova_senha: nova };
+  if (+id === eu?.id) body.senha_atual = document.getElementById('sSenhaAtual').value;
+  try {
+    await Api.put(`/usuarios/${id}/senha`, body);
+    toast('Senha alterada com sucesso!','success');
+    fecharModais();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function toggleAtivo(id, ativo) {
+  const msg = ativo ? 'Desativar este usuário?' : 'Reativar este usuário?';
+  if (!confirm(msg)) return;
+  try {
+    if (ativo) { await Api.delete(`/usuarios/${id}`); }
+    else { await Api.put(`/usuarios/${id}`, { ativo: 1 }); }
+    toast(ativo?'Usuário desativado':'Usuário reativado','success');
+    carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function fecharModais() { document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('open')); }
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',function(e){ if(e.target===this) fecharModais(); }));
+
+// ── PERMISSÕES POR USUÁRIO ──
+let permUserAtual = {};
+let permUserId = null;
+
+async function abrirPermUser(id, nome, perfil) {
+  permUserId = id;
+  document.getElementById('puNome').textContent = nome;
+  document.getElementById('puPerfil').textContent = `Perfil: ${PERFIL_LABEL[perfil] || perfil}`;
+  try {
+    const data = await Api.get(`/usuarios/${id}/permissoes`);
+    permUserAtual = data.permissoes || {};
+    const temOverride = data.overrides && Object.keys(data.overrides).length > 0;
+    const alerta = document.getElementById('puOverrideAlert');
+    alerta.style.display = temOverride ? 'flex' : 'none';
+    renderTabelaPermUser(permUserAtual);
+    document.getElementById('modalPermUser').classList.add('open');
+  } catch(e) { toast('Erro ao carregar permissões','error'); }
+}
+
+function renderTabelaPermUser(perm) {
+  const corpo = document.getElementById('corpoPermUser');
+  corpo.innerHTML = MODULOS_LABEL.map(({ key, label }) => {
+    const atual = perm[key] || 'sem_acesso';
+    const radio = (val, cls) =>
+      `<td class="nivel"><input type="radio" class="perm-radio ${cls}" name="pu_${key}" value="${val}" ${atual===val?'checked':''}></td>`;
+    return `<tr>
+      <td style="font-weight:500">${label}</td>
+      ${radio('sem_acesso','r-sem')}
+      ${radio('leitura','r-leitura')}
+      ${radio('edicao','r-edicao')}
+      ${radio('total','r-total')}
+    </tr>`;
+  }).join('');
+}
+
+async function salvarPermUser() {
+  if (!permUserId) return;
+  const novas = {};
+  MODULOS_LABEL.forEach(({ key }) => {
+    const sel = document.querySelector(`input[name="pu_${key}"]:checked`);
+    if (sel) novas[key] = sel.value;
+  });
+  try {
+    await Api.put(`/usuarios/${permUserId}/permissoes`, { permissoes: novas });
+    sessionStorage.removeItem('permissoes');
+    toast('Permissões individuais salvas!','success');
+    fecharModais();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function resetarPermUser() {
+  if (!permUserId) return;
+  if (!confirm('Remover todas as permissões individuais deste usuário e usar apenas as do perfil?')) return;
+  try {
+    await Api.delete(`/usuarios/${permUserId}/permissoes`);
+    sessionStorage.removeItem('permissoes');
+    toast('Permissões redefinidas para o padrão do perfil','success');
+    fecharModais();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+// ── PERMISSÕES POR PERFIL ──
+const MODULOS_LABEL = [
+  { key:'dashboard',     label:'Dashboard' },
+  { key:'ranking',       label:'Ranking / Metas' },
+  { key:'agenda',        label:'Agenda' },
+  { key:'relatorios',    label:'Relatórios' },
+  { key:'clientes',      label:'Clientes' },
+  { key:'crm',           label:'CRM / Leads' },
+  { key:'comercial',     label:'Comercial' },
+  { key:'renders',       label:'Render Pro' },
+  { key:'radar',         label:'Radar de Prazos' },
+  { key:'assistencia',   label:'Assistência Técnica' },
+  { key:'financeiro',    label:'Financeiro' },
+  { key:'notas_fiscais', label:'Notas Fiscais' },
+  { key:'contas',        label:'Contas Correntes' },
+  { key:'categorias',    label:'Categorias' },
+  { key:'comissoes',     label:'Comissões' },
+  { key:'parceiros',     label:'Parceiros' },
+  { key:'usuarios',      label:'Usuários' },
+  { key:'configuracoes', label:'Configurações' },
+];
+
+let permAtual = {};
+let perfilAtual = 'vendedor';
+
+async function abrirPermissoes() {
+  perfilAtual = 'vendedor';
+  document.querySelectorAll('.perm-tab').forEach((t,i)=>t.classList.toggle('ativo',i===0));
+  await carregarPerm('vendedor');
+  document.getElementById('modalPermissoes').classList.add('open');
+}
+
+async function mudarAbaPerm(perfil, el) {
+  document.querySelectorAll('.perm-tab').forEach(t=>t.classList.remove('ativo'));
+  el.classList.add('ativo');
+  perfilAtual = perfil;
+  await carregarPerm(perfil);
+}
+
+async function carregarPerm(perfil) {
+  try {
+    const data = await Api.get(`/usuarios/permissoes/${perfil}`);
+    permAtual = data;
+    renderTabelaPerm(data);
+  } catch(e) { toast('Erro ao carregar permissões','error'); }
+}
+
+function renderTabelaPerm(perm) {
+  const corpo = document.getElementById('corpoPerm');
+  corpo.innerHTML = MODULOS_LABEL.map(({ key, label }) => {
+    const atual = perm[key] || 'sem_acesso';
+    const radio = (val, cls) =>
+      `<td class="nivel"><input type="radio" class="perm-radio ${cls}" name="p_${key}" value="${val}" ${atual===val?'checked':''}></td>`;
+    return `<tr>
+      <td style="font-weight:500">${label}</td>
+      ${radio('sem_acesso','r-sem')}
+      ${radio('leitura','r-leitura')}
+      ${radio('edicao','r-edicao')}
+      ${radio('total','r-total')}
+    </tr>`;
+  }).join('');
+}
+
+async function salvarPermissoes() {
+  const novas = {};
+  MODULOS_LABEL.forEach(({ key }) => {
+    const sel = document.querySelector(`input[name="p_${key}"]:checked`);
+    if (sel) novas[key] = sel.value;
+  });
+  try {
+    await Api.put(`/usuarios/permissoes/${perfilAtual}`, { permissoes: novas });
+    // Invalida cache de permissões para forçar reload
+    sessionStorage.removeItem('permissoes');
+    toast('Permissões salvas com sucesso!','success');
+    fecharModais();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+// Mostra botão de permissões apenas para gestor
+if (eu?.perfil === 'gestor') {
+  document.getElementById('btnPermissoes').style.display = '';
+}
+
+carregar();
+</script>
+</body>
+</html>

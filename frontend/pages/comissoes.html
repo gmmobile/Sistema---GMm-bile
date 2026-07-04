@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comissões — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .filtros-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .filtro-btn { padding:6px 14px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; transition:.15s; }
+    .filtro-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .filtro-btn:hover:not(.active) { border-color:var(--primary); color:var(--primary); }
+    @media (max-width:900px) {
+      #kpiBar { grid-template-columns: 1fr 1fr !important; gap: 6px !important; margin-bottom:12px !important; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()"><i data-lucide="panel-left-close"></i></button>
+        <div class="topbar-breadcrumb"><a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a> &nbsp;/&nbsp;<strong>Comissões</strong></div>
+      </div>
+      <div class="topbar-right"><div class="topbar-btn"><i data-lucide="bell"></i></div></div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title"><h1>Comissões</h1><p>Comissões de vendedores e parceiros</p></div>
+        <button class="btn btn-primary" onclick="abrirNova()"><i data-lucide="plus"></i> Nova Comissão</button>
+      </div>
+
+      <div class="kpi-grid" id="kpiBar" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <div class="filtros-bar">
+            <button class="filtro-btn active" onclick="filtrar(this,'')">Todas</button>
+            <button class="filtro-btn" onclick="filtrar(this,'pendente')">Pendentes</button>
+            <button class="filtro-btn" onclick="filtrar(this,'pago')">Pagas</button>
+            <button class="filtro-btn" onclick="filtrar(this,'cancelado')">Canceladas</button>
+          </div>
+          <select id="filTipo" onchange="carregar()" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:13px">
+            <option value="">Todos os tipos</option>
+            <option value="vendedor">Vendedor</option>
+            <option value="parceiro">Parceiro</option>
+          </select>
+        </div>
+        <table class="table">
+          <thead><tr>
+            <th>Pessoa</th>
+            <th>Tipo</th>
+            <th>Pedido</th>
+            <th>Valor Pedido</th>
+            <th>%</th>
+            <th>Comissão</th>
+            <th>Status</th>
+            <th>Gerada em</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="tBody"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Modal Nova Comissão -->
+<div class="modal-overlay" id="modalNova">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2><i data-lucide="percent"></i> Nova Comissão</h2>
+      <button class="modal-close" onclick="fecharModais()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tipo *</label>
+          <select id="nTipo" onchange="atualizarSelectPessoa()">
+            <option value="vendedor">Vendedor</option>
+            <option value="parceiro">Parceiro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Pessoa *</label>
+          <select id="nPessoa"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Pedido (opcional)</label>
+        <select id="nPedido"><option value="">Sem vínculo</option></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor do Pedido (R$) *</label>
+          <input type="number" id="nValorPed" step="0.01" min="0" oninput="calcularComissao()">
+        </div>
+        <div class="form-group">
+          <label>Percentual (%) *</label>
+          <input type="number" id="nPerc" step="0.1" min="0" max="100" value="5" oninput="calcularComissao()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Valor da Comissão</label>
+        <input type="text" id="nValorCom" readonly style="background:var(--bg);font-weight:700;color:var(--primary)">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModais()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarNova()"><i data-lucide="save"></i> Gerar Comissão</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Pagar Comissão -->
+<div class="modal-overlay" id="modalPagar">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h2><i data-lucide="check-circle"></i> Registrar Pagamento</h2>
+      <button class="modal-close" onclick="fecharModais()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p id="pInfo" style="color:var(--text-muted);font-size:13px;margin-bottom:16px"></p>
+      <div class="form-group">
+        <label>Forma de Pagamento</label>
+        <select id="pForma">
+          <option value="pix">Pix</option>
+          <option value="transferencia">Transferência Bancária</option>
+          <option value="dinheiro">Dinheiro</option>
+          <option value="cheque">Cheque</option>
+        </select>
+      </div>
+      <input type="hidden" id="pId">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModais()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarPagamento()"><i data-lucide="check"></i> Confirmar Pagamento</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+checkAuth();
+
+const _SVG_CHKCIRC = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+
+let statusFiltro = '';
+let vendedores = [], parceirosLista = [], pedidosLista = [];
+
+async function init() {
+  try { vendedores = await Api.get('/metas/vendedores'); } catch(e){}
+  try { parceirosLista = await Api.get('/parceiros'); } catch(e){}
+  try {
+    const d = await Api.get('/comercial/pedidos');
+    pedidosLista = d.pedidos || d || [];
+  } catch(e){}
+
+  const selPed = document.getElementById('nPedido');
+  selPed.innerHTML = '<option value="">Sem vínculo</option>';
+  pedidosLista.forEach(p => selPed.insertAdjacentHTML('beforeend',`<option value="${p.id}">Pedido ${p.numero} — ${moeda(p.valor_final)}</option>`));
+
+  atualizarSelectPessoa();
+  carregar();
+}
+
+function atualizarSelectPessoa() {
+  const tipo = document.getElementById('nTipo').value;
+  const lista = tipo === 'vendedor' ? vendedores : parceirosLista;
+  const sel = document.getElementById('nPessoa');
+  sel.innerHTML = '<option value="">Selecione...</option>';
+  lista.forEach(p => sel.insertAdjacentHTML('beforeend',`<option value="${p.id}">${p.nome}</option>`));
+}
+
+function calcularComissao() {
+  const valor = parseFloat(document.getElementById('nValorPed').value)||0;
+  const perc  = parseFloat(document.getElementById('nPerc').value)||0;
+  document.getElementById('nValorCom').value = moeda((valor*perc)/100);
+}
+
+async function carregar() {
+  const tipo = document.getElementById('filTipo').value;
+  let url = '/comissoes?';
+  if (statusFiltro) url += `status=${statusFiltro}&`;
+  if (tipo) url += `tipo=${tipo}`;
+  const data = await Api.get(url);
+  renderKpi(data);
+  renderTabela(data);
+}
+
+function renderKpi(data) {
+  const pendente = data.filter(d=>d.status==='pendente').reduce((s,d)=>s+d.valor_comissao,0);
+  const pago = data.filter(d=>d.status==='pago').reduce((s,d)=>s+d.valor_comissao,0);
+  const qtdPend = data.filter(d=>d.status==='pendente').length;
+  document.getElementById('kpiBar').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Total Gerado</div><div class="kpi-value">${moeda(pendente+pago)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">A Pagar</div><div class="kpi-value" style="color:var(--warning)">${moeda(pendente)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Pago</div><div class="kpi-value" style="color:var(--success)">${moeda(pago)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Pendentes</div><div class="kpi-value">${qtdPend}</div></div>
+  `;
+}
+
+function renderTabela(data) {
+  const tbody = document.getElementById('tBody');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-dim)">Nenhuma comissão encontrada</td></tr>'; return; }
+  tbody.innerHTML = data.map(c => `
+    <tr>
+      <td><strong>${c.pessoa_nome}</strong></td>
+      <td><span class="badge ${c.tipo==='vendedor'?'badge-primary':'badge-info'}">${c.tipo}</span></td>
+      <td>${c.pedido_numero||'—'}</td>
+      <td>${moeda(c.valor_pedido)}</td>
+      <td>${c.percentual}%</td>
+      <td><strong style="color:var(--primary)">${moeda(c.valor_comissao)}</strong></td>
+      <td><span class="badge ${c.status==='pago'?'badge-success':c.status==='cancelado'?'badge-danger':'badge-warning'}">${c.status}</span></td>
+      <td>${formatarData(c.data_geracao)}</td>
+      <td>
+        ${c.status==='pendente'?`<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;display:inline-flex;align-items:center;gap:5px" onclick="abrirPagar(${c.id},'${c.pessoa_nome}',${c.valor_comissao})">${_SVG_CHKCIRC} Pagar</button>`:''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filtrar(btn, status) {
+  document.querySelectorAll('.filtro-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  statusFiltro = status;
+  carregar();
+}
+
+function abrirNova() {
+  document.getElementById('nValorPed').value = '';
+  document.getElementById('nPerc').value = '5';
+  document.getElementById('nValorCom').value = '';
+  document.getElementById('modalNova').classList.add('open');
+}
+
+async function salvarNova() {
+  const body = {
+    tipo: document.getElementById('nTipo').value,
+    pessoa_id: document.getElementById('nPessoa').value,
+    pedido_id: document.getElementById('nPedido').value,
+    valor_pedido: parseFloat(document.getElementById('nValorPed').value)||0,
+    percentual: parseFloat(document.getElementById('nPerc').value)||0,
+  };
+  if (!body.pessoa_id || !body.valor_pedido || !body.percentual) { toast('Preencha todos os campos obrigatórios','warning'); return; }
+  try {
+    const r = await Api.post('/comissoes', body);
+    toast(`Comissão de ${moeda(r.valor_comissao)} gerada!`, 'success');
+    fecharModais(); carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function abrirPagar(id, nome, valor) {
+  document.getElementById('pId').value = id;
+  document.getElementById('pInfo').textContent = `Confirmar pagamento de ${moeda(valor)} para ${nome}?`;
+  document.getElementById('modalPagar').classList.add('open');
+}
+
+async function confirmarPagamento() {
+  const id = document.getElementById('pId').value;
+  const body = { forma_pagamento: document.getElementById('pForma').value };
+  try {
+    await Api.put(`/comissoes/${id}/pagar`, body);
+    toast('Pagamento registrado e lançado no financeiro!','success');
+    fecharModais(); carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function fecharModais() {
+  document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('open'));
+}
+
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',function(e){ if(e.target===this) fecharModais(); }));
+init();
+</script>
+</body>
+</html>

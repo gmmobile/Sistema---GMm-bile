@@ -1,0 +1,19 @@
+# NUNCA subir credenciais — configure as variáveis no painel da Vercel
+backend/.env
+.env
+*.env
+
+# Dependências (a Vercel instala sozinha)
+backend/node_modules
+node_modules
+
+# Arquivos locais / temporários
+backend/server.log
+server_out.txt
+server_err.txt
+backend/uploads
+
+# Imagens soltas na raiz do projeto (não fazem parte do app)
+*.png
+*.jpeg
+*.jpg

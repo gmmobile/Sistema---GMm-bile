@@ -1,0 +1,17 @@
+# Credenciais — NUNCA commitar
+.env
+*.env
+backend/.env
+
+# Dependências
+node_modules/
+backend/node_modules/
+
+# Logs e temporários
+backend/server.log
+server_out.txt
+server_err.txt
+*.log
+
+# Uploads locais (produção usa Cloudinary)
+backend/uploads/

@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orçamentos — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    /* ── Lista ── */
+    .pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}
+    .pill{padding:6px 16px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--text-muted);background:var(--bg-card);transition:.15s}
+    .pill.ativo{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .tabela-orc{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .tabela-orc table{width:100%;border-collapse:collapse}
+    .tabela-orc thead th{padding:11px 14px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);background:var(--bg-card2);border-bottom:1px solid var(--border)}
+    .tabela-orc tbody tr{border-bottom:1px solid rgba(51,65,85,.5);transition:.1s;cursor:pointer}
+    .tabela-orc tbody tr:last-child{border-bottom:none}
+    .tabela-orc tbody tr:hover{background:rgba(255,255,255,.025)}
+    .tabela-orc td{padding:12px 14px;font-size:13px;color:var(--text);vertical-align:middle}
+    .acao-btn{background:transparent;border:none;cursor:pointer;padding:5px 7px;border-radius:6px;color:var(--text-muted);transition:.1s}
+    .acao-btn:hover{background:rgba(255,255,255,.07);color:var(--text)}
+    .s-rascunho{background:rgba(100,116,139,.15);color:#94a3b8}
+    .s-enviado{background:rgba(59,130,246,.15);color:#60a5fa}
+    .s-aprovado{background:rgba(34,197,94,.15);color:#4ade80}
+    .s-recusado{background:rgba(239,68,68,.15);color:#f87171}
+    .s-expirado{background:rgba(245,158,11,.15);color:#fbbf24}
+
+    /* ── Painel detalhe ── */
+    .painel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;opacity:0;pointer-events:none;transition:.2s}
+    .painel-overlay.open{opacity:1;pointer-events:all}
+    .painel-det{position:fixed;top:0;right:0;bottom:0;width:420px;max-width:95vw;background:var(--bg-card);border-left:1px solid var(--border);z-index:201;transform:translateX(100%);transition:.25s;display:flex;flex-direction:column}
+    .painel-det.open{transform:none}
+    .det-header{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+    .det-body{flex:1;overflow-y:auto;padding:20px}
+    .det-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap}
+    .tbl-itens{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+    .tbl-itens th{text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-muted);padding:6px 8px;border-bottom:1px solid var(--border)}
+    .tbl-itens td{padding:8px;border-bottom:1px solid rgba(51,65,85,.4)}
+
+    /* ── Wizard view ── */
+    #view-wizard{display:none;flex-direction:column;height:100%}
+    #view-wizard.ativo{display:flex}
+
+    .wiz-topbar{padding:14px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0;background:var(--bg-card)}
+    .wiz-breadcrumb{font-size:13px;color:var(--text-muted)}
+    .wiz-breadcrumb strong{color:var(--text)}
+
+    .wiz-steps{display:flex;align-items:center;gap:0;flex:1;justify-content:center}
+    .wiz-step{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--text-dim);white-space:nowrap}
+    .wiz-step-num{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;transition:.2s}
+    .wiz-step.ativo .wiz-step-num{background:var(--primary);border-color:var(--primary);color:#fff}
+    .wiz-step.ativo{color:var(--text)}
+    .wiz-step.done .wiz-step-num{background:rgba(196,162,74,.2);border-color:var(--primary);color:var(--primary)}
+    .wiz-step.done{color:var(--text-muted)}
+    .wiz-step-line{width:32px;height:2px;background:var(--border);margin:0 4px;flex-shrink:0}
+    .wiz-step-line.done{background:var(--primary)}
+
+    .wiz-actions{display:flex;gap:8px;flex-shrink:0}
+
+    .wiz-body{display:flex;flex:1;overflow:hidden;min-height:0}
+
+    /* Catálogo lateral esquerdo */
+    .wiz-catalog{width:240px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg-sidebar,var(--bg-card));overflow:hidden}
+    .wiz-catalog-header{padding:14px 14px 10px;border-bottom:1px solid var(--border)}
+    .wiz-catalog-header h4{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:8px}
+    .wiz-catalog-search{width:100%;background:var(--bg-input,var(--bg-card2));border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text);outline:none}
+    .wiz-catalog-search:focus{border-color:var(--primary)}
+    .wiz-catalog-list{flex:1;overflow-y:auto;padding:8px}
+    .wiz-catalog-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;cursor:pointer;transition:.15s;border:1px solid transparent}
+    .wiz-catalog-item:hover{background:rgba(196,162,74,.08);border-color:rgba(196,162,74,.2)}
+    .wiz-catalog-thumb{width:38px;height:38px;border-radius:8px;object-fit:cover;flex-shrink:0;background:var(--bg-card2)}
+    .wiz-catalog-thumb-placeholder{width:38px;height:38px;border-radius:8px;background:linear-gradient(135deg,#C4A24A22,#C4A24A44);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--primary);flex-shrink:0}
+    .wiz-catalog-info{flex:1;min-width:0}
+    .wiz-catalog-nome{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wiz-catalog-preco{font-size:11px;color:var(--text-muted)}
+    .wiz-catalog-add{width:24px;height:24px;border-radius:6px;background:rgba(196,162,74,.15);border:none;cursor:pointer;color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;transition:.15s}
+    .wiz-catalog-add:hover{background:var(--primary);color:#fff}
+
+    /* Conteúdo central */
+    .wiz-main{flex:1;overflow-y:auto;padding:24px;min-width:0}
+    .wiz-step-content{display:none}
+    .wiz-step-content.ativo{display:block}
+
+    /* Painel resumo direito */
+    .wiz-summary{width:280px;flex-shrink:0;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg-card2);overflow:hidden}
+    .wiz-summary-header{padding:16px 16px 12px;border-bottom:1px solid var(--border)}
+    .wiz-summary-header h4{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)}
+    .wiz-summary-body{flex:1;overflow-y:auto;padding:14px 16px}
+    .wiz-summary-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:4px 0;color:var(--text-muted)}
+    .wiz-summary-row.total{font-size:16px;font-weight:800;color:var(--text);border-top:1px solid var(--border);padding-top:10px;margin-top:6px}
+    .wiz-summary-row.total span:last-child{color:var(--primary)}
+    .wiz-summary-row.desconto span:last-child{color:#f87171}
+    .wiz-summary-row.adicional span:last-child{color:#60a5fa}
+    .wiz-summary-actions{padding:12px 16px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px}
+    .wiz-summary-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:99px;font-size:11px;font-weight:600;background:rgba(196,162,74,.12);color:var(--primary);margin-bottom:2px}
+
+    /* Step 1: Cliente */
+    .client-search-wrap{position:relative;margin-bottom:8px}
+    .client-search-input{width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:14px;color:var(--text);outline:none;transition:.2s}
+    .client-search-input:focus{border-color:var(--primary)}
+    .client-dropdown{position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;margin-top:4px;max-height:200px;overflow-y:auto;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.4);display:none}
+    .client-dropdown.open{display:block}
+    .client-opt{padding:10px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:.1s}
+    .client-opt:hover{background:rgba(255,255,255,.05)}
+    .client-opt small{display:block;color:var(--text-muted);font-size:11px}
+    .client-card{background:var(--bg-card2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:8px;display:none}
+    .client-card.ativo{display:block}
+
+    .tipo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:8px}
+    .tipo-btn{padding:12px 10px;border:2px solid var(--border);border-radius:12px;background:var(--bg-card2);cursor:pointer;text-align:center;transition:.15s;font-size:12px;font-weight:600;color:var(--text-muted)}
+    .tipo-btn:hover{border-color:rgba(196,162,74,.4);color:var(--text)}
+    .tipo-btn.ativo{border-color:var(--primary);background:rgba(196,162,74,.1);color:var(--primary)}
+    .tipo-btn svg,.tipo-btn i{display:block;margin:0 auto 6px}
+
+    /* Step 2: Itens */
+    .itens-table-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .itens-table{width:100%;border-collapse:collapse}
+    .itens-table th{padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);background:var(--bg-card2);border-bottom:1px solid var(--border)}
+    .itens-table td{padding:8px 10px;border-bottom:1px solid rgba(51,65,85,.4);vertical-align:middle}
+    .itens-table tr:last-child td{border-bottom:none}
+    .item-thumb{width:32px;height:32px;border-radius:7px;object-fit:cover;background:var(--bg-card2)}
+    .item-thumb-ph{width:32px;height:32px;border-radius:7px;background:linear-gradient(135deg,#C4A24A22,#C4A24A33);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--primary)}
+    .item-desc-input{background:transparent;border:none;color:var(--text);font-size:12px;width:100%;outline:none;padding:2px 0}
+    .item-desc-input:focus{border-bottom:1px solid var(--primary)}
+    .qty-wrap{display:flex;align-items:center;gap:4px}
+    .qty-btn{width:22px;height:22px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card2);color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;transition:.1s}
+    .qty-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .qty-num{width:28px;text-align:center;font-size:13px;font-weight:600;color:var(--text)}
+    .material-sel{background:var(--bg-card2);border:1px solid var(--border);border-radius:7px;padding:4px 6px;font-size:11px;color:var(--text);cursor:pointer;outline:none}
+    .cor-sel{background:var(--bg-card2);border:1px solid var(--border);border-radius:7px;padding:4px 6px;font-size:11px;color:var(--text);cursor:pointer;outline:none;max-width:100px}
+    .val-input{background:transparent;border:none;color:var(--text);font-size:12px;font-weight:600;text-align:right;width:80px;outline:none}
+    .val-input:focus{border-bottom:1px solid var(--primary)}
+    .item-empty{padding:32px;text-align:center;color:var(--text-dim);font-size:13px}
+
+    /* Step 3: Condições */
+    .cond-section{margin-bottom:24px}
+    .cond-section h4{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:14px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+    .brindes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+    .brinde-chk{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:9px;cursor:pointer;font-size:12px;color:var(--text-muted);transition:.15s;user-select:none}
+    .brinde-chk:hover{border-color:rgba(196,162,74,.4);color:var(--text)}
+    .brinde-chk.ativo{border-color:var(--primary);background:rgba(196,162,74,.08);color:var(--primary);font-weight:600}
+    .brinde-box{width:16px;height:16px;border:2px solid var(--border);border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:.15s}
+    .brinde-chk.ativo .brinde-box{background:var(--primary);border-color:var(--primary)}
+    .parcela-info{background:rgba(196,162,74,.08);border:1px solid rgba(196,162,74,.2);border-radius:10px;padding:12px 16px;margin-top:12px;font-size:13px}
+    .parcela-info strong{color:var(--primary);font-size:16px}
+    .prazo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .prazo-box{text-align:center;background:var(--bg-card2);border:1px solid var(--border);border-radius:10px;padding:12px}
+    .prazo-box label{display:block;font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;margin-bottom:6px}
+    .prazo-box input{width:100%;background:transparent;border:none;text-align:center;font-size:22px;font-weight:700;color:var(--text);outline:none}
+    .prazo-box span{font-size:11px;color:var(--text-dim)}
+
+    /* Step 4: Resumo */
+    .resumo-section{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:16px}
+    .resumo-section h4{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:12px}
+    .resumo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .resumo-field label{display:block;font-size:11px;color:var(--text-muted);margin-bottom:3px}
+    .resumo-field span{font-size:14px;font-weight:600;color:var(--text)}
+    .resumo-total-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;color:var(--text-muted);border-bottom:1px solid rgba(51,65,85,.3)}
+    .resumo-total-row:last-child{border-bottom:none}
+    .resumo-total-row.grand{font-size:18px;font-weight:800;color:var(--text);padding-top:12px}
+    .resumo-total-row.grand span:last-child{color:var(--primary)}
+
+    /* Modal histórico */
+    #modalHistorico{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;display:none;align-items:center;justify-content:center}
+    #modalHistorico.open{display:flex}
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content" style="display:flex;flex-direction:column;overflow:hidden">
+    <header class="topbar" id="mainTopbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()"><i data-lucide="panel-left-close"></i></button>
+        <div class="topbar-breadcrumb"><a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a> &nbsp;/&nbsp;<strong>Orçamentos</strong></div>
+      </div>
+      <div class="topbar-right"><div class="topbar-btn"><i data-lucide="bell"></i></div></div>
+    </header>
+
+    <!-- ═══ VIEW LISTA ═══ -->
+    <div id="view-lista" style="flex:1;overflow-y:auto;padding:24px">
+      <div class="page-header">
+        <div class="page-title"><h1>Orçamentos</h1><p>Propostas comerciais para clientes</p></div>
+        <div class="page-actions">
+          <button class="btn btn-primary" onclick="abrirWizard()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Orçamento
+          </button>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <div class="pills" style="margin-bottom:0;flex:1">
+          <span class="pill ativo" onclick="setStatus('',this)">Todos</span>
+          <span class="pill" onclick="setStatus('rascunho',this)">Rascunho</span>
+          <span class="pill" onclick="setStatus('enviado',this)">Enviado</span>
+          <span class="pill" onclick="setStatus('aprovado',this)">Aprovado</span>
+          <span class="pill" onclick="setStatus('recusado',this)">Recusado</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="buscaOrc" placeholder="Buscar cliente ou número..." style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;color:var(--text);outline:none;width:220px" oninput="debouncarBusca(this.value)">
+          <button class="btn btn-ghost" onclick="abrirLixeira()" style="white-space:nowrap;color:#f87171;border-color:rgba(248,113,113,.3)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            Lixeira
+          </button>
+        </div>
+      </div>
+
+      <div class="tabela-orc">
+        <table>
+          <thead>
+            <tr>
+              <th>Número</th><th>Cliente</th><th>Valor</th><th>Validade</th>
+              <th>Vendedor</th><th>Status</th><th>Data</th><th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ VIEW WIZARD ═══ -->
+    <div id="view-wizard">
+      <!-- Topbar do wizard -->
+      <div class="wiz-topbar">
+        <div class="wiz-breadcrumb"><a href="#" onclick="fecharWizard();return false" style="color:var(--text-muted)">Orçamentos</a> &nbsp;/&nbsp; <strong id="wizTitulo">Novo Orçamento</strong></div>
+
+        <div class="wiz-steps">
+          <div class="wiz-step ativo" id="ws1">
+            <div class="wiz-step-num">1</div><span>Cliente</span>
+          </div>
+          <div class="wiz-step-line" id="wl1"></div>
+          <div class="wiz-step" id="ws2">
+            <div class="wiz-step-num">2</div><span>Itens</span>
+          </div>
+          <div class="wiz-step-line" id="wl2"></div>
+          <div class="wiz-step" id="ws3">
+            <div class="wiz-step-num">3</div><span>Condições</span>
+          </div>
+          <div class="wiz-step-line" id="wl3"></div>
+          <div class="wiz-step" id="ws4">
+            <div class="wiz-step-num">4</div><span>Resumo</span>
+          </div>
+        </div>
+
+        <div class="wiz-actions">
+          <button class="btn btn-ghost" onclick="fecharWizard()">Cancelar</button>
+          <button class="btn btn-ghost" id="btnVoltar" onclick="irStep(wizStep-1)" style="display:none">Voltar</button>
+          <button class="btn btn-ghost" id="btnRascunho" onclick="salvarOrcamento('rascunho')" style="display:none">Salvar Rascunho</button>
+          <button class="btn btn-primary" id="btnProximo" onclick="avancarStep()">Próximo</button>
+        </div>
+      </div>
+
+      <!-- Corpo do wizard (3 colunas) -->
+      <div class="wiz-body">
+
+        <!-- Coluna esquerda: catálogo de módulos (só no step 2) -->
+        <div class="wiz-catalog" id="wizCatalog" style="display:none">
+          <div class="wiz-catalog-header">
+            <h4>Catálogo de Módulos</h4>
+            <input class="wiz-catalog-search" id="catalogBusca" placeholder="Buscar módulo..." oninput="filtrarCatalogo(this.value)">
+          </div>
+          <div class="wiz-catalog-list" id="catalogList"></div>
+        </div>
+
+        <!-- Centro: conteúdo do step atual -->
+        <div class="wiz-main" id="wizMain">
+
+          <!-- ── Step 1: Cliente ── -->
+          <div class="wiz-step-content ativo" id="sc1">
+            <h3 style="font-size:16px;font-weight:700;margin-bottom:4px">Informações do Cliente</h3>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Selecione o cliente e defina o tipo de projeto</p>
+
+            <div class="form-group" style="margin-bottom:16px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Cliente *</label>
+              <div class="client-search-wrap">
+                <input class="client-search-input" id="clienteBusca" placeholder="Buscar pelo nome do cliente..." oninput="filtrarClientes(this.value)" onfocus="abrirDropdown()" autocomplete="off">
+                <div class="client-dropdown" id="clienteDropdown"></div>
+              </div>
+              <div class="client-card" id="clienteCard"></div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:20px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:10px">Tipo de Projeto</label>
+              <div class="tipo-grid" id="tipoGrid"></div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Data do orçamento</label>
+                <input type="date" id="wDataOrc">
+              </div>
+              <div class="form-group">
+                <label>Validade (dias)</label>
+                <input type="number" id="wValidade" value="30" min="1">
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Step 2: Itens ── -->
+          <div class="wiz-step-content" id="sc2">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div>
+                <h3 style="font-size:16px;font-weight:700;margin-bottom:2px">Itens do Orçamento</h3>
+                <p style="font-size:13px;color:var(--text-muted)">Adicione os módulos e personalize materiais e quantidades</p>
+              </div>
+              <button class="btn btn-ghost" onclick="addItemVazio()" style="white-space:nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Adicionar item
+              </button>
+            </div>
+            <div class="itens-table-wrap">
+              <table class="itens-table">
+                <thead>
+                  <tr>
+                    <th style="width:36px"></th>
+                    <th>Item / Descrição</th>
+                    <th>Ambiente</th>
+                    <th>Material</th>
+                    <th>Cor</th>
+                    <th style="width:80px">Qtd</th>
+                    <th style="width:100px;text-align:right">Val. Unit.</th>
+                    <th style="width:90px;text-align:right">Total</th>
+                    <th style="width:32px"></th>
+                  </tr>
+                </thead>
+                <tbody id="itensTbody"></tbody>
+              </table>
+            </div>
+            <div id="itensEmpty" class="item-empty" style="display:none">
+              Adicione itens clicando em "+ Adicionar item" ou clicando no <strong>+</strong> no catálogo ao lado.
+            </div>
+          </div>
+
+          <!-- ── Step 3: Condições ── -->
+          <div class="wiz-step-content" id="sc3">
+            <h3 style="font-size:16px;font-weight:700;margin-bottom:4px">Condições do Orçamento</h3>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Defina frete, montagem, pagamento e prazo de entrega</p>
+
+            <!-- Custos adicionais -->
+            <div class="cond-section">
+              <h4>Custos Adicionais</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Frete (R$)</label>
+                  <input type="text" id="wFrete" value="0,00" data-value="0" inputmode="numeric" oninput="mascaraMoeda(this);calcResumo()" onfocus="focusMoeda(this)" onblur="blurMoeda(this);calcResumo()">
+                </div>
+                <div class="form-group">
+                  <label>Montagem (R$)</label>
+                  <input type="text" id="wMontagem" value="0,00" data-value="0" inputmode="numeric" oninput="mascaraMoeda(this);calcResumo()" onfocus="focusMoeda(this)" onblur="blurMoeda(this);calcResumo()">
+                </div>
+                <div class="form-group">
+                  <label>Desconto (R$)</label>
+                  <input type="text" id="wDesconto" value="0,00" data-value="0" inputmode="numeric" oninput="mascaraMoeda(this);calcResumo()" onfocus="focusMoeda(this)" onblur="blurMoeda(this);calcResumo()">
+                </div>
+              </div>
+            </div>
+
+            <!-- Promoção/Campanha -->
+            <div class="cond-section">
+              <h4>Promoção / Campanha</h4>
+              <div style="display:flex;gap:8px;align-items:flex-end">
+                <div class="form-group" style="flex:1;margin-bottom:0">
+                  <label>Nome da campanha</label>
+                  <input type="text" id="wCampanha" placeholder="Ex: Black Friday, Natal..." oninput="calcResumo()">
+                </div>
+              </div>
+            </div>
+
+            <!-- Brindes -->
+            <div class="cond-section">
+              <h4>Brindes Incluídos</h4>
+              <div class="brindes-grid" id="brindesGrid"></div>
+            </div>
+
+            <!-- Condições de pagamento -->
+            <div class="cond-section">
+              <h4>Condições de Pagamento</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Entrada (R$)</label>
+                  <input type="text" id="wEntrada" value="0,00" data-value="0" inputmode="numeric" oninput="mascaraMoeda(this);calcParcela()" onfocus="focusMoeda(this)" onblur="blurMoeda(this);calcParcela()">
+                </div>
+                <div class="form-group">
+                  <label>Nº de parcelas</label>
+                  <select id="wParcelas" onchange="calcParcela()">
+                    <option value="1">À vista</option>
+                    <option value="2">2x</option>
+                    <option value="3">3x</option>
+                    <option value="4">4x</option>
+                    <option value="6">6x</option>
+                    <option value="10">10x</option>
+                    <option value="12">12x</option>
+                    <option value="18">18x</option>
+                    <option value="24">24x</option>
+                    <option value="36">36x</option>
+                    <option value="48">48x</option>
+                    <option value="60">60x</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Data 1ª parcela</label>
+                  <input type="date" id="wData1Parc">
+                </div>
+              </div>
+              <div class="parcela-info" id="parcelaInfo"></div>
+            </div>
+
+            <!-- Prazo de entrega -->
+            <div class="cond-section">
+              <h4>Prazo de Entrega</h4>
+              <div class="prazo-grid">
+                <div class="prazo-box">
+                  <label>Projeto</label>
+                  <input type="number" id="wDiasProjeto" value="7" min="1" oninput="calcResumo()">
+                  <span>dias úteis</span>
+                </div>
+                <div class="prazo-box">
+                  <label>Produção</label>
+                  <input type="number" id="wDiasProducao" value="20" min="1" oninput="calcResumo()">
+                  <span>dias úteis</span>
+                </div>
+                <div class="prazo-box">
+                  <label>Montagem</label>
+                  <input type="number" id="wDiasMontagem" value="2" min="1" oninput="calcResumo()">
+                  <span>dias úteis</span>
+                </div>
+              </div>
+              <div style="margin-top:10px;font-size:12px;color:var(--text-muted)">
+                Prazo total estimado: <strong id="prazoTotal" style="color:var(--text)">—</strong>
+              </div>
+            </div>
+
+            <!-- Comissões -->
+            <div class="cond-section">
+              <h4>Comissões</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>% Vendedor</label>
+                  <input type="number" id="wComVendedor" min="0" max="100" step="0.1" placeholder="0" oninput="calcResumo()">
+                </div>
+                <div class="form-group">
+                  <label>% Projetista</label>
+                  <input type="number" id="wComProjetista" min="0" max="100" step="0.1" placeholder="0" oninput="calcResumo()">
+                </div>
+                <div class="form-group">
+                  <label>Projetista</label>
+                  <select id="wProjetista"><option value="">— Nenhum —</option></select>
+                </div>
+              </div>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-muted);padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-top:4px" onclick="toggleIndicacao()">
+                <span id="wIndicacaoBox" style="width:16px;height:16px;border:2px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s"></span>
+                Projetista indicou o cliente &nbsp;<span style="font-size:11px;color:var(--text-dim)">(+5% indicação + R$300 medição)</span>
+              </label>
+              <input type="hidden" id="wIndicacao" value="0">
+            </div>
+
+            <div class="form-group">
+              <label>Observações</label>
+              <textarea id="wObs" rows="3" placeholder="Condições especiais, itens a confirmar..."></textarea>
+            </div>
+          </div>
+
+          <!-- ── Step 4: Resumo ── -->
+          <div class="wiz-step-content" id="sc4">
+            <h3 style="font-size:16px;font-weight:700;margin-bottom:4px">Resumo do Orçamento</h3>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Revise as informações antes de salvar</p>
+            <div id="resumoConteudo"></div>
+          </div>
+
+        </div><!-- /wiz-main -->
+
+        <!-- Coluna direita: resumo sempre visível (steps 2-4) -->
+        <div class="wiz-summary" id="wizSummary" style="display:none">
+          <div class="wiz-summary-header"><h4>Resumo</h4></div>
+          <div class="wiz-summary-body" id="summaryBody">
+            <div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px">Adicione itens para ver o resumo</div>
+          </div>
+          <div class="wiz-summary-actions">
+            <button class="btn btn-ghost" onclick="gerarPDFProposta()" style="font-size:12px;padding:8px">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              PDF Proposta
+            </button>
+            <button class="btn btn-ghost" onclick="enviarWhatsApp()" style="font-size:12px;padding:8px;color:#25d366">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="margin-right:4px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.561 4.14 1.541 5.878L0 24l6.29-1.508C8.018 23.459 9.98 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.952 0-3.773-.537-5.324-1.467l-.383-.228-3.935.944.994-3.826-.252-.396C2.54 15.618 2 13.873 2 12 2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+              WhatsApp
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /wiz-body -->
+    </div><!-- /view-wizard -->
+
+  </div>
+</div>
+
+<!-- Painel detalhe -->
+<div class="painel-overlay" id="detOverlay" onclick="fecharDetalhe()"></div>
+<div class="painel-det" id="painelDet">
+  <div class="det-header">
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px">ORÇAMENTO</div>
+      <h3 id="detNumero" style="font-size:16px;font-weight:700"></h3>
+    </div>
+    <button class="btn btn-ghost" style="padding:6px" onclick="fecharDetalhe()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+    </button>
+  </div>
+  <div class="det-body" id="detBody"></div>
+  <div class="det-footer" id="detFooter"></div>
+</div>
+
+<!-- Modal Lixeira -->
+<div id="modalLixeira" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;display:none;align-items:center;justify-content:center">
+  <div class="modal" style="max-width:620px;width:100%">
+    <div class="modal-header">
+      <h2 class="modal-title" style="color:#f87171">🗑 Lixeira — Orçamentos</h2>
+      <button class="modal-close" onclick="document.getElementById('modalLixeira').style.display='none'"></button>
+    </div>
+    <div style="padding:12px 20px;font-size:12px;color:var(--text-muted);background:rgba(248,113,113,.06);border-bottom:1px solid var(--border)">
+      Registros excluídos ficam aqui por <strong>15 dias</strong> e depois são apagados permanentemente. O orçamento e o pedido vinculado são restaurados juntos.
+    </div>
+    <div class="modal-body" id="lixeiraBody" style="max-height:55vh;overflow-y:auto;min-height:80px"></div>
+  </div>
+</div>
+
+<!-- Modal histórico -->
+<div id="modalHistorico">
+  <div class="modal" style="max-width:520px;width:100%">
+    <div class="modal-header">
+      <h2 class="modal-title">Histórico do Orçamento</h2>
+      <button class="modal-close" onclick="document.getElementById('modalHistorico').classList.remove('open')"></button>
+    </div>
+    <div class="modal-body" id="histBody" style="max-height:60vh;overflow-y:auto"></div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+checkAuth();
+
+// ── Estado global ──
+let _status = '';
+let _busca = '';
+let _pagina = 1;
+const _POR_PAG = 30;
+let _totalOrc = 0;
+let _clientes = [];
+let _modulos = [];
+let _usuarios = [];
+let _detId = null;
+let _buscaTimer = null;
+let wizStep = 1;
+let wizId = null; // id do orçamento em edição
+let _itens = []; // itens do wizard
+let _brindesOpt = ['Cooktop','Cuba Gourmet','Torneira','Limpeza pós obra','Instalação elétrica','Personalizado'];
+let _brindesSel = [];
+let _tipoProj = '';
+let _clienteSel = null;
+
+const MATERIAIS = ['MDF','Madeira Maciça','MDP','Vidro','Laminado','Alumínio','Outro'];
+const CORES = [
+  {nome:'Branco',hex:'#e8e8e8'},
+  {nome:'Off White',hex:'#f0ece0'},
+  {nome:'Freijó',hex:'#b5803a'},
+  {nome:'Carvalho Natural',hex:'#c4952a'},
+  {nome:'Nogal',hex:'#7a5c30'},
+  {nome:'Grafite',hex:'#5a5a5a'},
+  {nome:'Preto',hex:'#222222'},
+  {nome:'Cinza Fendi',hex:'#9e9e9e'},
+  {nome:'Personalizado',hex:null},
+];
+const TIPOS_PROJ = [
+  {id:'cozinha',       label:'Cozinha',            icon:'chef-hat'},
+  {id:'quarto',        label:'Quarto',              icon:'bed'},
+  {id:'apto_completo', label:'Apto. Completo',      icon:'building'},
+  {id:'closet',        label:'Closet',              icon:'shirt'},
+  {id:'lavanderia',    label:'Lavanderia',          icon:'washing-machine'},
+  {id:'banheiro',      label:'Banheiro',            icon:'bath'},
+  {id:'escritorio',    label:'Escritório',          icon:'monitor'},
+  {id:'outro',         label:'Outro',               icon:'more-horizontal'},
+];
+
+const STATUS_CLS = {rascunho:'s-rascunho',enviado:'s-enviado',aprovado:'s-aprovado',recusado:'s-recusado'};
+const STATUS_LBL = {rascunho:'Rascunho',enviado:'Enviado',aprovado:'Aprovado',recusado:'Recusado'};
+const _SVG_EYE   = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const _SVG_EDIT  = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+const _SVG_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+const _SVG_CHECK = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+// ── Init ──
+async function init() {
+  try {
+    [_clientes, _usuarios] = await Promise.all([
+      Api.get('/clientes'),
+      Api.get('/usuarios').then(r => r.usuarios || r),
+    ]);
+    // Usuários no select de projetista
+    const selP = document.getElementById('wProjetista');
+    _usuarios.forEach(u => selP.insertAdjacentHTML('beforeend', `<option value="${u.id}">${u.nome}</option>`));
+
+    // Catálogo de módulos
+    try {
+      const prod = await Api.get('/estoque');
+      _modulos = Array.isArray(prod) ? prod : (prod.produtos || prod.itens || []);
+    } catch(e) { _modulos = []; }
+
+    // Tipo de projeto grid
+    const tg = document.getElementById('tipoGrid');
+    TIPOS_PROJ.forEach(t => {
+      tg.insertAdjacentHTML('beforeend', `
+        <div class="tipo-btn" id="tipo_${t.id}" onclick="selTipo('${t.id}')">
+          <i data-lucide="${t.icon}" style="width:20px;height:20px;margin:0 auto 6px;display:block"></i>
+          ${t.label}
+        </div>`);
+    });
+    lucide.createIcons();
+
+    // Brindes
+    const bg = document.getElementById('brindesGrid');
+    _brindesOpt.forEach(b => {
+      bg.insertAdjacentHTML('beforeend', `
+        <div class="brinde-chk" id="brinde_${b}" onclick="toggleBrinde('${b}')">
+          <div class="brinde-box" id="brindebox_${b}"></div>
+          ${b}
+        </div>`);
+    });
+
+    // Renderizar catálogo
+    renderCatalogo(_modulos);
+
+    // Data padrão
+    document.getElementById('wDataOrc').value = new Date().toISOString().split('T')[0];
+
+  } catch(e) { console.error(e); }
+  carregar();
+}
+
+// ── Lista ──
+async function carregar() {
+  try {
+    const q = new URLSearchParams();
+    if (_status) q.set('status', _status);
+    if (_busca)  q.set('busca', _busca);
+    const todos = await Api.get('/orcamentos?' + q.toString());
+    _totalOrc = todos.length;
+    const inicio = (_pagina - 1) * _POR_PAG;
+    renderTabela(todos.slice(inicio, inicio + _POR_PAG), todos.length);
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function setStatus(s, btn) {
+  _status = s;
+  _pagina = 1;
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('ativo'));
+  btn.classList.add('ativo');
+  carregar();
+}
+
+function debouncarBusca(val) {
+  clearTimeout(_buscaTimer);
+  _buscaTimer = setTimeout(() => { _busca = val; _pagina = 1; carregar(); }, 350);
+}
+
+function renderTabela(data, total = data.length) {
+  const tbody = document.getElementById('tbody');
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-dim)">Nenhum orçamento encontrado</td></tr>`;
+    renderPaginacao(0);
+    return;
+  }
+  tbody.innerHTML = data.map(o => `
+    <tr onclick="abrirDetalhe(${o.id})">
+      <td><strong>${escapeHtml(o.numero)}</strong></td>
+      <td>${escapeHtml(o.cliente_nome)}</td>
+      <td>
+        ${o.desconto > 0 ? `<div style="font-size:10px;color:var(--text-dim);text-decoration:line-through">${moeda(o.valor_total)}</div>` : ''}
+        <strong>${moeda(o.valor_final ?? (o.valor_total - o.desconto))}</strong>
+      </td>
+      <td style="color:var(--text-muted)">${o.validade_dias ? o.validade_dias + ' dias' : '—'}</td>
+      <td style="color:var(--text-muted)">${o.vendedor_nome || '—'}</td>
+      <td><span class="badge ${STATUS_CLS[o.status]}">${STATUS_LBL[o.status]}</span></td>
+      <td style="color:var(--text-muted)">${new Date(o.criado_em).toLocaleDateString('pt-BR')}</td>
+      <td onclick="event.stopPropagation()">
+        <div style="display:flex;gap:4px">
+          <button class="acao-btn" title="Ver" onclick="abrirDetalhe(${o.id})">${_SVG_EYE}</button>
+          <button class="acao-btn" title="Editar" onclick="abrirWizard(${o.id})">${_SVG_EDIT}</button>
+          <button class="acao-btn" title="Remover" onclick="remover(${o.id})" style="color:#f87171">${_SVG_TRASH}</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+  renderPaginacao(total);
+}
+
+function renderPaginacao(total) {
+  const totalPags = Math.ceil(total / _POR_PAG);
+  let el = document.getElementById('paginacaoOrc');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'paginacaoOrc';
+    el.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;font-size:13px;color:var(--text-muted);border-top:1px solid var(--border)';
+    document.querySelector('.tabela-orc').appendChild(el);
+  }
+  if (totalPags <= 1) { el.innerHTML = `<span>${total} registro${total!==1?'s':''}</span>`; return; }
+  el.innerHTML = `
+    <span>${total} registros — página ${_pagina} de ${totalPags}</span>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-ghost" style="padding:5px 12px;font-size:12px" onclick="irPagina(${_pagina-1})" ${_pagina<=1?'disabled':''}>← Anterior</button>
+      <button class="btn btn-ghost" style="padding:5px 12px;font-size:12px" onclick="irPagina(${_pagina+1})" ${_pagina>=totalPags?'disabled':''}>Próxima →</button>
+    </div>`;
+}
+
+function irPagina(p) {
+  const totalPags = Math.ceil(_totalOrc / _POR_PAG);
+  if (p < 1 || p > totalPags) return;
+  _pagina = p;
+  carregar();
+  document.querySelector('#view-lista').scrollTo(0, 0);
+}
+
+async function remover(id) {
+  if (!confirm('Mover este orçamento para a lixeira? O pedido vinculado também será movido.')) return;
+  try {
+    await Api.delete(`/orcamentos/${id}`);
+    toast('Movido para a lixeira — você tem 15 dias para restaurar','success');
+    carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function abrirLixeira() {
+  const modal = document.getElementById('modalLixeira');
+  const body  = document.getElementById('lixeiraBody');
+  modal.style.display = 'flex';
+  body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</div>';
+  try {
+    const rows = await Api.get('/orcamentos/lixeira');
+    if (!rows.length) {
+      body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-dim)">Lixeira vazia</div>';
+      return;
+    }
+    const diasRestantes = d => {
+      const diff = 15 - Math.floor((Date.now() - new Date(d)) / 86400000);
+      return diff;
+    };
+    body.innerHTML = rows.map(o => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-weight:700;font-size:13px">${escapeHtml(o.numero)} — ${escapeHtml(o.cliente_nome||'')}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
+            Excluído em ${new Date(o.deleted_at).toLocaleDateString('pt-BR')} ·
+            <span style="color:#f87171">expira em ${diasRestantes(o.deleted_at)} dia(s)</span>
+          </div>
+        </div>
+        <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px" onclick="restaurarOrc(${o.id})">Restaurar</button>
+      </div>`).join('');
+  } catch(e) { body.innerHTML = `<div style="padding:20px;color:#f87171">${e.message}</div>`; }
+}
+
+async function restaurarOrc(id) {
+  try {
+    await Api.post(`/orcamentos/${id}/restaurar`, {});
+    toast('Orçamento e pedido restaurados!','success');
+    abrirLixeira();
+    carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+// ── Detalhe ──
+async function abrirDetalhe(id) {
+  _detId = id;
+  try {
+    const o = await Api.get(`/orcamentos/${id}`);
+    document.getElementById('detNumero').textContent = o.numero;
+    document.getElementById('detBody').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px">
+        <div><div style="font-size:11px;color:var(--text-muted)">Cliente</div><strong>${escapeHtml(o.cliente_nome)}</strong></div>
+        <div><div style="font-size:11px;color:var(--text-muted)">Status</div><span class="badge ${STATUS_CLS[o.status]}">${STATUS_LBL[o.status]}</span></div>
+        <div><div style="font-size:11px;color:var(--text-muted)">Vendedor</div>${escapeHtml(o.vendedor_nome||'') || '—'}</div>
+        <div><div style="font-size:11px;color:var(--text-muted)">Validade</div>${o.validade_dias ? o.validade_dias + ' dias' : '—'}</div>
+        ${o.tipo_projeto ? `<div style="grid-column:span 2"><div style="font-size:11px;color:var(--text-muted)">Tipo de Projeto</div><strong>${o.tipo_projeto}</strong></div>` : ''}
+        ${o.campanha ? `<div style="grid-column:span 2"><div style="font-size:11px;color:var(--text-muted)">Campanha</div><strong>${escapeHtml(o.campanha)}</strong></div>` : ''}
+      </div>
+      ${(o.itens||[]).length > 0 ? `
+      <table class="tbl-itens">
+        <thead><tr><th>Ambiente</th><th>Descrição</th><th>Material</th><th>Qtd</th><th>Total</th></tr></thead>
+        <tbody>${(o.itens||[]).map(i => `<tr>
+          <td style="color:var(--text-muted)">${escapeHtml(i.ambiente||'') || '—'}</td>
+          <td>${escapeHtml(i.descricao)}</td>
+          <td>${escapeHtml(i.material||'') || '—'}${i.cor ? ` / ${escapeHtml(i.cor)}` : ''}</td>
+          <td>${i.quantidade}</td>
+          <td><strong>${moeda(i.valor_total)}</strong></td>
+        </tr>`).join('')}</tbody>
+      </table>` : ''}
+      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+        ${o.frete > 0 ? `<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);margin-bottom:4px"><span>Frete</span><span>+${moeda(o.frete)}</span></div>` : ''}
+        ${o.montagem > 0 ? `<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);margin-bottom:4px"><span>Montagem</span><span>+${moeda(o.montagem)}</span></div>` : ''}
+        ${o.desconto > 0 ? `<div style="display:flex;justify-content:space-between;font-size:13px;color:#f87171;margin-bottom:4px"><span>Desconto</span><span>-${moeda(o.desconto)}</span></div>` : ''}
+        <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:800;color:var(--text);margin-top:6px">
+          <span>Total</span><span style="color:var(--primary)">${moeda(o.valor_final ?? (o.valor_total - o.desconto))}</span>
+        </div>
+      </div>
+      ${o.num_parcelas > 1 ? `<div style="margin-top:10px;font-size:12px;color:var(--text-muted)">
+        Pagamento: entrada ${moeda(o.valor_entrada||0)} + ${o.num_parcelas}x de ${moeda(((o.valor_final||0)-(o.valor_entrada||0))/o.num_parcelas)}
+      </div>` : ''}
+      ${o.observacoes ? `<div style="margin-top:14px;padding:12px;background:var(--bg-card2);border-radius:8px;font-size:13px;color:var(--text-muted)">${escapeHtml(o.observacoes)}</div>` : ''}
+    `;
+
+    const btns = [];
+    if (o.status==='rascunho'||o.status==='enviado') {
+      btns.push(`<button class="btn btn-ghost" onclick="mudarStatus('enviado')">Marcar Enviado</button>`);
+      btns.push(`<button class="btn" style="background:rgba(34,197,94,.15);color:#22c55e" onclick="mudarStatus('aprovado')">${_SVG_CHECK} Aprovado</button>`);
+      btns.push(`<button class="btn" style="background:rgba(239,68,68,.15);color:#f87171" onclick="mudarStatus('recusado')">Recusado</button>`);
+    }
+    if (o.status==='aprovado') {
+      btns.push(`<button class="btn btn-primary" onclick="converterPedido()">Converter em Pedido</button>`);
+    }
+    btns.push(`<button class="btn btn-ghost" onclick="abrirWizard(${o.id});fecharDetalhe()">${_SVG_EDIT} Editar</button>`);
+    btns.push(`<button class="btn btn-ghost" onclick="gerarPDFProposta()">PDF</button>`);
+    btns.push(`<button class="btn btn-ghost" onclick="verHistorico()">Histórico</button>`);
+    if (o.cliente_whatsapp||o.cliente_tel) {
+      btns.push(`<button class="btn btn-ghost" onclick="enviarWhats('${o.cliente_whatsapp||o.cliente_tel}','${o.numero}',${o.valor_final||o.valor_total})" style="color:#25d366">WhatsApp</button>`);
+    }
+    document.getElementById('detFooter').innerHTML = btns.join('');
+
+    document.getElementById('painelDet').classList.add('open');
+    document.getElementById('detOverlay').classList.add('open');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function mudarStatus(status) {
+  try {
+    await Api.patch(`/orcamentos/${_detId}/status`, { status });
+    toast('Status atualizado','success');
+    fecharDetalhe(); carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function converterPedido() {
+  if (!confirm('Converter este orçamento em pedido?')) return;
+  try {
+    const r = await Api.post(`/orcamentos/${_detId}/converter`, {});
+    toast(`Pedido ${r.numero} criado!`,'success');
+    fecharDetalhe(); carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function verHistorico() {
+  try {
+    const hist = await Api.get(`/comercial/orcamentos/${_detId}/historico`);
+    const fmtDH = d => d ? new Date(d).toLocaleString('pt-BR') : '—';
+    document.getElementById('histBody').innerHTML = hist.length
+      ? hist.map(h => `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:13px;color:var(--text)">${h.descricao}</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px">${h.usuario_nome||'Sistema'} · ${fmtDH(h.criado_em)}</div>
+        </div>`).join('')
+      : '<p style="color:var(--text-dim);text-align:center;padding:20px">Nenhum evento registrado</p>';
+    document.getElementById('modalHistorico').classList.add('open');
+  } catch(e) { toast('Erro ao carregar histórico','error'); }
+}
+
+function fecharDetalhe() {
+  document.getElementById('painelDet').classList.remove('open');
+  document.getElementById('detOverlay').classList.remove('open');
+}
+
+function enviarWhats(tel, numero, valor) {
+  if (!tel) { toast('Cliente sem telefone','warning'); return; }
+  const num = tel.replace(/\D/g,'');
+  const msg = encodeURIComponent(`Olá! Segue o orçamento ${numero} no valor de ${moeda(valor)}. Por favor confirme se deseja prosseguir.`);
+  window.open(`https://wa.me/55${num}?text=${msg}`, '_blank');
+}
+
+// ═══════════════════════════════════════════════
+// ── WIZARD ──
+// ═══════════════════════════════════════════════
+
+async function abrirWizard(id = null) {
+  wizId = id;
+  _itens = [];
+  _brindesSel = [];
+  _tipoProj = '';
+  _clienteSel = null;
+
+  // Reseta campos
+  document.getElementById('clienteBusca').value = '';
+  document.getElementById('clienteCard').className = 'client-card';
+  document.getElementById('clienteDropdown').className = 'client-dropdown';
+  document.getElementById('wValidade').value = 30;
+  document.getElementById('wDataOrc').value = new Date().toISOString().split('T')[0];
+  initMoeda('wFrete', 0);
+  initMoeda('wMontagem', 0);
+  initMoeda('wDesconto', 0);
+  initMoeda('wEntrada', 0);
+  document.getElementById('wParcelas').value = 1;
+  document.getElementById('wData1Parc').value = '';
+  document.getElementById('wDiasProjeto').value = 7;
+  document.getElementById('wDiasProducao').value = 20;
+  document.getElementById('wDiasMontagem').value = 2;
+  document.getElementById('wComVendedor').value = '';
+  document.getElementById('wComProjetista').value = '';
+  document.getElementById('wProjetista').value = '';
+  document.getElementById('wIndicacao').value = '0';
+  document.getElementById('wIndicacaoBox').innerHTML = '';
+  document.getElementById('wIndicacaoBox').style.borderColor = 'var(--border)';
+  document.getElementById('wCampanha').value = '';
+  document.getElementById('wObs').value = '';
+
+  // Reseta brindes
+  _brindesOpt.forEach(b => {
+    const el = document.getElementById(`brinde_${b}`);
+    if (el) el.classList.remove('ativo');
+    const bx = document.getElementById(`brindebox_${b}`);
+    if (bx) bx.innerHTML = '';
+  });
+
+  // Reseta tipos
+  TIPOS_PROJ.forEach(t => {
+    const el = document.getElementById(`tipo_${t.id}`);
+    if (el) el.classList.remove('ativo');
+  });
+
+  if (id) {
+    document.getElementById('wizTitulo').textContent = 'Carregando...';
+    try {
+      const o = await Api.get(`/orcamentos/${id}`);
+      document.getElementById('wizTitulo').textContent = `Editar ${o.numero}`;
+
+      // Cliente
+      _clienteSel = _clientes.find(c => c.id === o.cliente_id) || { id: o.cliente_id, nome: o.cliente_nome };
+      document.getElementById('clienteBusca').value = _clienteSel.nome;
+      renderClienteCard(_clienteSel);
+
+      // Tipo
+      if (o.tipo_projeto) {
+        const t = TIPOS_PROJ.find(x => x.label === o.tipo_projeto || x.id === o.tipo_projeto);
+        if (t) selTipo(t.id);
+        else { _tipoProj = o.tipo_projeto; }
+      }
+
+      // Campos básicos
+      document.getElementById('wValidade').value = o.validade_dias || 30;
+      initMoeda('wFrete', o.frete || 0);
+      initMoeda('wMontagem', o.montagem || 0);
+      initMoeda('wDesconto', o.desconto || 0);
+      initMoeda('wEntrada', o.valor_entrada || 0);
+      document.getElementById('wParcelas').value = o.num_parcelas || 1;
+      document.getElementById('wData1Parc').value = o.data_primeira_parcela || '';
+      document.getElementById('wDiasProjeto').value = o.dias_projeto || 7;
+      document.getElementById('wDiasProducao').value = o.dias_producao || 20;
+      document.getElementById('wDiasMontagem').value = o.dias_montagem || 2;
+      document.getElementById('wComVendedor').value = o.comissao_vendedor || '';
+      document.getElementById('wComProjetista').value = o.comissao_projetista || '';
+      document.getElementById('wProjetista').value = o.projetista_id || '';
+      document.getElementById('wIndicacao').value = o.indicacao_projetista ? '1' : '0';
+      if (o.indicacao_projetista) {
+        document.getElementById('wIndicacaoBox').innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#C4A24A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        document.getElementById('wIndicacaoBox').style.borderColor = '#C4A24A';
+      }
+      document.getElementById('wCampanha').value = o.campanha || '';
+      document.getElementById('wObs').value = o.observacoes || '';
+
+      // Brindes
+      let brindes = [];
+      try { brindes = typeof o.brindes === 'string' ? JSON.parse(o.brindes) : (o.brindes||[]); } catch {}
+      brindes.forEach(b => {
+        _brindesSel.push(b);
+        const el = document.getElementById(`brinde_${b}`);
+        const bx = document.getElementById(`brindebox_${b}`);
+        if (el) el.classList.add('ativo');
+        if (bx) bx.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+      });
+
+      // Itens
+      _itens = (o.itens||[]).map(i => ({
+        descricao: i.descricao||'',
+        ambiente: i.ambiente||'',
+        material: i.material||'MDF',
+        cor: i.cor||'Branco',
+        quantidade: i.quantidade||1,
+        valor_unitario: i.valor_unitario||0,
+        imagem_url: i.imagem_url||null,
+      }));
+    } catch(e) {
+      toast('Erro ao carregar orçamento','error');
+    }
+  } else {
+    document.getElementById('wizTitulo').textContent = 'Novo Orçamento';
+  }
+
+  irStep(1);
+  document.getElementById('view-lista').style.display = 'none';
+  document.getElementById('view-wizard').classList.add('ativo');
+  renderItens();
+  calcResumo();
+  calcParcela();
+}
+
+function fecharWizard() {
+  document.getElementById('view-wizard').classList.remove('ativo');
+  document.getElementById('view-lista').style.display = '';
+  wizId = null;
+}
+
+function irStep(n) {
+  wizStep = Math.max(1, Math.min(4, n));
+
+  // Atualiza steps visuais
+  for (let i = 1; i <= 4; i++) {
+    const ws = document.getElementById(`ws${i}`);
+    const wl = document.getElementById(`wl${i}`);
+    ws.className = 'wiz-step' + (i === wizStep ? ' ativo' : (i < wizStep ? ' done' : ''));
+    if (i < 4 && wl) wl.className = 'wiz-step-line' + (i < wizStep ? ' done' : '');
+  }
+
+  // Mostra conteúdo
+  document.querySelectorAll('.wiz-step-content').forEach(el => el.classList.remove('ativo'));
+  document.getElementById(`sc${wizStep}`).classList.add('ativo');
+
+  // Catálogo e resumo lateral
+  document.getElementById('wizCatalog').style.display = wizStep === 2 ? 'flex' : 'none';
+  document.getElementById('wizSummary').style.display = wizStep >= 2 ? 'flex' : 'none';
+
+  // Botões
+  document.getElementById('btnVoltar').style.display = wizStep > 1 ? '' : 'none';
+  document.getElementById('btnRascunho').style.display = wizStep >= 2 ? '' : 'none';
+  const btnProx = document.getElementById('btnProximo');
+  if (wizStep === 4) {
+    btnProx.textContent = 'Salvar Orçamento';
+    btnProx.onclick = () => salvarOrcamento('rascunho');
+  } else {
+    btnProx.textContent = 'Próximo';
+    btnProx.onclick = avancarStep;
+  }
+
+  // Step 4: renderizar resumo final
+  if (wizStep === 4) renderResumoFinal();
+
+  calcResumo();
+  calcParcela();
+}
+
+function avancarStep() {
+  if (wizStep === 1 && !_clienteSel) {
+    toast('Selecione um cliente para continuar','warning');
+    return;
+  }
+  if (wizStep === 2 && _itens.length === 0) {
+    if (!confirm('Nenhum item adicionado. Continuar mesmo assim?')) return;
+  }
+  irStep(wizStep + 1);
+}
+
+// ── Cliente ──
+function filtrarClientes(busca) {
+  const dd = document.getElementById('clienteDropdown');
+  if (!busca.trim()) { dd.className = 'client-dropdown'; return; }
+  const filtrados = _clientes.filter(c => c.nome.toLowerCase().includes(busca.toLowerCase())).slice(0, 8);
+  if (!filtrados.length) { dd.className = 'client-dropdown'; return; }
+  dd.innerHTML = filtrados.map(c => `
+    <div class="client-opt" onclick="selecionarCliente(${c.id})">
+      ${escapeHtml(c.nome)}
+      <small>${c.telefone||c.whatsapp||''} ${c.cidade ? '· '+c.cidade : ''}</small>
+    </div>`).join('');
+  dd.className = 'client-dropdown open';
+}
+
+function abrirDropdown() {
+  filtrarClientes(document.getElementById('clienteBusca').value);
+}
+
+function selecionarCliente(id) {
+  _clienteSel = _clientes.find(c => c.id === id);
+  document.getElementById('clienteBusca').value = _clienteSel.nome;
+  document.getElementById('clienteDropdown').className = 'client-dropdown';
+  renderClienteCard(_clienteSel);
+
+  // Auto-preenche comissões por tipo de serviço
+  if (_clienteSel.tipo_servico === 'apartamento_completo') {
+    document.getElementById('wComVendedor').value = 8;
+    document.getElementById('wComProjetista').value = 10;
+  }
+}
+
+function renderClienteCard(c) {
+  const card = document.getElementById('clienteCard');
+  card.className = 'client-card ativo';
+  card.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#C4A24A33,#C4A24A66);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--primary);flex-shrink:0">${(c.nome||'?')[0].toUpperCase()}</div>
+      <div>
+        <div style="font-weight:700;font-size:14px">${escapeHtml(c.nome)}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${[c.telefone||c.whatsapp, c.email, c.cidade].filter(Boolean).join(' · ')}</div>
+      </div>
+      <button class="btn btn-ghost" style="margin-left:auto;padding:4px 10px;font-size:12px" onclick="_clienteSel=null;document.getElementById('clienteBusca').value='';document.getElementById('clienteCard').className='client-card'">Trocar</button>
+    </div>`;
+}
+
+function selTipo(id) {
+  TIPOS_PROJ.forEach(t => {
+    const el = document.getElementById(`tipo_${t.id}`);
+    if (el) el.classList.toggle('ativo', t.id === id);
+  });
+  const t = TIPOS_PROJ.find(x => x.id === id);
+  _tipoProj = t ? t.label : id;
+}
+
+// ── Catálogo ──
+function renderCatalogo(lista) {
+  const c = document.getElementById('catalogList');
+  if (!lista.length) {
+    c.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-dim);font-size:12px">Nenhum produto cadastrado no estoque</div>';
+    return;
+  }
+  c.innerHTML = lista.map((m,i) => {
+    const inicial = (m.nome||m.descricao||'?')[0].toUpperCase();
+    const imgTag = (m.foto||m.imagem) ? `<img src="${m.foto||m.imagem}" class="wiz-catalog-thumb" onerror="this.outerHTML='<div class=wiz-catalog-thumb-placeholder>${inicial}</div>'">` : `<div class="wiz-catalog-thumb-placeholder">${inicial}</div>`;
+    const preco = m.valor_venda||m.preco_venda||m.valor_custo||0;
+    return `<div class="wiz-catalog-item" onclick="addItemCatalogo(${i})">
+      ${imgTag}
+      <div class="wiz-catalog-info">
+        <div class="wiz-catalog-nome">${escapeHtml(m.nome||m.descricao||'Módulo')}</div>
+        <div class="wiz-catalog-preco">${preco > 0 ? moeda(preco) : 'Sem preço'}</div>
+      </div>
+      <button class="wiz-catalog-add" onclick="event.stopPropagation();addItemCatalogo(${i})">+</button>
+    </div>`;
+  }).join('');
+}
+
+function filtrarCatalogo(busca) {
+  const filtrados = busca.trim()
+    ? _modulos.filter(m => (m.nome||m.descricao||'').toLowerCase().includes(busca.toLowerCase()))
+    : _modulos;
+  renderCatalogo(filtrados);
+}
+
+function addItemCatalogo(idx) {
+  const m = _modulos[idx];
+  if (!m) return;
+  const preco = m.valor_venda||m.preco_venda||m.valor_custo||0;
+  _itens.push({
+    descricao: m.nome||m.descricao||'',
+    ambiente: '',
+    material: 'MDF',
+    cor: 'Branco',
+    quantidade: 1,
+    valor_unitario: preco,
+    imagem_url: m.foto||m.imagem||null,
+  });
+  renderItens();
+  calcResumo();
+  toast(`${m.nome||'Item'} adicionado`,'success');
+}
+
+function addItemVazio() {
+  _itens.push({ descricao:'', ambiente:'', material:'MDF', cor:'Branco', quantidade:1, valor_unitario:0, imagem_url:null });
+  renderItens();
+  calcResumo();
+}
+
+function removeItem(i) {
+  _itens.splice(i, 1);
+  renderItens();
+  calcResumo();
+}
+
+function atualizarQtd(i, delta) {
+  _itens[i].quantidade = Math.max(1, (_itens[i].quantidade||1) + delta);
+  renderItens();
+  calcResumo();
+}
+
+function renderItens() {
+  const tbody = document.getElementById('itensTbody');
+  const empty = document.getElementById('itensEmpty');
+  if (!_itens.length) {
+    tbody.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  tbody.innerHTML = _itens.map((it, i) => {
+    const total = (it.valor_unitario||0) * (it.quantidade||1);
+    const inicial = (it.descricao||'?')[0].toUpperCase() || '?';
+    const imgTag = it.imagem_url
+      ? `<img src="${it.imagem_url}" class="item-thumb" onerror="this.outerHTML='<div class=item-thumb-ph>${inicial}</div>'">`
+      : `<div class="item-thumb-ph">${inicial}</div>`;
+
+    const matOpts = MATERIAIS.map(m => `<option${it.material===m?' selected':''}>${m}</option>`).join('');
+    const corOpts = CORES.map(c => `<option${it.cor===c.nome?' selected':''}>${c.nome}</option>`).join('');
+
+    return `<tr>
+      <td>${imgTag}</td>
+      <td>
+        <input class="item-desc-input" value="${escapeHtml(it.descricao)}" placeholder="Descrição..." oninput="_itens[${i}].descricao=this.value">
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px">
+          <input class="item-desc-input" value="${escapeHtml(it.ambiente)}" placeholder="Ambiente..." oninput="_itens[${i}].ambiente=this.value" style="font-size:10px;color:var(--text-muted)">
+        </div>
+      </td>
+      <td><input class="item-desc-input" value="${escapeHtml(it.ambiente)}" placeholder="Cozinha..." oninput="_itens[${i}].ambiente=this.value;this.closest('tr').querySelectorAll('.item-desc-input')[1].value=this.value" style="width:80px"></td>
+      <td><select class="material-sel" onchange="_itens[${i}].material=this.value">${matOpts}</select></td>
+      <td><select class="cor-sel" onchange="_itens[${i}].cor=this.value">${corOpts}</select></td>
+      <td>
+        <div class="qty-wrap">
+          <button class="qty-btn" onclick="atualizarQtd(${i},-1)">−</button>
+          <span class="qty-num">${it.quantidade}</span>
+          <button class="qty-btn" onclick="atualizarQtd(${i},1)">+</button>
+        </div>
+      </td>
+      <td style="text-align:right">
+        <input class="val-input" type="text" inputmode="numeric" data-value="${it.valor_unitario||0}" value="${(it.valor_unitario||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}" onfocus="focusMoeda(this)" onblur="blurMoeda(this);_itens[${i}].valor_unitario=parseFloat(this.dataset.value)||0;document.getElementById('total_${i}').textContent=moeda(_itens[${i}].valor_unitario*(_itens[${i}].quantidade||1));calcResumo()" oninput="mascaraMoeda(this);_itens[${i}].valor_unitario=parseFloat(this.dataset.value)||0;document.getElementById('total_${i}').textContent=moeda(_itens[${i}].valor_unitario*(_itens[${i}].quantidade||1));calcResumo()">
+      </td>
+      <td style="text-align:right;font-weight:700;font-size:12px" id="total_${i}">${moeda(total)}</td>
+      <td>
+        <button class="acao-btn" style="color:#f87171" onclick="removeItem(${i})" title="Remover">${_SVG_TRASH}</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Brindes ──
+function toggleBrinde(nome) {
+  const idx = _brindesSel.indexOf(nome);
+  const el = document.getElementById(`brinde_${nome}`);
+  const bx = document.getElementById(`brindebox_${nome}`);
+  if (idx >= 0) {
+    _brindesSel.splice(idx, 1);
+    el.classList.remove('ativo');
+    bx.innerHTML = '';
+  } else {
+    _brindesSel.push(nome);
+    el.classList.add('ativo');
+    bx.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+  }
+  calcResumo();
+}
+
+// ── Indicação ──
+function toggleIndicacao() {
+  const cur = document.getElementById('wIndicacao').value;
+  const novo = cur === '1' ? '0' : '1';
+  document.getElementById('wIndicacao').value = novo;
+  const bx = document.getElementById('wIndicacaoBox');
+  bx.innerHTML = novo === '1' ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#C4A24A" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>` : '';
+  bx.style.borderColor = novo === '1' ? '#C4A24A' : 'var(--border)';
+}
+
+// ── Cálculos ──
+function calcResumo() {
+  const subtotal = _itens.reduce((s, i) => s + (i.valor_unitario||0) * (i.quantidade||1), 0);
+  const frete = getValMoeda('wFrete');
+  const montagem = getValMoeda('wMontagem');
+  const desconto = getValMoeda('wDesconto');
+  const total = subtotal + frete + montagem - desconto;
+
+  const body = document.getElementById('summaryBody');
+  if (!body) return;
+
+  // Prazo total
+  const dp = parseInt(document.getElementById('wDiasProjeto')?.value)||7;
+  const dprod = parseInt(document.getElementById('wDiasProducao')?.value)||20;
+  const dm = parseInt(document.getElementById('wDiasMontagem')?.value)||2;
+  const prazoTotal = dp + dprod + dm;
+  const ptEl = document.getElementById('prazoTotal');
+  if (ptEl) ptEl.textContent = `${prazoTotal} dias úteis`;
+
+  let html = `
+    <div class="wiz-summary-row"><span>Subtotal</span><span>${moeda(subtotal)}</span></div>
+    ${frete > 0 ? `<div class="wiz-summary-row adicional"><span>Frete</span><span>+${moeda(frete)}</span></div>` : ''}
+    ${montagem > 0 ? `<div class="wiz-summary-row adicional"><span>Montagem</span><span>+${moeda(montagem)}</span></div>` : ''}
+    ${desconto > 0 ? `<div class="wiz-summary-row desconto"><span>Desconto</span><span>−${moeda(desconto)}</span></div>` : ''}
+    <div class="wiz-summary-row total"><span>Total</span><span>${moeda(total)}</span></div>
+  `;
+
+  const campanha = document.getElementById('wCampanha')?.value.trim();
+  if (campanha) {
+    html += `<div style="margin-top:10px"><div class="wiz-summary-tag">🎯 ${escapeHtml(campanha)}</div></div>`;
+  }
+
+  if (_brindesSel.length) {
+    html += `<div style="margin-top:10px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px">Brindes</div>`;
+    _brindesSel.forEach(b => { html += `<div class="wiz-summary-tag" style="margin-bottom:4px">🎁 ${escapeHtml(b)}</div>`; });
+    html += '</div>';
+  }
+
+  html += `<div style="margin-top:12px;font-size:11px;color:var(--text-dim)">${_itens.length} ${_itens.length===1?'item':'itens'}</div>`;
+  body.innerHTML = html;
+
+  calcParcela();
+}
+
+function calcParcela() {
+  const info = document.getElementById('parcelaInfo');
+  if (!info) return;
+  const subtotal = _itens.reduce((s, i) => s + (i.valor_unitario||0) * (i.quantidade||1), 0);
+  const frete = getValMoeda('wFrete');
+  const montagem = getValMoeda('wMontagem');
+  const desconto = getValMoeda('wDesconto');
+  const total = subtotal + frete + montagem - desconto;
+  const entrada = getValMoeda('wEntrada');
+  const nparcelas = parseInt(document.getElementById('wParcelas')?.value)||1;
+  const restante = Math.max(0, total - entrada);
+  const parcela = nparcelas > 0 ? restante / nparcelas : restante;
+
+  if (nparcelas <= 1 && entrada === 0) {
+    info.innerHTML = `<div>Total: <strong>${moeda(total)}</strong> à vista</div>`;
+  } else if (nparcelas <= 1) {
+    info.innerHTML = `<div>Entrada: <strong>${moeda(entrada)}</strong> + <strong>${moeda(restante)}</strong> no restante</div>`;
+  } else {
+    info.innerHTML = `
+      <div style="margin-bottom:4px">Entrada: <strong>${moeda(entrada)}</strong></div>
+      <div>Restante: <strong>${nparcelas}× de <span style="font-size:16px;color:var(--primary)">${moeda(parcela)}</span></strong></div>`;
+  }
+}
+
+// ── Resumo final (step 4) ──
+function renderResumoFinal() {
+  const subtotal = _itens.reduce((s, i) => s + (i.valor_unitario||0) * (i.quantidade||1), 0);
+  const frete = getValMoeda('wFrete');
+  const montagem = getValMoeda('wMontagem');
+  const desconto = getValMoeda('wDesconto');
+  const total = subtotal + frete + montagem - desconto;
+  const entrada = getValMoeda('wEntrada');
+  const nparcelas = parseInt(document.getElementById('wParcelas').value)||1;
+  const parcela = nparcelas > 0 ? Math.max(0, total - entrada) / nparcelas : 0;
+  const dp = parseInt(document.getElementById('wDiasProjeto').value)||7;
+  const dprod = parseInt(document.getElementById('wDiasProducao').value)||20;
+  const dm = parseInt(document.getElementById('wDiasMontagem').value)||2;
+  const campanha = document.getElementById('wCampanha').value.trim();
+
+  let html = `
+    <div class="resumo-section">
+      <h4>Cliente e Projeto</h4>
+      <div class="resumo-grid">
+        <div class="resumo-field"><label>Cliente</label><span>${_clienteSel ? escapeHtml(_clienteSel.nome) : '—'}</span></div>
+        <div class="resumo-field"><label>Tipo de Projeto</label><span>${_tipoProj || '—'}</span></div>
+        <div class="resumo-field"><label>Validade</label><span>${document.getElementById('wValidade').value} dias</span></div>
+        ${campanha ? `<div class="resumo-field"><label>Campanha</label><span style="color:var(--primary)">${escapeHtml(campanha)}</span></div>` : ''}
+      </div>
+    </div>`;
+
+  if (_itens.length) {
+    html += `<div class="resumo-section">
+      <h4>Itens (${_itens.length})</h4>
+      ${_itens.map(it => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(51,65,85,.3)">
+          <div>
+            <div style="font-size:13px;font-weight:600">${escapeHtml(it.descricao)||'(sem nome)'}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${it.material}${it.cor?' · '+it.cor:''} ${it.ambiente?'· '+it.ambiente:''}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:12px">
+            <div style="font-size:12px;color:var(--text-muted)">${it.quantidade}× ${moeda(it.valor_unitario)}</div>
+            <div style="font-weight:700">${moeda(it.valor_unitario*it.quantidade)}</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  html += `<div class="resumo-section">
+    <h4>Valores</h4>
+    <div class="resumo-total-row"><span>Subtotal</span><span>${moeda(subtotal)}</span></div>
+    ${frete > 0 ? `<div class="resumo-total-row"><span>Frete</span><span>+${moeda(frete)}</span></div>` : ''}
+    ${montagem > 0 ? `<div class="resumo-total-row"><span>Montagem</span><span>+${moeda(montagem)}</span></div>` : ''}
+    ${desconto > 0 ? `<div class="resumo-total-row" style="color:#f87171"><span>Desconto</span><span>−${moeda(desconto)}</span></div>` : ''}
+    <div class="resumo-total-row grand"><span>Total</span><span>${moeda(total)}</span></div>
+  </div>`;
+
+  html += `<div class="resumo-section">
+    <h4>Pagamento</h4>
+    ${entrada > 0 ? `<div class="resumo-total-row"><span>Entrada</span><span>${moeda(entrada)}</span></div>` : ''}
+    <div class="resumo-total-row">
+      <span>${nparcelas <= 1 ? 'À vista' : `${nparcelas}× parcelas`}</span>
+      <span>${nparcelas <= 1 ? moeda(total - entrada) : moeda(parcela)}/mês</span>
+    </div>
+  </div>`;
+
+  html += `<div class="resumo-section">
+    <h4>Prazo de Entrega</h4>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center">
+      <div><div style="font-size:11px;color:var(--text-muted)">Projeto</div><div style="font-size:18px;font-weight:700">${dp}</div><div style="font-size:10px;color:var(--text-dim)">dias úteis</div></div>
+      <div><div style="font-size:11px;color:var(--text-muted)">Produção</div><div style="font-size:18px;font-weight:700">${dprod}</div><div style="font-size:10px;color:var(--text-dim)">dias úteis</div></div>
+      <div><div style="font-size:11px;color:var(--text-muted)">Montagem</div><div style="font-size:18px;font-weight:700">${dm}</div><div style="font-size:10px;color:var(--text-dim)">dias úteis</div></div>
+    </div>
+    <div style="margin-top:10px;text-align:center;font-size:12px;color:var(--text-muted)">Total: <strong style="color:var(--text)">${dp+dprod+dm} dias úteis</strong></div>
+  </div>`;
+
+  if (_brindesSel.length) {
+    html += `<div class="resumo-section">
+      <h4>Brindes</h4>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${_brindesSel.map(b => `<div class="wiz-summary-tag">🎁 ${escapeHtml(b)}</div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  html += `<div class="resumo-section">
+    <h4>Observações</h4>
+    <textarea id="wObs2" rows="3" style="width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px;outline:none;resize:vertical" placeholder="Adicione observações finais...">${document.getElementById('wObs').value}</textarea>
+  </div>`;
+
+  html += `<div style="display:flex;gap:10px;margin-top:4px">
+    <button class="btn btn-ghost" style="flex:1" onclick="salvarOrcamento('rascunho')">Salvar Rascunho</button>
+    <button class="btn btn-primary" style="flex:1" onclick="salvarOrcamento('enviado')">Salvar e Enviar</button>
+  </div>`;
+
+  document.getElementById('resumoConteudo').innerHTML = html;
+}
+
+// ── Salvar ──
+async function salvarOrcamento(status = 'rascunho') {
+  if (!_clienteSel) { toast('Selecione um cliente','warning'); irStep(1); return; }
+
+  // Pega observações do step 4 se estiver aberto
+  const obs2 = document.getElementById('wObs2');
+  if (obs2) document.getElementById('wObs').value = obs2.value;
+
+  const payload = {
+    cliente_id: _clienteSel.id,
+    validade_dias: parseInt(document.getElementById('wValidade').value)||30,
+    itens: _itens.map(i => ({
+      descricao: i.descricao,
+      ambiente: i.ambiente,
+      material: i.material,
+      cor: i.cor,
+      quantidade: i.quantidade,
+      valor_unitario: i.valor_unitario,
+      imagem_url: i.imagem_url||null,
+    })),
+    desconto: getValMoeda('wDesconto'),
+    frete: getValMoeda('wFrete'),
+    montagem: getValMoeda('wMontagem'),
+    tipo_projeto: _tipoProj||null,
+    valor_entrada: getValMoeda('wEntrada'),
+    num_parcelas: parseInt(document.getElementById('wParcelas').value)||1,
+    data_primeira_parcela: document.getElementById('wData1Parc').value||null,
+    dias_projeto: parseInt(document.getElementById('wDiasProjeto').value)||7,
+    dias_producao: parseInt(document.getElementById('wDiasProducao').value)||20,
+    dias_montagem: parseInt(document.getElementById('wDiasMontagem').value)||2,
+    brindes: _brindesSel,
+    campanha: document.getElementById('wCampanha').value.trim()||null,
+    comissao_vendedor: parseFloat(document.getElementById('wComVendedor').value)||0,
+    comissao_projetista: parseFloat(document.getElementById('wComProjetista').value)||0,
+    projetista_id: document.getElementById('wProjetista').value||null,
+    indicacao_projetista: document.getElementById('wIndicacao').value === '1',
+    observacoes: document.getElementById('wObs').value.trim()||null,
+    status,
+  };
+
+  try {
+    let resultado;
+    if (wizId) {
+      await Api.put(`/orcamentos/${wizId}`, payload);
+      resultado = { id: wizId };
+      toast('Orçamento atualizado!','success');
+    } else {
+      resultado = await Api.post('/orcamentos', payload);
+      toast(`Orçamento ${resultado.numero} criado!`,'success');
+    }
+    wizId = resultado.id || wizId;
+    _detId = wizId;
+    fecharWizard();
+    carregar();
+  } catch(e) {
+    toast(e.message||'Erro ao salvar orçamento','error');
+  }
+}
+
+function enviarWhatsApp() {
+  if (!_clienteSel) { toast('Selecione um cliente','warning'); return; }
+  const tel = _clienteSel.whatsapp||_clienteSel.telefone;
+  if (!tel) { toast('Cliente sem telefone cadastrado','warning'); return; }
+  const subtotal = _itens.reduce((s, i) => s + (i.valor_unitario||0) * (i.quantidade||1), 0);
+  const frete = getValMoeda('wFrete');
+  const montagem = getValMoeda('wMontagem');
+  const desconto = getValMoeda('wDesconto');
+  const total = subtotal + frete + montagem - desconto;
+  const num = tel.replace(/\D/g,'');
+  const msg = encodeURIComponent(`Olá, ${_clienteSel.nome}! Sua proposta GM MÓBILE está no valor de ${moeda(total)}. Entre em contato para confirmar os detalhes!`);
+  window.open(`https://wa.me/55${num}?text=${msg}`, '_blank');
+}
+
+// ═══════════════════════════════════════════════
+// ── PDF (mantido intacto) ──
+// ═══════════════════════════════════════════════
+const PDF_ORC = {
+  OURO:  [196, 162, 74],
+  TEXTO: [20, 20, 20],
+  MUTED: [118, 112, 104],
+  LINHA: [228, 223, 214],
+  BG:    [245, 244, 241],
+  PL: 62, X: 68, W: 134,
+
+  async _loadImage(url) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) return null;
+      const blob = await r.blob();
+      return await new Promise(res => {
+        const fr = new FileReader();
+        fr.onloadend = () => res(fr.result);
+        fr.onerror   = () => res(null);
+        fr.readAsDataURL(blob);
+      });
+    } catch { return null; }
+  },
+  async logoBase64(p) {
+    if (!p) return null;
+    return this._loadImage(`http://localhost:3000/${p}`);
+  },
+  async bgBase64() {
+    const raw = await this._loadImage('http://localhost:3000/uploads/bg_pdf.png');
+    if (!raw) return null;
+    return await new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const tW = 248, tH = 1188;
+        const canvas = document.createElement('canvas');
+        canvas.width = tW; canvas.height = tH;
+        const ctx = canvas.getContext('2d');
+        const srcAR = img.naturalWidth / img.naturalHeight;
+        const dstAR = tW / tH;
+        let sx, sy, sw, sh;
+        if (srcAR > dstAR) {
+          sh = img.naturalHeight; sw = sh * dstAR;
+          sx = (img.naturalWidth - sw) / 2; sy = 0;
+        } else {
+          sw = img.naturalWidth; sh = sw / dstAR;
+          sx = 0; sy = (img.naturalHeight - sh) / 2;
+        }
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, tW, tH);
+        resolve(canvas.toDataURL('image/jpeg', 0.88));
+      };
+      img.onerror = () => resolve(null);
+      img.src = raw;
+    });
+  },
+};
+
+async function gerarPDFProposta() {
+  // Usa _detId se disponível (painel detalhe), senão wizId
+  const id = _detId || wizId;
+  if (!id) { toast('Nenhum orçamento selecionado','warning'); return; }
+  try {
+    const [o, cfg] = await Promise.all([
+      Api.get(`/orcamentos/${id}`),
+      Api.get('/admin/configuracoes-loja').catch(() => ({})),
+    ]);
+    const [logoB64, bgB64] = await Promise.all([PDF_ORC.logoBase64(cfg.logo_path), PDF_ORC.bgBase64()]);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+    const O = PDF_ORC;
+    const { X, W } = O;
+    const R = X + W;
+    const fmt = v => `R$ ${(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+
+    if (bgB64) { try { doc.addImage(bgB64, 'JPEG', 0, 0, O.PL, 297, '', 'FAST'); } catch {} }
+    try { doc.setGState(new doc.GState({ opacity: 0.68 })); } catch {}
+    doc.setFillColor(15, 10, 5);
+    doc.rect(0, 0, O.PL, 297, 'F');
+    try { doc.setGState(new doc.GState({ opacity: 1 })); } catch {}
+    doc.setFillColor(...O.OURO);
+    doc.rect(O.PL - 1, 0, 1, 297, 'F');
+
+    const gmW = 18;
+    doc.setFont('times', 'bold'); doc.setFontSize(27);
+    doc.setTextColor(...O.TEXTO);
+    doc.text('GM', X, 31);
+    doc.setDrawColor(208, 203, 195); doc.setLineWidth(0.4);
+    doc.line(X + gmW + 5, 19, X + gmW + 5, 38);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+    doc.text(cfg.nome_empresa || 'GM MÓBILE', X + gmW + 10, 27.5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+    doc.setTextColor(...O.MUTED);
+    doc.text('MÓVEIS PLANEJADOS', X + gmW + 10, 34.5);
+    let ry = 23;
+    if (cfg.cnpj) {
+      doc.setFillColor(...O.OURO);
+      doc.circle(R - 68 + 1.5, ry - 1.5 + 1.5, 1.5, 'F');
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+      doc.setTextColor(...O.MUTED);
+      doc.text(`CNPJ: ${cfg.cnpj}`, R - 63, ry); ry += 9;
+    }
+    if (cfg.email) {
+      doc.setFillColor(...O.OURO);
+      doc.circle(R - 68 + 1.5, ry - 1.5 + 1.5, 1.5, 'F');
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+      doc.setTextColor(...O.MUTED);
+      doc.text(cfg.email, R - 63, ry); ry += 7;
+    }
+    doc.setFillColor(...O.OURO);
+    doc.rect(R - 22, ry + 3, 17, 0.6, 'F');
+    doc.setDrawColor(...O.LINHA); doc.setLineWidth(0.3);
+    doc.line(X, 45, R, 45);
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(22);
+    doc.setTextColor(...O.TEXTO);
+    doc.text('PROPOSTA COMERCIAL', X, 64);
+    doc.setFillColor(...O.OURO);
+    doc.rect(X, 67.5, 22, 1.5, 'F');
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...O.MUTED);
+    doc.text('Nº ', X, 77);
+    const nw = doc.getTextWidth('Nº ');
+    doc.setTextColor(...O.OURO); doc.setFont('helvetica', 'bold');
+    doc.text(o.numero, X + nw, 77);
+    const numW = doc.getTextWidth(o.numero);
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(...O.MUTED);
+    doc.text(`   |   Emitido em ${new Date().toLocaleDateString('pt-BR')}`, X + nw + numW, 77);
+    doc.setDrawColor(...O.LINHA); doc.line(X, 83, R, 83);
+
+    const infoY = 92, divX = X + 65;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...O.TEXTO);
+    doc.text('CLIENTE', X, infoY);
+    doc.setFillColor(...O.OURO); doc.rect(X, infoY + 2.5, 12, 0.7, 'F');
+    doc.setFont('times', 'bold'); doc.setFontSize(13); doc.setTextColor(...O.TEXTO);
+    const nomeLinhas = doc.splitTextToSize(o.cliente_nome || '—', divX - X - 6);
+    let cy = infoY + 14;
+    nomeLinhas.forEach(l => { doc.text(l, X, cy); cy += 8; });
+    [o.vendedor_nome && `Vendedor: ${o.vendedor_nome}`, o.condicao_pagamento && `Pgto: ${o.condicao_pagamento}`].filter(Boolean).forEach(l => {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...O.MUTED);
+      cy += 2; doc.text(l, X, cy); cy += 6;
+    });
+    const divH = Math.max(cy - infoY + 10, 65);
+    doc.setDrawColor(...O.LINHA); doc.line(divX, infoY - 5, divX, infoY + divH);
+    const rx = divX + 8;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...O.TEXTO);
+    doc.text('SITUAÇÃO', rx, infoY);
+    doc.setFillColor(...O.OURO); doc.rect(rx, infoY + 2.5, 12, 0.7, 'F');
+    const camposSit = [
+      { label:'Status',   valor: o.status?.toUpperCase() || '—' },
+      { label:'Validade', valor: o.validade_dias ? `${o.validade_dias} dias` : '—' },
+    ];
+    let dy = infoY + 13;
+    camposSit.forEach(({ label: lbl, valor }, i) => {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...O.MUTED);
+      doc.text(lbl, rx, dy); dy += 5.5;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...O.TEXTO);
+      doc.text(valor, rx, dy); dy += 5;
+      if (i < camposSit.length - 1) {
+        doc.setDrawColor(...O.LINHA); doc.line(rx, dy + 2.5, R - 2, dy + 2.5); dy += 8;
+      }
+    });
+    let nextY = infoY + divH + 6;
+
+    const itens = o.itens || [];
+    if (itens.length) {
+      doc.autoTable({
+        startY: nextY,
+        head: [['Ambiente', 'Descrição', 'Material', 'Cor', 'Qtd', 'Unit.', 'Total']],
+        body: itens.map(i => [
+          i.ambiente || '—', i.descricao || '—', i.material || '—', i.cor || '—',
+          i.quantidade || 1, fmt(i.valor_unitario),
+          fmt(i.valor_total ?? (i.quantidade||1)*i.valor_unitario),
+        ]),
+        headStyles: { fillColor:[26,20,12], textColor:O.OURO, fontStyle:'bold', fontSize:8 },
+        bodyStyles: { fontSize:8.5, textColor:O.TEXTO },
+        alternateRowStyles: { fillColor:[248,247,244] },
+        columnStyles: {
+          0:{cellWidth:18}, 1:{cellWidth:38}, 2:{cellWidth:20},
+          3:{cellWidth:18}, 4:{cellWidth:8,halign:'center'}, 5:{cellWidth:18,halign:'right'}, 6:{cellWidth:14,halign:'right'},
+        },
+        margin: { left:X, right:210-(X+W) },
+        tableLineColor:O.LINHA, tableLineWidth:0.15,
+      });
+      nextY = doc.lastAutoTable.finalY + 6;
+    }
+
+    const sub  = itens.reduce((s, i) => s + ((i.quantidade||1)*i.valor_unitario), 0);
+    const desc = o.desconto || 0;
+    const fret = o.frete || 0;
+    const mont = o.montagem || 0;
+    const total = sub + fret + mont - desc;
+    nextY += 4;
+    doc.setFillColor(...O.BG); doc.rect(X, nextY, W, 40, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...O.OURO);
+    doc.text('VALOR TOTAL DO PROJETO', X + 8, nextY + 11);
+    doc.setFillColor(...O.OURO); doc.rect(X + 8, nextY + 13.5, 10, 0.7, 'F');
+    doc.setFont('times', 'bold'); doc.setFontSize(20); doc.setTextColor(...O.TEXTO);
+    doc.text(fmt(total), X + 8, nextY + 31);
+    if (desc > 0 || fret > 0 || mont > 0) {
+      let fy = nextY + 16;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...O.MUTED);
+      if (fret > 0) { doc.text(`Frete: +${fmt(fret)}`, R - 4, fy, { align:'right' }); fy += 7; }
+      if (mont > 0) { doc.text(`Montagem: +${fmt(mont)}`, R - 4, fy, { align:'right' }); fy += 7; }
+      if (desc > 0) { doc.setTextColor(175, 55, 55); doc.text(`Desconto: -${fmt(desc)}`, R - 4, fy, { align:'right' }); }
+    }
+    nextY += 44;
+
+    if (o.observacoes) {
+      nextY += 4;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...O.MUTED);
+      doc.text('OBSERVAÇÕES', X, nextY + 8);
+      doc.setFillColor(...O.OURO); doc.rect(X, nextY + 10.5, 12, 0.7, 'F');
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...O.MUTED);
+      const obsL = doc.splitTextToSize(o.observacoes, W - 4);
+      doc.text(obsL, X, nextY + 17);
+      nextY += 17 + obsL.length * 5.5;
+    }
+
+    const assiY = Math.min(nextY + 20, 258);
+    const mid = X + W / 2;
+    doc.setDrawColor(...O.LINHA); doc.setLineWidth(0.3);
+    doc.line(mid, assiY - 14, mid, assiY + 7);
+    doc.line(X, assiY, mid - 8, assiY);
+    doc.line(mid + 8, assiY, R, assiY);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...O.MUTED);
+    doc.text('Assinatura do Cliente',   X + (mid - X - 8) / 2,    assiY + 5, { align:'center' });
+    doc.text('Responsável — GM MÓBILE', mid + 8 + (R - mid - 8) / 2, assiY + 5, { align:'center' });
+
+    const emp    = cfg.nome_empresa || 'GM MÓBILE';
+    const cidade = [cfg.cidade, cfg.estado].filter(Boolean).join(', ');
+    doc.setFillColor(...O.OURO); doc.rect(X, 271, W, 0.5, 'F');
+    doc.setFillColor(...O.OURO); doc.circle(X + 3, 279.5, 2.2, 'F');
+    doc.setFillColor(255,255,255); doc.circle(X + 3, 279.8, 0.9, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...O.TEXTO);
+    const empL = `  ${emp}`;
+    doc.text(empL, X + 8, 280);
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(...O.MUTED);
+    const partes = [cidade, `Emitido em ${new Date().toLocaleString('pt-BR')}`].filter(Boolean).join('   |   ');
+    doc.text(`   |   ${partes}`, X + 8 + doc.getTextWidth(empL), 280);
+
+    doc.save(`proposta-${o.numero}.pdf`);
+    toast('PDF gerado!','success');
+  } catch(e) { console.error(e); toast('Erro ao gerar PDF','error'); }
+}
+
+// ── Máscara de moeda (esquerda→direita, estilo natural) ──
+function mascaraMoeda(el) {
+  const cursorPos = el.selectionEnd;
+  const oldLen = el.value.length;
+
+  // Separa parte inteira e decimal (vírgula como separador)
+  const raw = el.value.replace(/[^\d,]/g, '');
+  const partes = raw.split(',');
+  let intStr = partes[0].replace(/^0+(?=\d)/, '') || '';
+  const temVirgula = partes.length > 1;
+  const decStr = temVirgula ? partes[1].slice(0, 2) : null;
+
+  // Formata milhar com ponto
+  const intFmt = intStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const novoVal = decStr !== null ? `${intFmt},${decStr}` : intFmt;
+  el.value = novoVal;
+
+  // Guarda valor numérico
+  const numStr = intStr + (decStr !== null ? '.' + decStr : '');
+  el.dataset.value = parseFloat(numStr) || 0;
+
+  // Restaura cursor ajustando pela diferença de tamanho
+  const diff = novoVal.length - oldLen;
+  try { el.setSelectionRange(cursorPos + diff, cursorPos + diff); } catch {}
+}
+
+function focusMoeda(el) {
+  // Remove o ",00" ao entrar no campo para facilitar edição
+  if (el.value === '0,00' || el.value === '0') el.value = '';
+}
+
+function blurMoeda(el) {
+  const raw = el.value.replace(/[^\d,]/g, '');
+  if (!raw) { el.value = '0,00'; el.dataset.value = '0'; return; }
+  const partes = raw.split(',');
+  const intStr = partes[0].replace(/^0+(?=\d)/, '') || '0';
+  const decStr = (partes[1] || '').padEnd(2, '0').slice(0, 2);
+  const intFmt = intStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  el.value = `${intFmt},${decStr}`;
+  el.dataset.value = parseFloat(intStr + '.' + decStr) || 0;
+}
+
+function getValMoeda(id) {
+  const el = document.getElementById(id);
+  return el ? (parseFloat(el.dataset.value) || 0) : 0;
+}
+
+function initMoeda(id, valor = 0) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.dataset.value = valor;
+  if (valor > 0) {
+    const intStr = Math.floor(valor).toString();
+    const dec = (valor % 1).toFixed(2).slice(2);
+    el.value = intStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec;
+  } else {
+    el.value = '0,00';
+  }
+}
+
+// Fecha dropdown ao clicar fora
+document.addEventListener('click', e => {
+  if (!e.target.closest('.client-search-wrap')) {
+    document.getElementById('clienteDropdown').className = 'client-dropdown';
+  }
+});
+
+init();
+</script>
+</body>
+</html>

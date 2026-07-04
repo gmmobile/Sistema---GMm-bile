@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Radar de Prazos — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .radar-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+      user-select: none;
+    }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+    .stat-card.ativo.todos    { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+    .stat-card.ativo.atrasado { border-color: #ef4444;        box-shadow: 0 0 0 3px rgba(239,68,68,0.12); }
+    .stat-card.ativo.urgente  { border-color: #f59e0b;        box-shadow: 0 0 0 3px rgba(245,158,11,0.12); }
+    .stat-card.ativo.ok       { border-color: #10b981;        box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
+
+    .stat-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .stat-icon svg { width: 20px; height: 20px; }
+    .stat-icon.todos    { background: rgba(99,102,241,0.12); color: var(--primary); }
+    .stat-icon.atrasado { background: rgba(239,68,68,0.12);  color: #ef4444; }
+    .stat-icon.urgente  { background: rgba(245,158,11,0.12); color: #f59e0b; }
+    .stat-icon.ok       { background: rgba(16,185,129,0.12); color: #10b981; }
+
+    .stat-num   { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
+    .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
+
+    /* Lista */
+    .radar-row {
+      display: grid;
+      grid-template-columns: 3px 36px 1fr auto auto auto;
+      align-items: center;
+      gap: 0 14px;
+      padding: 14px 20px 14px 0;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .radar-row:last-child { border-bottom: none; }
+    .radar-row:hover { background: var(--bg-card2); }
+
+    .row-bar { align-self: stretch; border-radius: 0; }
+    .row-bar.atrasado { background: #ef4444; }
+    .row-bar.urgente  { background: #f59e0b; }
+    .row-bar.ok       { background: #10b981; }
+
+    .row-type-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .row-type-icon svg { width: 15px; height: 15px; }
+    .row-type-icon.pedido      { background: rgba(99,102,241,0.1); color: var(--primary); }
+    .row-type-icon.assistencia { background: rgba(245,158,11,0.1);  color: #f59e0b; }
+
+    .row-info { min-width: 0; }
+    .row-cliente { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row-detalhe { font-size: 11px; color: var(--text-muted); margin-top: 2px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .etapa-tag { font-size:10px; font-weight:700; padding:2px 7px; border-radius:99px; background:rgba(196,162,74,0.15); color:#C4A24A; white-space:nowrap; }
+
+    .row-status {
+      font-size: 11px; font-weight: 600; padding: 3px 9px;
+      border-radius: 99px; white-space: nowrap;
+      background: var(--bg-card2); color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .row-data { font-size: 12px; color: var(--text-muted); white-space: nowrap; text-align: right; }
+    .row-data strong { display: block; font-size: 13px; color: var(--text); font-weight: 600; }
+
+    .dias-badge {
+      min-width: 100px; text-align: center;
+      padding: 6px 12px; border-radius: 10px;
+      font-size: 12px; font-weight: 700; white-space: nowrap;
+    }
+    .dias-badge.atrasado { background: rgba(239,68,68,0.12);  color: #ef4444; }
+    .dias-badge.urgente  { background: rgba(245,158,11,0.12); color: #f59e0b; }
+    .dias-badge.ok       { background: rgba(16,185,129,0.12); color: #10b981; }
+
+    /* Calendário */
+    .cal-wrap { padding: 20px; }
+    .cal-nav {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+    }
+    .cal-nav strong { font-size: 14px; font-weight: 600; color: var(--text); }
+    .cal-nav-btn {
+      width: 28px; height: 28px; border-radius: 7px;
+      border: 1px solid var(--border); background: var(--bg-card2);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--text-muted); transition: background 0.15s, color 0.15s;
+    }
+    .cal-nav-btn:hover { background: var(--bg); color: var(--text); }
+    .cal-nav-btn svg { width: 14px; height: 14px; }
+
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+    .cal-dia-nome {
+      text-align: center; font-size: 10px; font-weight: 600;
+      color: var(--text-muted); padding: 4px 0 8px;
+    }
+    .cal-dia {
+      aspect-ratio: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      border-radius: 7px; font-size: 12px; color: var(--text-muted);
+    }
+    .cal-dia.outro-mes { opacity: 0.28; }
+    .cal-dia.hoje      { background: var(--primary); color: #fff; font-weight: 700; }
+    .cal-dia.tem-evento { color: var(--text); font-weight: 600; }
+    .cal-dot {
+      width: 5px; height: 5px; border-radius: 50%; margin-top: 2px;
+    }
+    .cal-dot.pedido     { background: var(--primary); }
+    .cal-dot.assistencia { background: #f59e0b; }
+    .cal-dot.ambos      { background: linear-gradient(90deg, var(--primary) 50%, #f59e0b 50%); }
+
+    .cal-legenda {
+      display: flex; gap: 16px; margin-top: 14px;
+      padding-top: 14px; border-top: 1px solid var(--border);
+    }
+    .cal-leg-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
+    .cal-leg-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .empty-state { padding: 48px 20px; text-align: center; }
+    .empty-state svg { width: 40px; height: 40px; color: var(--text-dim); margin-bottom: 12px; }
+    .empty-state h3 { font-size: 15px; color: var(--text-muted); font-weight: 600; }
+    .empty-state p  { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+    @media (max-width:900px) {
+      .radar-stats { grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom:12px; }
+      .stat-card   { padding: 10px 12px; border-radius:10px; }
+      .stat-num    { font-size: 20px !important; }
+      .stat-label  { font-size: 10px; }
+      .main-grid   { grid-template-columns: 1fr; }
+      .radar-row   { grid-template-columns: 3px 30px 1fr auto auto; gap: 0 8px; padding: 10px 14px 10px 0; }
+      .row-status  { display: none; }
+      .dias-badge  { min-width: 70px; padding: 4px 8px; font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()"></button>
+        <div class="topbar-breadcrumb">
+          <a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a>
+          &nbsp;/&nbsp;<strong>Radar de Prazos</strong>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-ghost" onclick="carregar()" style="gap:6px;font-size:13px">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+          Atualizar
+        </button>
+        <div class="topbar-btn"></div>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title">
+          <h1>Radar de Prazos</h1>
+          <p>Acompanhe entregas e assistências em tempo real</p>
+        </div>
+      </div>
+
+      <!-- Cards de resumo -->
+      <div class="radar-stats">
+        <div class="stat-card todos ativo" id="cardTodos" onclick="setFiltro('todos')">
+          <div class="stat-icon todos">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+          </div>
+          <div>
+            <div class="stat-num" id="numTotal">—</div>
+            <div class="stat-label">Total em aberto</div>
+          </div>
+        </div>
+        <div class="stat-card atrasado" id="cardAtrasado" onclick="setFiltro('atrasado')">
+          <div class="stat-icon atrasado">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div>
+            <div class="stat-num" id="numAtrasados">—</div>
+            <div class="stat-label">Atrasados</div>
+          </div>
+        </div>
+        <div class="stat-card urgente" id="cardUrgente" onclick="setFiltro('urgente')">
+          <div class="stat-icon urgente">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div>
+            <div class="stat-num" id="numUrgentes">—</div>
+            <div class="stat-label">Urgentes (≤7 dias)</div>
+          </div>
+        </div>
+        <div class="stat-card ok" id="cardOk" onclick="setFiltro('ok')">
+          <div class="stat-icon ok">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div>
+            <div class="stat-num" id="numOk">—</div>
+            <div class="stat-label">No prazo</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-grid">
+        <!-- Lista -->
+        <div class="table-wrap">
+          <div class="table-header">
+            <h3>
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+              <span id="listaTitulo">Todos os itens</span>
+            </h3>
+            <span id="listaCount" class="text-muted" style="font-size:13px"></span>
+          </div>
+          <div id="radarLista">
+            <div class="empty-state">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+              <h3>Carregando...</h3>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calendário -->
+        <div class="table-wrap">
+          <div class="table-header">
+            <h3>
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Calendário
+            </h3>
+          </div>
+          <div class="cal-wrap">
+            <div class="cal-nav">
+              <button class="cal-nav-btn" onclick="mudaMes(-1)">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <strong id="calTitulo"></strong>
+              <button class="cal-nav-btn" onclick="mudaMes(1)">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+            <div class="cal-grid" id="calGrid"></div>
+            <div class="cal-legenda">
+              <div class="cal-leg-item">
+                <div class="cal-leg-dot" style="background:var(--primary)"></div> Pedido
+              </div>
+              <div class="cal-leg-item">
+                <div class="cal-leg-dot" style="background:#f59e0b"></div> Assistência
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+
+let filtroAtivo = 'todos';
+let calMes = new Date().getMonth() + 1;
+let calAno  = new Date().getFullYear();
+
+const STATUS_LABEL = {
+  confirmado: 'Confirmado', medicao: 'Medição', projeto: 'Projeto',
+  producao: 'Produção', pronto: 'Pronto', entrega: 'Entrega', instalacao: 'Instalação',
+  aberto: 'Aberto', analise: 'Análise', agendado: 'Agendado', execucao: 'Execução',
+};
+
+const ETAPA_LABEL = {
+  medicao: 'Medição', projeto: 'Projeto', aprovacao: 'Aprovação',
+  producao: 'Produção', pronto: 'Pronto', entrega: 'Entrega', instalacao: 'Instalação',
+};
+
+const SVG_PEDIDO = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`;
+const SVG_ASSIST = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
+
+function diasLabel(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  if (n === 0)  return 'Hoje';
+  if (n < 0)    return `${Math.abs(n)}d em atraso`;
+  if (n === 1)  return 'Amanhã';
+  return `${n} dias`;
+}
+
+function fmtData(str) {
+  if (!str) return '—';
+  const parts = str.slice(0, 10).split('-');
+  if (parts.length !== 3 || parts.some(p => !p || isNaN(p))) return '—';
+  const [a, m, d] = parts;
+  return `${d}/${m}/${a}`;
+}
+
+function renderLista(itens) {
+  const el = document.getElementById('radarLista');
+  document.getElementById('listaCount').textContent = `${itens.length} item(ns)`;
+
+  if (!itens.length) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <h3>Nenhum item encontrado</h3>
+        <p>Tudo certo para este filtro.</p>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = itens.map(item => {
+    const isPedido = item.tipo === 'pedido';
+    const detalhe  = isPedido
+      ? `Pedido ${item.numero}${item.vendedor_nome ? ' · ' + item.vendedor_nome : ''}`
+      : `Assistência ${item.numero}${item.tipo_problema ? ' · ' + item.tipo_problema : ''}`;
+    const info2 = isPedido
+      ? moeda(item.valor_final || 0)
+      : `Urgência: ${item.urgencia || '—'}`;
+    const etapaTag = isPedido && item.etapa_producao
+      ? `<span class="etapa-tag">${ETAPA_LABEL[item.etapa_producao] || item.etapa_producao}</span>`
+      : '';
+
+    return `
+      <div class="radar-row">
+        <div class="row-bar ${item.situacao}"></div>
+        <div class="row-type-icon ${item.tipo}">${isPedido ? SVG_PEDIDO : SVG_ASSIST}</div>
+        <div class="row-info">
+          <div class="row-cliente">${item.cliente_nome || '—'}</div>
+          <div class="row-detalhe">${detalhe}${etapaTag}</div>
+        </div>
+        <span class="row-status">${STATUS_LABEL[item.status] || item.status}</span>
+        <div class="row-data">
+          <strong>${fmtData(item.data_prevista_entrega)}</strong>
+          ${info2}
+        </div>
+        <div class="dias-badge ${item.situacao}">${diasLabel(item.dias_restantes)}</div>
+      </div>`;
+  }).join('');
+}
+
+function setFiltro(f) {
+  filtroAtivo = f;
+  document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('ativo'));
+  const ids = { todos: 'cardTodos', atrasado: 'cardAtrasado', urgente: 'cardUrgente', ok: 'cardOk' };
+  document.getElementById(ids[f]).classList.add('ativo');
+  const labels = { todos: 'Todos os itens', atrasado: 'Atrasados', urgente: 'Urgentes', ok: 'No prazo' };
+  document.getElementById('listaTitulo').textContent = labels[f];
+  carregar();
+}
+
+async function carregar() {
+  try {
+    const params = filtroAtivo !== 'todos' ? `?filtro=${filtroAtivo}` : '';
+    const data = await Api.get(`/radar${params}`);
+    document.getElementById('numTotal').textContent     = data.resumo.total;
+    document.getElementById('numAtrasados').textContent = data.resumo.atrasados;
+    document.getElementById('numUrgentes').textContent  = data.resumo.urgentes;
+    document.getElementById('numOk').textContent        = data.resumo.ok;
+    renderLista(data.itens);
+  } catch(e) {
+    toast('Erro ao carregar radar', 'error');
+  }
+}
+
+// ── Calendário ──
+async function renderCalendario() {
+  const mStr   = String(calMes).padStart(2, '0');
+  const meses  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  document.getElementById('calTitulo').textContent = `${meses[calMes - 1]} ${calAno}`;
+
+  let evs = { pedidos: [], assistencias: [] };
+  try { evs = await Api.get(`/radar/calendario?mes=${mStr}&ano=${calAno}`); } catch(e) {}
+
+  const dias = {};
+  (evs.pedidos || []).forEach(p => {
+    const d = p.data_prevista_entrega?.slice(8, 10);
+    if (!d) return;
+    dias[d] = dias[d] || { p: 0, a: 0 };
+    dias[d].p++;
+  });
+  (evs.assistencias || []).forEach(a => {
+    const d = a.data_prevista_entrega?.slice(8, 10);
+    if (!d) return;
+    dias[d] = dias[d] || { p: 0, a: 0 };
+    dias[d].a++;
+  });
+
+  const hoje       = new Date();
+  const primeiroDia = new Date(calAno, calMes - 1, 1).getDay();
+  const totalDias   = new Date(calAno, calMes, 0).getDate();
+  const diasMesAnt  = new Date(calAno, calMes - 1, 0).getDate();
+
+  const nomes = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  let html = nomes.map(n => `<div class="cal-dia-nome">${n}</div>`).join('');
+
+  for (let i = 0; i < primeiroDia; i++) {
+    html += `<div class="cal-dia outro-mes">${diasMesAnt - primeiroDia + 1 + i}</div>`;
+  }
+
+  for (let d = 1; d <= totalDias; d++) {
+    const dStr   = String(d).padStart(2, '0');
+    const isHoje = hoje.getFullYear() === calAno && hoje.getMonth() + 1 === calMes && hoje.getDate() === d;
+    const ev     = dias[dStr];
+    let dot = '';
+    if (ev) {
+      const tipo = ev.p > 0 && ev.a > 0 ? 'ambos' : ev.p > 0 ? 'pedido' : 'assistencia';
+      dot = `<div class="cal-dot ${tipo}"></div>`;
+    }
+    html += `<div class="cal-dia${isHoje ? ' hoje' : ''}${ev ? ' tem-evento' : ''}">${d}${dot}</div>`;
+  }
+
+  const restantes = (7 - ((primeiroDia + totalDias) % 7)) % 7;
+  for (let i = 1; i <= restantes; i++) {
+    html += `<div class="cal-dia outro-mes">${i}</div>`;
+  }
+
+  document.getElementById('calGrid').innerHTML = html;
+}
+
+function mudaMes(delta) {
+  calMes += delta;
+  if (calMes > 12) { calMes = 1; calAno++; }
+  if (calMes < 1)  { calMes = 12; calAno--; }
+  renderCalendario();
+}
+
+carregar();
+renderCalendario();
+</script>
+</body>
+</html>

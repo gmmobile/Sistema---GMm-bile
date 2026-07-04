@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GM MÓBILE — Login</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg">
+  <link rel="shortcut icon" href="/assets/img/favicon.svg">
+  <link rel="stylesheet" href="/assets/css/global.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      background: var(--bg);
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    }
+
+    /* ── LADO ESQUERDO ── */
+    .login-left {
+      flex: 1;
+      background: linear-gradient(145deg, #0d1117 0%, #161b27 40%, #1a1040 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 48px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Orbs decorativos */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+    }
+    .orb-1 {
+      width: 400px; height: 400px;
+      background: rgba(196,162,74,0.12);
+      top: -80px; left: -80px;
+    }
+    .orb-2 {
+      width: 300px; height: 300px;
+      background: rgba(168,137,58,0.08);
+      bottom: 40px; right: -60px;
+    }
+    .orb-3 {
+      width: 200px; height: 200px;
+      background: rgba(196,162,74,0.06);
+      top: 50%; left: 40%;
+    }
+
+    /* Grid de pontos */
+    .dots-grid {
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+    }
+
+    .left-brand {
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 0;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #C4A24A, #A8893A);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(196,162,74,0.5);
+    }
+
+    .brand-icon svg {
+      width: 22px;
+      height: 22px;
+      color: #fff;
+    }
+
+    .brand-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: rgba(255,255,255,0.4);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* Central da esquerda */
+    .left-center {
+      position: relative;
+      z-index: 1;
+    }
+
+    .left-center h2 {
+      font-size: 38px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.15;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+    }
+
+    .left-center h2 span {
+      background: linear-gradient(90deg, #C4A24A, #D4B860);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .left-center p {
+      font-size: 15px;
+      color: rgba(255,255,255,0.5);
+      line-height: 1.6;
+      max-width: 380px;
+      margin-bottom: 40px;
+    }
+
+    /* Cards de features */
+    .features {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      padding: 14px 18px;
+      backdrop-filter: blur(10px);
+      transition: 0.2s ease;
+    }
+
+    .feature-item:hover {
+      background: rgba(255,255,255,0.07);
+      border-color: rgba(196,162,74,0.3);
+    }
+
+    .feature-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .feature-icon svg { width: 18px; height: 18px; }
+
+    .fi-purple { background: rgba(196,162,74,0.2); color: #D4B860; }
+    .fi-blue   { background: rgba(59,130,246,0.2); color: #60a5fa; }
+    .fi-green  { background: rgba(34,197,94,0.2);  color: #4ade80; }
+    .fi-orange { background: rgba(249,115,22,0.2); color: #fb923c; }
+
+    .feature-text strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.85);
+      margin-bottom: 2px;
+    }
+
+    .feature-text span {
+      font-size: 12px;
+      color: rgba(255,255,255,0.35);
+    }
+
+    /* Rodapé esquerdo */
+    .left-footer {
+      position: relative;
+      z-index: 1;
+      font-size: 12px;
+      color: rgba(255,255,255,0.2);
+    }
+
+    /* ── LADO DIREITO ── */
+    .login-right {
+      width: 480px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 40px;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border);
+    }
+
+    .login-form-wrap {
+      width: 100%;
+      max-width: 360px;
+    }
+
+    .form-header {
+      margin-bottom: 36px;
+    }
+
+    .form-header .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(196,162,74,0.12);
+      border: 1px solid rgba(196,162,74,0.25);
+      color: #D4B860;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 99px;
+      margin-bottom: 20px;
+      letter-spacing: 0.3px;
+    }
+
+    .form-header .tag svg { width: 13px; height: 13px; }
+
+    .form-header h1 {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    .form-header p {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    /* Campos */
+    .field {
+      margin-bottom: 18px;
+    }
+
+    .field label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .field label svg { width: 13px; height: 13px; }
+
+    .field-input {
+      position: relative;
+    }
+
+    .field-input input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: 0.2s ease;
+    }
+
+    .field-input input:focus {
+      border-color: #C4A24A;
+      box-shadow: 0 0 0 4px rgba(196,162,74,0.12);
+    }
+
+    .field-input input::placeholder { color: var(--text-dim); }
+
+    .btn-eye {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      padding: 4px;
+      border-radius: 6px;
+      transition: 0.2s ease;
+    }
+    .btn-eye:hover { color: var(--text); background: var(--bg-card2); }
+    .btn-eye svg { width: 16px; height: 16px; }
+
+    .field-input input[type="password"],
+    .field-input input[type="text"] {
+      padding-right: 42px;
+    }
+
+    /* Erro */
+    .erro-box {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.25);
+      border-left: 3px solid #ef4444;
+      color: #fca5a5;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    .erro-box svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+    /* Botão */
+    .btn-entrar {
+      width: 100%;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #C4A24A 0%, #A8893A 100%);
+      border: none;
+      border-radius: 10px;
+      color: #000;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: 0.2s ease;
+      margin-top: 8px;
+      letter-spacing: 0.2px;
+      box-shadow: 0 4px 16px rgba(196,162,74,0.3);
+    }
+
+    .btn-entrar:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(196,162,74,0.45);
+    }
+
+    .btn-entrar:active { transform: translateY(0); }
+
+    .btn-entrar:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-entrar svg { width: 18px; height: 18px; }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-top-color: #000;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Divisor */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 24px 0;
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Info box */
+    .info-box {
+      background: rgba(196,162,74,0.06);
+      border: 1px solid rgba(196,162,74,0.15);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .info-box svg { width: 16px; height: 16px; color: #C4A24A; flex-shrink: 0; margin-top: 1px; }
+
+    .info-box p { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .info-box strong { color: var(--text); }
+
+    /* Rodapé direito */
+    .right-footer {
+      text-align: center;
+      margin-top: 32px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* Responsivo */
+    @media (max-width: 900px) {
+      .login-left { display: none; }
+      .login-right {
+        width: 100%;
+        border-left: none;
+        background: var(--bg);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ESQUERDA -->
+  <div class="login-left">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="dots-grid"></div>
+
+    <div class="left-brand">
+      <div class="brand-logo">
+        <div id="logoWrap" style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#C4A24A,#a07d30);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h3"/><path d="M14 15h8"/><path d="M14 19h8"/><path d="M18 11v8"/></svg>
+        </div>
+        <div>
+          <div class="brand-name" id="brandName">GM MÓBILE</div>
+          <div class="brand-sub">Móveis Planejados · Mogi das Cruzes</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="left-center">
+      <h2>Design que<br><span>transforma ambientes</span></h2>
+      <p>Gerencie clientes, projetos, prazos e financeiro da GM MÓBILE em uma plataforma integrada.</p>
+
+      <div class="features">
+        <div class="feature-item">
+          <div class="feature-icon fi-purple">
+            <i data-lucide="users"></i>
+          </div>
+          <div class="feature-text">
+            <strong>Clientes & CRM</strong>
+            <span>Pipeline de leads e gestão completa de clientes</span>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon fi-blue">
+            <i data-lucide="clock"></i>
+          </div>
+          <div class="feature-text">
+            <strong>Radar de Prazos</strong>
+            <span>Controle total de entregas e etapas dos projetos</span>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon fi-green">
+            <i data-lucide="wallet"></i>
+          </div>
+          <div class="feature-text">
+            <strong>Financeiro Completo</strong>
+            <span>Fluxo de caixa, contas a pagar e receber</span>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon fi-orange">
+            <i data-lucide="bar-chart-2"></i>
+          </div>
+          <div class="feature-text">
+            <strong>Dashboard & Metas</strong>
+            <span>KPIs em tempo real e ranking de vendedores</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="left-footer">
+      &copy; 2026 GM MÓBILE — Todos os direitos reservados
+    </div>
+  </div>
+
+  <!-- DIREITA -->
+  <div class="login-right">
+    <div class="login-form-wrap">
+
+      <div class="form-header">
+        <div class="tag">
+          <i data-lucide="shield-check"></i>
+          Acesso seguro
+        </div>
+        <h1>Entrar na conta</h1>
+        <p>Informe suas credenciais para acessar o sistema</p>
+      </div>
+
+      <div class="erro-box" id="erroBox">
+        <i data-lucide="alert-circle"></i>
+        <span id="erroTexto"></span>
+      </div>
+
+      <form id="formLogin">
+        <div class="field">
+          <label for="email">
+            <i data-lucide="mail"></i>
+            E-mail
+          </label>
+          <div class="field-input">
+            <input
+              type="email"
+              id="email"
+              placeholder="seu@email.com"
+              autocomplete="email"
+              required
+            >
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="senha">
+            <i data-lucide="lock"></i>
+            Senha
+          </label>
+          <div class="field-input">
+            <input
+              type="password"
+              id="senha"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              required
+            >
+            <button type="button" class="btn-eye" id="btnToggle" onclick="toggleSenha()">
+              <i data-lucide="eye" id="iconOlho"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-entrar" id="btnLogin">
+          <span class="spinner" id="spinner"></span>
+          <i data-lucide="log-in" id="iconEntrar"></i>
+          <span id="btnTexto">Entrar no Sistema</span>
+        </button>
+      </form>
+
+      <div class="divider">credenciais padrão</div>
+
+      <div class="info-box">
+        <i data-lucide="info"></i>
+        <p>
+          E-mail: <strong>admin@sistema.com</strong><br>
+          Senha: <strong>admin123</strong><br>
+          Altere após o primeiro acesso.
+        </p>
+      </div>
+
+      <div class="right-footer">
+        GM MÓBILE &copy; 2026
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script>
+    lucide.createIcons();
+
+    const API = window.location.origin + '/api';
+
+    // Carrega logo e nome da empresa da API (rota pública)
+    fetch(API + '/admin/configuracoes-loja')
+      .then(r => r.ok ? r.json() : null)
+      .then(cfg => {
+        if (!cfg) return;
+        if (cfg.nome_empresa) document.getElementById('brandName').textContent = cfg.nome_empresa;
+        if (cfg.logo_path) {
+          const logoSrc = cfg.logo_path.startsWith('http') ? cfg.logo_path : `${window.location.origin}/${cfg.logo_path}`;
+          document.getElementById('logoWrap').innerHTML =
+            `<img src="${logoSrc}" alt="${cfg.nome_empresa||'Logo'}" style="width:48px;height:48px;object-fit:contain;border-radius:10px;">`;
+        }
+      }).catch(() => {});
+
+    if (localStorage.getItem('token')) {
+      window.location.href = 'pages/dashboard.html';
+    }
+
+    let senhaVisivel = false;
+
+    function toggleSenha() {
+      senhaVisivel = !senhaVisivel;
+      document.getElementById('senha').type = senhaVisivel ? 'text' : 'password';
+      document.getElementById('btnToggle').innerHTML = senhaVisivel
+        ? '<i data-lucide="eye-off"></i>'
+        : '<i data-lucide="eye"></i>';
+      lucide.createIcons();
+    }
+
+    function mostrarErro(msg) {
+      document.getElementById('erroTexto').textContent = msg;
+      document.getElementById('erroBox').style.display = 'flex';
+    }
+
+    function ocultarErro() {
+      document.getElementById('erroBox').style.display = 'none';
+    }
+
+    document.getElementById('formLogin').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      ocultarErro();
+
+      const btn     = document.getElementById('btnLogin');
+      const spinner = document.getElementById('spinner');
+      const texto   = document.getElementById('btnTexto');
+      const icon    = document.getElementById('iconEntrar');
+
+      btn.disabled = true;
+      spinner.style.display = 'block';
+      icon.style.display = 'none';
+      texto.textContent = 'Entrando...';
+
+      try {
+        const res = await fetch(`${API}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('email').value,
+            senha: document.getElementById('senha').value
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          mostrarErro(data.erro || 'Credenciais inválidas');
+          return;
+        }
+
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('usuario', JSON.stringify(data.usuario));
+
+        texto.textContent = 'Redirecionando...';
+        btn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+
+        setTimeout(() => {
+          window.location.href = 'pages/dashboard.html';
+        }, 600);
+
+      } catch {
+        mostrarErro('Não foi possível conectar ao servidor.');
+      } finally {
+        btn.disabled = false;
+        spinner.style.display = 'none';
+        icon.style.display = '';
+        if (texto.textContent === 'Entrando...') texto.textContent = 'Entrar no Sistema';
+      }
+    });
+  </script>
+</body>
+</html>

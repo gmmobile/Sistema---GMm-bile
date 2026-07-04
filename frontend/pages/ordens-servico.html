@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ordens de Serviço — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .stat-cards { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:24px; }
+    .stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+    .stat-card .label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px; }
+    .stat-card .valor { font-size:20px; font-weight:800; color:var(--text); }
+
+    .action-bar { display:flex; gap:10px; align-items:center; margin-bottom:18px; flex-wrap:wrap; }
+    .action-bar input { flex:1; min-width:200px; }
+
+    .tabela-os { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .tabela-os table { width:100%; border-collapse:collapse; }
+    .tabela-os thead th { padding:11px 14px; text-align:left; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); background:var(--bg-card2); border-bottom:1px solid var(--border); white-space:nowrap; }
+    .tabela-os tbody tr { border-bottom:1px solid rgba(51,65,85,.5); transition:.1s; cursor:pointer; }
+    .tabela-os tbody tr:last-child { border-bottom:none; }
+    .tabela-os tbody tr:hover { background:rgba(255,255,255,.025); }
+    .tabela-os td { padding:12px 14px; font-size:13px; color:var(--text); vertical-align:middle; }
+
+    /* Status */
+    .s-pendente    { background:rgba(245,158,11,.15); color:#fbbf24; }
+    .s-em_andamento{ background:rgba(99,102,241,.15); color:#818cf8; }
+    .s-concluido   { background:rgba(34,197,94,.15);  color:#22c55e; }
+    .s-cancelado   { background:rgba(100,116,139,.15);color:#94a3b8; }
+
+    /* Tipo */
+    .t-instalacao { color:#818cf8; }
+    .t-manutencao { color:#fbbf24; }
+    .t-visita     { color:#94a3b8; }
+    .t-entrega    { color:#22c55e; }
+
+    /* Painel */
+    .painel-os { position:fixed; right:0; top:0; height:100vh; width:480px; background:var(--bg-card); border-left:1px solid var(--border); z-index:300; transform:translateX(100%); transition:.3s ease; display:flex; flex-direction:column; }
+    .painel-os.open { transform:translateX(0); }
+    .painel-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:299; opacity:0; pointer-events:none; transition:.3s; }
+    .painel-overlay.open { opacity:1; pointer-events:auto; }
+    .os-header { padding:18px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+    .os-body { flex:1; overflow-y:auto; padding:20px; }
+    .os-footer { padding:14px 20px; border-top:1px solid var(--border); display:flex; gap:8px; flex-wrap:wrap; }
+    .info-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+    .info-item label { font-size:11px; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:3px; }
+    .info-item span { font-size:13px; color:var(--text); }
+
+    .status-btns { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+    .obs-box { background:var(--bg-card2); border:1px solid var(--border); border-radius:8px; padding:12px; font-size:13px; color:var(--text-muted); margin-top:8px; }
+    @media (max-width:900px) {
+      .stat-cards  { grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom:12px; }
+      .stat-card   { padding: 10px 12px; border-radius:10px; }
+      .stat-card .valor { font-size: 16px !important; }
+      .stat-card .label { font-size: 10px; }
+      .info-row    { grid-template-columns: 1fr; gap: 8px; }
+      .painel-os   { width: min(480px, 95vw); }
+      /* Cards: Número+Status(7) linha1, Cliente linha2 */
+      .tabela-os table { min-width: 0; }
+      .tabela-os thead { display: none; }
+      .tabela-os tbody tr {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-rows: auto auto;
+        padding: 8px 10px;
+        gap: 2px 8px;
+        border-bottom: 1px solid rgba(51,65,85,.5);
+      }
+      .tabela-os tbody tr:last-child { border-bottom: none; }
+      .tabela-os td { padding: 0; border: none; }
+      .tabela-os td:nth-child(1) { grid-row:1; grid-column:1; font-size:11px; font-weight:700; color:var(--primary); }
+      .tabela-os td:nth-child(2) { grid-row:2; grid-column:1 / -1; font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .tabela-os td:nth-child(3),
+      .tabela-os td:nth-child(4),
+      .tabela-os td:nth-child(5),
+      .tabela-os td:nth-child(6) { display: none; }
+      .tabela-os td:nth-child(7) { grid-row:1; grid-column:2; font-size:11px; text-align:right; }
+      .tabela-os td:nth-child(8) { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()"><i data-lucide="panel-left-close"></i></button>
+        <div class="topbar-breadcrumb"><a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a> &nbsp;/&nbsp;<strong>Ordens de Serviço</strong></div>
+      </div>
+      <div class="topbar-right"><div class="topbar-btn"><i data-lucide="bell"></i></div></div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title"><h1>Ordens de Serviço</h1><p>Instalações, manutenções e visitas técnicas</p></div>
+        <div class="page-actions">
+          <button class="btn btn-primary" onclick="abrirNovo()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nova OS
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stat-cards">
+        <div class="stat-card"><div class="label">Total</div><div class="valor" id="stTotal">—</div></div>
+        <div class="stat-card"><div class="label">Pendentes</div><div class="valor" id="stPend" style="color:#fbbf24">—</div></div>
+        <div class="stat-card"><div class="label">Em andamento</div><div class="valor" id="stAndamento" style="color:#818cf8">—</div></div>
+        <div class="stat-card"><div class="label">Concluídas</div><div class="valor" id="stConc" style="color:#22c55e">—</div></div>
+        <div class="stat-card"><div class="label">Atrasadas</div><div class="valor" id="stAtr" style="color:#f87171">—</div></div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="action-bar">
+        <input type="text" id="busca" placeholder="Buscar por número ou cliente..." oninput="filtrar()">
+        <select id="fStatus" onchange="carregar()">
+          <option value="">Todos os status</option>
+          <option value="pendente">Pendentes</option>
+          <option value="em_andamento">Em andamento</option>
+          <option value="concluido">Concluídas</option>
+          <option value="cancelado">Canceladas</option>
+        </select>
+        <select id="fTipo" onchange="carregar()">
+          <option value="">Todos os tipos</option>
+          <option value="instalacao">Instalação</option>
+          <option value="manutencao">Manutenção</option>
+          <option value="visita">Visita técnica</option>
+          <option value="entrega">Entrega</option>
+        </select>
+      </div>
+
+      <!-- Tabela -->
+      <div class="tabela-os">
+        <table>
+          <thead>
+            <tr>
+              <th>Número</th>
+              <th>Cliente</th>
+              <th>Tipo</th>
+              <th>Técnico</th>
+              <th>Agendado</th>
+              <th>Pedido</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Overlay + Painel detalhe -->
+<div class="painel-overlay" id="osOverlay" onclick="fecharPainel()"></div>
+<div class="painel-os" id="painelOs">
+  <div class="os-header">
+    <div>
+      <div style="font-size:11px;color:var(--text-muted)">ORDEM DE SERVIÇO</div>
+      <h3 id="osNumero" style="font-size:16px;font-weight:700"></h3>
+    </div>
+    <button class="btn btn-ghost" style="padding:6px" onclick="fecharPainel()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+    </button>
+  </div>
+  <div class="os-body" id="osBody"></div>
+  <div class="os-footer" id="osFooter"></div>
+</div>
+
+<!-- Modal novo/editar OS -->
+<div class="modal-overlay" id="modalOs">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modalTitulo">Nova Ordem de Serviço</h2>
+      <button class="modal-close" onclick="fecharModal()"></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="osId">
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label>Cliente <span class="required">*</span></label>
+          <select id="osCli" style="width:100%" onchange="carregarPedidosCliente()">
+            <option value="">Selecione...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="osTipo">
+            <option value="instalacao">Instalação</option>
+            <option value="manutencao">Manutenção</option>
+            <option value="visita">Visita técnica</option>
+            <option value="entrega">Entrega</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Pedido vinculado</label>
+          <select id="osPedido" style="width:100%">
+            <option value="">Nenhum</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Técnico</label>
+          <select id="osTec" style="width:100%">
+            <option value="">Nenhum</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Data agendada</label>
+        <input type="datetime-local" id="osData">
+      </div>
+      <div class="form-group">
+        <label>Descrição / Serviço a realizar</label>
+        <textarea id="osDesc" rows="2" placeholder="Descreva o serviço..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Itens a instalar / Checklist</label>
+        <textarea id="osItens" rows="3" placeholder="• Armário cozinha&#10;• Painel TV&#10;• Guarda-roupa..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvar()">Salvar OS</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+checkAuth();
+
+let _todos = [];
+let _osAtual = null;
+
+const ST_CLS = { pendente:'s-pendente', em_andamento:'s-em_andamento', concluido:'s-concluido', cancelado:'s-cancelado' };
+const ST_LBL = { pendente:'Pendente', em_andamento:'Em andamento', concluido:'Concluído', cancelado:'Cancelado' };
+const TP_LBL = { instalacao:'Instalação', manutencao:'Manutenção', visita:'Visita', entrega:'Entrega' };
+
+const _SVG_EYE   = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const _SVG_EDIT  = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+const _SVG_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+const _SVG_CHK   = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+async function init() {
+  try {
+    const [clientes, tecnicos] = await Promise.all([
+      Api.get('/clientes'),
+      Api.get('/auth/usuarios?perfil=tecnico'),
+    ]);
+    const selCli = document.getElementById('osCli');
+    clientes.forEach(c => selCli.insertAdjacentHTML('beforeend', `<option value="${c.id}">${c.nome}</option>`));
+    const selTec = document.getElementById('osTec');
+    tecnicos.forEach(t => selTec.insertAdjacentHTML('beforeend', `<option value="${t.id}">${t.nome}</option>`));
+  } catch(e) {}
+  carregar();
+}
+
+async function carregar() {
+  const params = new URLSearchParams();
+  const st = document.getElementById('fStatus').value;
+  const tp = document.getElementById('fTipo').value;
+  if (st) params.set('status', st);
+  if (tp) params.set('tipo', tp);
+  try {
+    const [data, stats] = await Promise.all([
+      Api.get('/ordens-servico?' + params),
+      Api.get('/ordens-servico/resumo/stats'),
+    ]);
+    _todos = data;
+    renderStats(stats);
+    filtrar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function renderStats(s) {
+  document.getElementById('stTotal').textContent    = s.total;
+  document.getElementById('stPend').textContent     = s.pendentes;
+  document.getElementById('stAndamento').textContent= s.em_andamento;
+  document.getElementById('stConc').textContent     = s.concluidas;
+  document.getElementById('stAtr').textContent      = s.atrasadas;
+}
+
+function filtrar() {
+  const busca = document.getElementById('busca').value.toLowerCase();
+  const lista = busca ? _todos.filter(o => o.numero.toLowerCase().includes(busca) || o.cliente_nome.toLowerCase().includes(busca)) : _todos;
+  renderTabela(lista);
+}
+
+function renderTabela(data) {
+  const tbody = document.getElementById('tbody');
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-dim)">Nenhuma OS encontrada</td></tr>`;
+    return;
+  }
+  const hoje = new Date().toISOString().split('T')[0];
+  tbody.innerHTML = data.map(o => {
+    const atrasado = o.data_agendada && o.data_agendada < hoje && o.status !== 'concluido';
+    return `<tr onclick="abrirDetalhe(${o.id})">
+      <td><strong>${o.numero}</strong></td>
+      <td>${o.cliente_nome}</td>
+      <td><span class="t-${o.tipo}">${TP_LBL[o.tipo]}</span></td>
+      <td style="color:var(--text-muted)">${o.tecnico_nome || '—'}</td>
+      <td style="color:${atrasado?'#f87171':'var(--text-muted)'}">
+        ${o.data_agendada ? new Date(o.data_agendada).toLocaleDateString('pt-BR') : '—'}
+        ${atrasado ? ' ⚠' : ''}
+      </td>
+      <td style="color:var(--text-muted)">${o.pedido_numero ? `#${o.pedido_numero}` : '—'}</td>
+      <td><span class="badge ${ST_CLS[o.status]}">${ST_LBL[o.status]}</span></td>
+      <td onclick="event.stopPropagation()">
+        <div style="display:flex;gap:4px">
+          <button class="acao-btn" onclick="abrirDetalhe(${o.id})">${_SVG_EYE}</button>
+          <button class="acao-btn" onclick="editarOs(${o.id})">${_SVG_EDIT}</button>
+          <button class="acao-btn" style="color:#f87171" onclick="remover(${o.id})">${_SVG_TRASH}</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function abrirDetalhe(id) {
+  try {
+    const o = await Api.get(`/ordens-servico/${id}`);
+    _osAtual = o;
+    document.getElementById('osNumero').textContent = o.numero;
+
+    const end = [o.rua, o.end_numero, o.bairro, o.cidade, o.estado].filter(Boolean).join(', ');
+    document.getElementById('osBody').innerHTML = `
+      <div class="info-row">
+        <div class="info-item"><label>Cliente</label><span>${o.cliente_nome}</span></div>
+        <div class="info-item"><label>Tipo</label><span>${TP_LBL[o.tipo]}</span></div>
+        <div class="info-item"><label>Técnico</label><span>${o.tecnico_nome || '—'}</span></div>
+        <div class="info-item"><label>Status</label><span class="badge ${ST_CLS[o.status]}">${ST_LBL[o.status]}</span></div>
+        <div class="info-item"><label>Agendado</label><span>${o.data_agendada ? new Date(o.data_agendada).toLocaleString('pt-BR') : '—'}</span></div>
+        <div class="info-item"><label>Pedido</label><span>${o.pedido_numero ? `#${o.pedido_numero}` : '—'}</span></div>
+      </div>
+      ${end ? `<div style="margin-bottom:12px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Endereço</label><p style="font-size:13px;margin:4px 0">${end}</p></div>` : ''}
+      ${o.descricao ? `<div style="margin-bottom:12px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Serviço</label><p style="font-size:13px;margin:4px 0">${o.descricao}</p></div>` : ''}
+      ${o.itens_instalados ? `
+        <div style="margin-bottom:12px">
+          <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Checklist</label>
+          <div class="obs-box" style="white-space:pre-line">${o.itens_instalados}</div>
+        </div>` : ''}
+      ${o.status !== 'concluido' ? `
+        <div style="margin-top:16px">
+          <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Observação do técnico</label>
+          <textarea id="obsTecnico" rows="3" style="width:100%" placeholder="Registre o que foi realizado...">${o.observacoes_tecnico || ''}</textarea>
+        </div>` : o.observacoes_tecnico ? `
+        <div style="margin-top:16px">
+          <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Observação do técnico</label>
+          <div class="obs-box">${o.observacoes_tecnico}</div>
+        </div>` : ''}
+    `;
+
+    const btns = [];
+    if (o.status === 'pendente') {
+      btns.push(`<button class="btn btn-ghost" onclick="mudarStatus('em_andamento')">Iniciar atendimento</button>`);
+    }
+    if (o.status !== 'concluido' && o.status !== 'cancelado') {
+      btns.push(`<button class="btn" style="background:rgba(34,197,94,.15);color:#22c55e" onclick="mudarStatus('concluido')">${_SVG_CHK} Concluir OS</button>`);
+      btns.push(`<button class="btn btn-ghost" onclick="mudarStatus('cancelado')">Cancelar</button>`);
+    }
+    if (o.cliente_whatsapp || o.cliente_tel) {
+      btns.push(`<button class="btn btn-ghost" onclick="enviarWhats()">WhatsApp</button>`);
+    }
+    document.getElementById('osFooter').innerHTML = btns.join('');
+
+    document.getElementById('painelOs').classList.add('open');
+    document.getElementById('osOverlay').classList.add('open');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function mudarStatus(status) {
+  const obs = document.getElementById('obsTecnico')?.value || null;
+  try {
+    await Api.patch(`/ordens-servico/${_osAtual.id}/status`, { status, observacoes_tecnico: obs });
+    toast('Status atualizado','success');
+    fecharPainel();
+    carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function enviarWhats() {
+  const tel = (_osAtual.cliente_whatsapp || _osAtual.cliente_tel || '').replace(/\D/g,'');
+  if (!tel) return;
+  const data = _osAtual.data_agendada ? new Date(_osAtual.data_agendada).toLocaleString('pt-BR') : 'a confirmar';
+  const msg = encodeURIComponent(`Olá! Confirmamos a ${TP_LBL[_osAtual.tipo]} referente à OS ${_osAtual.numero} agendada para ${data}. Qualquer dúvida estamos à disposição!`);
+  window.open(`https://wa.me/55${tel}?text=${msg}`, '_blank');
+}
+
+function fecharPainel() {
+  document.getElementById('painelOs').classList.remove('open');
+  document.getElementById('osOverlay').classList.remove('open');
+}
+
+// ── Modal ──
+function abrirNovo() {
+  document.getElementById('osId').value = '';
+  document.getElementById('osCli').value = '';
+  document.getElementById('osTipo').value = 'instalacao';
+  document.getElementById('osPedido').innerHTML = '<option value="">Nenhum</option>';
+  document.getElementById('osTec').selectedIndex = 0;
+  document.getElementById('osData').value = '';
+  document.getElementById('osDesc').value = '';
+  document.getElementById('osItens').value = '';
+  document.getElementById('modalTitulo').textContent = 'Nova Ordem de Serviço';
+  document.getElementById('modalOs').classList.add('open');
+}
+
+async function editarOs(id) {
+  try {
+    const o = await Api.get(`/ordens-servico/${id}`);
+    document.getElementById('osId').value = id;
+    document.getElementById('osCli').value = o.cliente_id;
+    await carregarPedidosCliente();
+    document.getElementById('osPedido').value = o.pedido_id || '';
+    document.getElementById('osTipo').value = o.tipo;
+    document.getElementById('osTec').value = o.tecnico_id || '';
+    document.getElementById('osData').value = o.data_agendada ? o.data_agendada.replace(' ','T').slice(0,16) : '';
+    document.getElementById('osDesc').value = o.descricao || '';
+    document.getElementById('osItens').value = o.itens_instalados || '';
+    document.getElementById('modalTitulo').textContent = `Editar ${o.numero}`;
+    document.getElementById('modalOs').classList.add('open');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function carregarPedidosCliente() {
+  const cli = document.getElementById('osCli').value;
+  const sel = document.getElementById('osPedido');
+  sel.innerHTML = '<option value="">Nenhum</option>';
+  if (!cli) return;
+  try {
+    const pedidos = await Api.get(`/comercial/pedidos?cliente_id=${cli}`);
+    pedidos.forEach(p => sel.insertAdjacentHTML('beforeend', `<option value="${p.id}">#${p.numero} — ${moeda(p.valor_final)}</option>`));
+  } catch(e) {}
+}
+
+async function salvar() {
+  const id = document.getElementById('osId').value;
+  const cliente_id = document.getElementById('osCli').value;
+  if (!cliente_id) { toast('Selecione o cliente','warning'); return; }
+
+  const body = {
+    cliente_id,
+    pedido_id:       document.getElementById('osPedido').value || null,
+    tecnico_id:      document.getElementById('osTec').value || null,
+    tipo:            document.getElementById('osTipo').value,
+    data_agendada:   document.getElementById('osData').value || null,
+    descricao:       document.getElementById('osDesc').value || null,
+    itens_instalados:document.getElementById('osItens').value || null,
+  };
+
+  try {
+    if (id) {
+      await Api.put(`/ordens-servico/${id}`, body);
+      toast('OS atualizada','success');
+    } else {
+      const r = await Api.post('/ordens-servico', body);
+      toast(`OS ${r.numero} criada!`, 'success');
+    }
+    fecharModal();
+    carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function remover(id) {
+  if (!confirm('Remover esta OS?')) return;
+  try {
+    await Api.delete(`/ordens-servico/${id}`);
+    toast('OS removida','success');
+    carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function fecharModal() { document.getElementById('modalOs').classList.remove('open'); }
+
+init();
+</script>
+</body>
+</html>

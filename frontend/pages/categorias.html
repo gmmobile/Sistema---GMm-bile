@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Categorias — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .cats-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    .cat-section h2 { font-size:14px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+    .cat-section h2 svg { width:16px; height:16px; }
+    .cat-item { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; margin-bottom:8px; transition:.15s; }
+    .cat-item:hover { border-color:rgba(99,102,241,.3); }
+    .cat-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .cat-nome { flex:1; font-size:13px; color:var(--text); }
+    .acao-btn { width:26px; height:26px; border:1px solid var(--border); border-radius:6px; background:transparent; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-muted); transition:.15s; }
+    .acao-btn:hover { background:var(--bg-card2); color:var(--text); }
+    .acao-btn.danger:hover { background:rgba(239,68,68,.1); color:var(--danger); border-color:rgba(239,68,68,.3); }
+    .acao-btn svg { width:12px; height:12px; }
+    .add-cat-btn { width:100%; padding:8px; border:1px dashed var(--border); border-radius:8px; background:transparent; color:var(--text-muted); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:.15s; }
+    .add-cat-btn:hover { border-color:var(--primary); color:var(--primary); }
+    .add-cat-btn svg { width:14px; height:14px; }
+    .cores { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
+    .cor-opt { width:24px; height:24px; border-radius:6px; cursor:pointer; border:2px solid transparent; transition:.15s; }
+    @media (max-width: 900px) {
+      .cats-grid { grid-template-columns: 1fr; gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()"><i data-lucide="panel-left-close"></i></button>
+        <div class="topbar-breadcrumb"><a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a> &nbsp;/&nbsp;<strong>Categorias</strong></div>
+      </div>
+      <div class="topbar-right"><div class="topbar-btn"><i data-lucide="bell"></i></div></div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title"><h1>Categorias</h1><p>Classifique receitas e despesas do financeiro</p></div>
+      </div>
+
+      <div class="cats-grid">
+        <div class="cat-section">
+          <h2 style="color:var(--success)"><i data-lucide="trending-up"></i> Categorias de Receita</h2>
+          <div id="listaReceitas"></div>
+          <button class="add-cat-btn" onclick="abrirModal('receita')"><i data-lucide="plus"></i> Adicionar categoria</button>
+        </div>
+        <div class="cat-section">
+          <h2 style="color:var(--danger)"><i data-lucide="trending-down"></i> Categorias de Despesa</h2>
+          <div id="listaDespesas"></div>
+          <button class="add-cat-btn" onclick="abrirModal('despesa')"><i data-lucide="plus"></i> Adicionar categoria</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalCat">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h2 id="mCatTitulo"><i data-lucide="tag"></i> Nova Categoria</h2>
+      <button class="modal-close" onclick="fecharModal()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Nome *</label><input type="text" id="catNome" placeholder="Ex: Venda de Móveis"></div>
+      <div class="form-group">
+        <label>Cor</label>
+        <div class="cores">
+          <div class="cor-opt" data-cor="#6366f1" onclick="selecionarCor('#6366f1')" style="background:#6366f1"></div>
+          <div class="cor-opt" data-cor="#8b5cf6" onclick="selecionarCor('#8b5cf6')" style="background:#8b5cf6"></div>
+          <div class="cor-opt" data-cor="#ec4899" onclick="selecionarCor('#ec4899')" style="background:#ec4899"></div>
+          <div class="cor-opt" data-cor="#ef4444" onclick="selecionarCor('#ef4444')" style="background:#ef4444"></div>
+          <div class="cor-opt" data-cor="#f97316" onclick="selecionarCor('#f97316')" style="background:#f97316"></div>
+          <div class="cor-opt" data-cor="#f59e0b" onclick="selecionarCor('#f59e0b')" style="background:#f59e0b"></div>
+          <div class="cor-opt" data-cor="#22c55e" onclick="selecionarCor('#22c55e')" style="background:#22c55e"></div>
+          <div class="cor-opt" data-cor="#14b8a6" onclick="selecionarCor('#14b8a6')" style="background:#14b8a6"></div>
+          <div class="cor-opt" data-cor="#3b82f6" onclick="selecionarCor('#3b82f6')" style="background:#3b82f6"></div>
+          <div class="cor-opt" data-cor="#64748b" onclick="selecionarCor('#64748b')" style="background:#64748b"></div>
+        </div>
+        <input type="hidden" id="catCor" value="#6366f1">
+      </div>
+      <input type="hidden" id="catTipo">
+      <input type="hidden" id="catId">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarCat()"><i data-lucide="save"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+
+async function carregar() {
+  try {
+    const cats = await Api.get('/financeiro/categorias');
+    renderLista('receitas', cats.filter(c=>c.tipo==='receita'));
+    renderLista('despesas', cats.filter(c=>c.tipo==='despesa'));
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function renderLista(tipo, cats) {
+  const el = document.getElementById(`lista${tipo.charAt(0).toUpperCase()+tipo.slice(1)}`);
+  if (!cats.length) { el.innerHTML = `<div style="text-align:center;padding:12px;color:var(--text-dim);font-size:13px;">Nenhuma categoria</div>`; return; }
+  el.innerHTML = cats.map(c => `
+    <div class="cat-item">
+      <div class="cat-dot" style="background:${c.cor||'#6366f1'}"></div>
+      <span class="cat-nome">${c.nome}</span>
+      <button class="acao-btn" onclick="editarCat(${c.id},'${c.nome}','${c.cor||'#6366f1'}','${c.tipo}')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button>
+      <button class="acao-btn danger" onclick="excluirCat(${c.id})"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
+    </div>
+  `).join('');
+  lucide.createIcons({ nodes:[el] });
+}
+
+function selecionarCor(cor) {
+  document.getElementById('catCor').value = cor;
+  document.querySelectorAll('.cor-opt').forEach(el => {
+    el.style.border = el.dataset.cor === cor ? '2px solid #fff' : '2px solid transparent';
+    el.style.transform = el.dataset.cor === cor ? 'scale(1.2)' : 'scale(1)';
+  });
+}
+
+function abrirModal(tipo, id=null, nome='', cor='#6366f1') {
+  document.getElementById('catId').value   = id||'';
+  document.getElementById('catNome').value = nome;
+  document.getElementById('catTipo').value = tipo;
+  selecionarCor(cor);
+  document.getElementById('mCatTitulo').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg> ${id?'Editar':'Nova'} Categoria`;
+  document.getElementById('modalCat').classList.add('open');
+}
+function fecharModal() { document.getElementById('modalCat').classList.remove('open'); }
+function editarCat(id,nome,cor,tipo) { abrirModal(tipo,id,nome,cor); }
+
+async function salvarCat() {
+  const body = { nome:document.getElementById('catNome').value, tipo:document.getElementById('catTipo').value, cor:document.getElementById('catCor').value };
+  if (!body.nome) { toast('Nome é obrigatório','warning'); return; }
+  try {
+    const id = document.getElementById('catId').value;
+    if (id) { await Api.put(`/financeiro/categorias/${id}`,body); toast('Categoria atualizada!','success'); }
+    else    { await Api.post('/financeiro/categorias',body); toast('Categoria criada!','success'); }
+    fecharModal(); carregar();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function excluirCat(id) {
+  if (!confirm('Remover esta categoria?')) return;
+  try { await Api.delete(`/financeiro/categorias/${id}`); toast('Removida','success'); carregar(); } catch(e) { toast(e.message,'error'); }
+}
+
+document.getElementById('modalCat').addEventListener('click', function(e){ if(e.target===this) fecharModal(); });
+carregar();
+</script>
+</body>
+</html>

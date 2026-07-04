@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Financeiro — GM MÓBILE</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/layout.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    /* ── Layout principal ── */
+    .fin-layout { display:flex; gap:0; height:100%; overflow:hidden; }
+    .fin-main   { flex:1; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
+    .fin-right  { width:260px; flex-shrink:0; border-left:1px solid var(--border);
+                  display:flex; flex-direction:column; overflow:hidden; background:var(--bg-card2); }
+
+    .fin-scroll { flex:1; overflow-y:auto; padding:22px 24px; }
+
+    /* ── Sub-nav tabs ── */
+    .fin-tabs   { display:flex; gap:2px; padding:12px 24px 0; border-bottom:1px solid var(--border);
+                  background:var(--bg-card2); flex-shrink:0; overflow-x:auto; }
+    .fin-tabs::-webkit-scrollbar { display:none; }
+    .fin-tab    { padding:10px 18px; font-size:13px; font-weight:500; color:var(--text-muted);
+                  border:none; background:transparent; cursor:pointer; white-space:nowrap;
+                  border-bottom:2px solid transparent; margin-bottom:-1px; transition:.15s;
+                  display:flex; align-items:center; gap:7px; }
+    .fin-tab svg { width:14px; height:14px; }
+    .fin-tab:hover { color:var(--text); }
+    .fin-tab.ativo { color:var(--primary); border-bottom-color:var(--primary); font-weight:600; }
+
+    /* ── Ações rápidas ── */
+    .fin-actions { display:flex; gap:8px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
+    .fin-actions .btn { font-size:12.5px; padding:7px 14px; }
+
+    /* ── KPI Cards ── */
+    .kpi-grid  { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:22px; }
+    .kpi-card  { background:var(--bg-card2); border:1px solid var(--border); border-radius:14px;
+                 padding:18px 20px 16px; display:flex; flex-direction:column; gap:10px;
+                 position:relative; transition:border-color .2s, box-shadow .2s; }
+    .kpi-card:hover { border-color:rgba(255,255,255,.1);
+                      box-shadow:0 4px 20px rgba(0,0,0,.15); }
+    .kpi-top   { display:flex; align-items:center; gap:8px; }
+    .kpi-icon  { width:28px; height:28px; border-radius:8px; display:flex; align-items:center;
+                 justify-content:center; flex-shrink:0; }
+    .kpi-icon svg { width:13px; height:13px; }
+    .kpi-label { font-size:12px; font-weight:500; color:var(--text-dim); }
+    .kpi-valor { font-size:22px; font-weight:700; line-height:1; letter-spacing:-.3px; }
+    .kpi-bottom{ display:flex; align-items:center; gap:5px; font-size:11px;
+                 color:var(--text-dim); min-height:16px; }
+    .kpi-var   { display:flex; align-items:center; gap:2px; font-weight:600; font-size:11px; }
+    .kpi-var.pos { color:#4ade80; }
+    .kpi-var.neg { color:#f87171; }
+    .kpi-sub   { color:var(--text-dim); }
+    .kpi-link  { margin-left:auto; opacity:0; transition:.15s; background:transparent; border:none;
+                 padding:0; cursor:pointer; color:var(--text-dim); display:flex; align-items:center; }
+    .kpi-link:hover { color:var(--primary); }
+    .kpi-link svg { width:12px; height:12px; }
+    .kpi-card:hover .kpi-link { opacity:1; }
+
+    /* ── Gráfico ── */
+    .fin-charts { display:grid; grid-template-columns:2fr 1fr; gap:14px; margin-bottom:20px; }
+    .chart-card { background:var(--bg-card2); border:1px solid var(--border); border-radius:14px; padding:18px; }
+    .chart-title { font-size:13.5px; font-weight:600; color:var(--text); margin-bottom:14px;
+                   display:flex; align-items:center; justify-content:space-between; }
+    .chart-title span { font-size:12px; color:var(--text-dim); font-weight:400; }
+
+    /* ── Fluxo de Caixa Diário ── */
+    .fluxo-header { display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+    .fluxo-dia    { margin-bottom:12px; }
+    .fluxo-dia-label { font-size:12px; font-weight:700; color:var(--text-dim); text-transform:uppercase;
+                       letter-spacing:.06em; padding:8px 0 6px; border-bottom:1px solid var(--border);
+                       margin-bottom:8px; }
+    .fluxo-item   { display:flex; align-items:center; gap:12px; padding:11px 14px;
+                    background:var(--bg-card2); border:1px solid var(--border); border-radius:10px;
+                    margin-bottom:6px; transition:.15s; cursor:default; }
+    .fluxo-item:hover { border-color:var(--primary); }
+    .fluxo-item-icon { width:32px; height:32px; border-radius:8px; flex-shrink:0;
+                       display:flex; align-items:center; justify-content:center; }
+    .fluxo-item-icon svg { width:15px; height:15px; }
+    .fluxo-item-desc { flex:1; min-width:0; }
+    .fluxo-item-desc strong { display:block; font-size:13px; color:var(--text);
+                               overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .fluxo-item-desc span   { font-size:11.5px; color:var(--text-dim); }
+    .fluxo-item-valor { font-size:14px; font-weight:700; white-space:nowrap; }
+    .fluxo-item-saldo { font-size:11.5px; color:var(--text-dim); text-align:right; white-space:nowrap;
+                        padding-left:12px; border-left:1px solid var(--border); margin-left:8px; }
+    .fluxo-previsto   { opacity:.65; }
+    .fluxo-saldo-fim  { display:flex; justify-content:flex-end; padding:6px 14px;
+                        font-size:12px; color:var(--text-dim); }
+
+    /* ── Tabela lancamentos ── */
+    .fin-table-card { background:var(--bg-card2); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+    .fin-table-hdr  { display:flex; align-items:center; justify-content:space-between;
+                      padding:14px 18px; border-bottom:1px solid var(--border); }
+    .fin-table-hdr h3 { font-size:14px; font-weight:600; display:flex; align-items:center; gap:7px; }
+    .fin-table-hdr h3 svg { width:15px; height:15px; color:var(--text-dim); }
+    .fin-table-wrap { overflow-x:auto; }
+    .fin-table-wrap table { width:100%; border-collapse:collapse; min-width:760px; }
+    .fin-table-wrap thead th { padding:10px 16px; font-size:11px; font-weight:600; color:var(--text-dim);
+                               text-transform:uppercase; letter-spacing:.05em; text-align:left;
+                               border-bottom:1px solid var(--border); white-space:nowrap; }
+    .fin-table-wrap tbody tr { border-bottom:1px solid rgba(255,255,255,.04); transition:.15s; }
+    .fin-table-wrap tbody tr:last-child { border-bottom:none; }
+    .fin-table-wrap tbody tr:hover { background:var(--bg); }
+    .fin-table-wrap tbody td { padding:12px 16px; font-size:13px; vertical-align:middle; }
+
+    /* ── Filtros ── */
+    .fin-filters { display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+    .fin-date-wrap { position:relative; }
+    .fin-date-wrap svg { position:absolute; left:11px; top:50%; transform:translateY(-50%);
+                         width:14px; height:14px; color:var(--text-dim); pointer-events:none; }
+    .fin-date-wrap input[type=date] { padding:8px 12px 8px 34px; background:var(--bg-card2);
+      border:1px solid var(--border); border-radius:9px; color:var(--text); font-size:13px;
+      outline:none; transition:.2s; cursor:pointer; }
+    .fin-date-wrap input[type=date]:focus { border-color:var(--primary); }
+    .fin-sel { padding:8px 30px 8px 12px; background:var(--bg-card2); border:1px solid var(--border);
+               border-radius:9px; color:var(--text); font-size:13px; cursor:pointer; outline:none;
+               appearance:none; min-width:130px; transition:.15s;
+               background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+               background-repeat:no-repeat; background-position:right 10px center; }
+    .fin-sel:hover { border-color:var(--primary); }
+    .fin-search { flex:1; min-width:200px; position:relative; }
+    .fin-search svg { position:absolute; left:11px; top:50%; transform:translateY(-50%);
+                      width:14px; height:14px; color:var(--text-dim); pointer-events:none; }
+    .fin-search input { width:100%; padding:8px 12px 8px 34px; background:var(--bg-card2);
+      border:1px solid var(--border); border-radius:9px; color:var(--text); font-size:13px; outline:none; }
+    .fin-search input:focus { border-color:var(--primary); }
+
+    /* ── Badges ── */
+    .pill { font-size:11px; font-weight:600; padding:3px 9px; border-radius:99px; white-space:nowrap; }
+    .pill-receita  { background:rgba(34,197,94,.15);   color:#4ade80; }
+    .pill-despesa  { background:rgba(239,68,68,.15);   color:#f87171; }
+    .pill-pendente { background:rgba(245,158,11,.15);  color:#fbbf24; }
+    .pill-pago     { background:rgba(34,197,94,.15);   color:#4ade80; }
+    .pill-atrasado { background:rgba(239,68,68,.15);   color:#f87171; }
+    .pill-cancelado{ background:rgba(148,163,184,.1);  color:#94a3b8; }
+    .pill-parcela  { background:rgba(99,102,241,.12);  color:#818cf8; font-size:10px; }
+    .cat-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; flex-shrink:0; }
+
+    /* ── Ações botões ── */
+    .acao-btn { width:28px; height:28px; border:1px solid var(--border); border-radius:6px;
+                background:var(--bg-card); display:inline-flex; align-items:center; justify-content:center;
+                cursor:pointer; color:var(--text-muted); transition:.15s; }
+    .acao-btn:hover       { background:var(--bg); color:var(--text); }
+    .acao-btn.ok:hover    { background:rgba(34,197,94,.1);  color:#4ade80; border-color:rgba(34,197,94,.3); }
+    .acao-btn.danger:hover{ background:rgba(239,68,68,.1);  color:#f87171; border-color:rgba(239,68,68,.3); }
+    .acao-btn svg { width:12px; height:12px; }
+
+    /* ── Sidebar direita ── */
+    .fin-right-scroll { flex:1; overflow-y:auto; }
+    .fin-right-section { padding:14px 16px; border-bottom:1px solid var(--border); }
+    .fin-right-title  { font-size:11.5px; font-weight:700; color:var(--text-dim); text-transform:uppercase;
+                        letter-spacing:.06em; margin-bottom:10px; }
+    .alerta-item { display:flex; align-items:flex-start; gap:9px; padding:8px 0;
+                   border-bottom:1px solid rgba(255,255,255,.04); }
+    .alerta-item:last-child { border-bottom:none; }
+    .alerta-dot  { width:7px; height:7px; border-radius:50%; flex-shrink:0; margin-top:5px; }
+    .alerta-desc { font-size:12px; color:var(--text-muted); line-height:1.4; }
+    .alerta-desc strong { display:block; color:var(--text); font-size:12.5px; }
+    .alerta-val  { font-size:11.5px; font-weight:600; white-space:nowrap; margin-left:auto; }
+
+    /* Resumo sidebar */
+    .fin-resumo-item { display:flex; justify-content:space-between; align-items:center;
+                       padding:7px 0; border-bottom:1px solid rgba(255,255,255,.04); font-size:13px; }
+    .fin-resumo-item:last-child { border-bottom:none; }
+    .fin-resumo-item label { color:var(--text-dim); font-size:12px; }
+    .fin-resumo-item span  { font-weight:600; }
+
+    /* ── Contas bancárias ── */
+    .contas-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px,1fr)); gap:14px; }
+    .conta-card  { background:var(--bg-card2); border:1px solid var(--border); border-radius:14px;
+                   padding:18px; display:flex; flex-direction:column; gap:10px; }
+    .conta-top   { display:flex; align-items:center; gap:10px; }
+    .conta-icon  { width:40px; height:40px; border-radius:10px; display:flex; align-items:center;
+                   justify-content:center; flex-shrink:0; }
+    .conta-icon svg { width:20px; height:20px; }
+    .conta-nome  { font-size:14px; font-weight:600; color:var(--text); }
+    .conta-banco { font-size:12px; color:var(--text-dim); }
+    .conta-saldo { font-size:24px; font-weight:700; color:var(--text); }
+    .conta-sub   { font-size:12px; color:var(--text-dim); }
+    .conta-actions { display:flex; gap:6px; margin-top:4px; }
+
+    /* ── Modal novo lançamento ── */
+    .modal-quick-btns { display:flex; gap:8px; margin-bottom:16px; }
+    .quick-btn { flex:1; padding:10px; border:1.5px solid var(--border); border-radius:10px;
+                 background:var(--bg-card2); cursor:pointer; display:flex; flex-direction:column;
+                 align-items:center; gap:5px; font-size:12px; color:var(--text-muted); transition:.15s; }
+    .quick-btn:hover { border-color:var(--primary); color:var(--text); }
+    .quick-btn.ativo-rec { border-color:#4ade80; background:rgba(34,197,94,.08); color:#4ade80; }
+    .quick-btn.ativo-des { border-color:#f87171; background:rgba(239,68,68,.08); color:#f87171; }
+    .quick-btn svg { width:20px; height:20px; }
+
+    /* Parcelas form */
+    .parcelas-preview { background:var(--bg-card); border:1px solid var(--border); border-radius:9px;
+                        padding:12px 14px; margin-top:10px; max-height:200px; overflow-y:auto; }
+    .parcela-row { display:flex; justify-content:space-between; font-size:12px; padding:4px 0;
+                   border-bottom:1px solid rgba(255,255,255,.04); color:var(--text-muted); }
+    .parcela-row:last-child { border-bottom:none; }
+
+    /* ── Responsive ── */
+    @media(max-width:1200px) { .fin-right { display:none; } }
+    @media(max-width:960px)  {
+      .kpi-grid   { grid-template-columns:repeat(2,1fr); gap:8px; }
+      .fin-charts { grid-template-columns:1fr; }
+    }
+    @media(max-width:640px)  {
+      .fin-scroll { padding:14px 16px; }
+      .kpi-grid   { grid-template-columns:repeat(2,1fr); gap:8px; }
+      .kpi-valor  { font-size:17px; }
+      .fin-filters { gap:8px; }
+      .fin-actions { gap:6px; }
+      .fin-actions .btn { padding:6px 10px; font-size:12px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content" style="display:flex;flex-direction:column;overflow:hidden">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-collapse" onclick="toggleSidebar()"><i data-lucide="panel-left-close"></i></button>
+        <div class="topbar-breadcrumb">
+          <a href="dashboard.html" style="color:var(--text-muted)">Dashboard</a>
+          &nbsp;/&nbsp;<strong>Financeiro</strong>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-btn"><i data-lucide="bell"></i></div>
+      </div>
+    </header>
+
+    <!-- Sub-navegação -->
+    <div class="fin-tabs">
+      <button class="fin-tab ativo" onclick="trocarAba('dashboard',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </button>
+      <button class="fin-tab" onclick="trocarAba('receber',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        A Receber
+      </button>
+      <button class="fin-tab" onclick="trocarAba('pagar',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+        A Pagar
+      </button>
+      <button class="fin-tab" onclick="trocarAba('fluxo',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Fluxo de Caixa
+      </button>
+      <button class="fin-tab" onclick="trocarAba('contas',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        Contas
+      </button>
+      <button class="fin-tab" onclick="trocarAba('relatorios',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Relatórios
+      </button>
+    </div>
+
+    <div class="fin-layout" style="flex:1;overflow:hidden">
+      <!-- ── Conteúdo principal ── -->
+      <div class="fin-main">
+        <div class="fin-scroll" id="finScroll">
+
+          <!-- ════ ABA DASHBOARD ════ -->
+          <div id="aba-dashboard">
+            <div class="fin-actions">
+              <button class="btn btn-primary" onclick="abrirModal('receita')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nova Receita
+              </button>
+              <button class="btn btn-ghost" onclick="abrirModal('despesa')" style="color:#f87171">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nova Despesa
+              </button>
+              <button class="btn btn-ghost" onclick="abrirTransferencia()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                Transferência
+              </button>
+              <div style="margin-left:auto;display:flex;gap:8px">
+                <button class="btn btn-ghost" onclick="carregarDashboard()" title="Atualizar">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- KPIs -->
+            <div class="kpi-grid" id="kpiGrid">
+              <!-- preenchido por JS -->
+              <div class="kpi-card" style="opacity:.4"><div class="kpi-label">Carregando...</div></div>
+              <div class="kpi-card" style="opacity:.4"></div>
+              <div class="kpi-card" style="opacity:.4"></div>
+              <div class="kpi-card" style="opacity:.4"></div>
+            </div>
+
+            <!-- Gráficos -->
+            <div class="fin-charts">
+              <div class="chart-card">
+                <div class="chart-title">
+                  Receitas × Despesas — últimos 6 meses
+                  <span id="chartPeriodo"></span>
+                </div>
+                <canvas id="chartRecDesp" height="110"></canvas>
+              </div>
+              <div class="chart-card">
+                <div class="chart-title">Distribuição do mês</div>
+                <canvas id="chartDonut" height="160"></canvas>
+              </div>
+            </div>
+
+            <!-- Lançamentos recentes -->
+            <div class="fin-table-card">
+              <div class="fin-table-hdr">
+                <h3>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                  Lançamentos Recentes
+                </h3>
+                <button class="btn btn-ghost" style="font-size:12px" onclick="trocarAba('receber',document.querySelector('.fin-tab:nth-child(2)'))">Ver todos →</button>
+              </div>
+              <div class="fin-table-wrap" id="tabelaRecente"></div>
+            </div>
+          </div>
+
+          <!-- ════ ABA A RECEBER ════ -->
+          <div id="aba-receber" style="display:none">
+            <div class="fin-filters">
+              <div class="fin-date-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <input type="date" id="recInicio" onchange="carregarReceber()">
+              </div>
+              <div class="fin-date-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <input type="date" id="recFim" onchange="carregarReceber()">
+              </div>
+              <select class="fin-sel" id="recStatus" onchange="carregarReceber()">
+                <option value="">Todos status</option>
+                <option value="pendente">Pendente</option>
+                <option value="pago">Pago</option>
+                <option value="atrasado">Vencido</option>
+              </select>
+              <div class="fin-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input type="text" id="recBusca" placeholder="Buscar cliente, descrição..." oninput="debounce(carregarReceber,350)()">
+              </div>
+              <button class="btn btn-primary" onclick="abrirModal('receita')">+ Nova Receita</button>
+            </div>
+            <div class="fin-table-card">
+              <div class="fin-table-hdr">
+                <h3>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                  Contas a Receber
+                </h3>
+                <span id="totalReceber" style="font-size:12px;color:var(--text-dim)"></span>
+              </div>
+              <div class="fin-table-wrap" id="tabelaReceber"></div>
+            </div>
+          </div>
+
+          <!-- ════ ABA A PAGAR ════ -->
+          <div id="aba-pagar" style="display:none">
+            <div class="fin-filters">
+              <div class="fin-date-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <input type="date" id="pagInicio" onchange="carregarPagar()">
+              </div>
+              <div class="fin-date-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <input type="date" id="pagFim" onchange="carregarPagar()">
+              </div>
+              <select class="fin-sel" id="pagStatus" onchange="carregarPagar()">
+                <option value="">Todos status</option>
+                <option value="pendente">Pendente</option>
+                <option value="pago">Pago</option>
+                <option value="atrasado">Vencido</option>
+              </select>
+              <div class="fin-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input type="text" id="pagBusca" placeholder="Buscar fornecedor, descrição..." oninput="debounce(carregarPagar,350)()">
+              </div>
+              <button class="btn btn-ghost" onclick="abrirModal('despesa')" style="color:#f87171;white-space:nowrap">+ Nova Despesa</button>
+            </div>
+            <div class="fin-table-card">
+              <div class="fin-table-hdr">
+                <h3>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+                  Contas a Pagar
+                </h3>
+                <span id="totalPagar" style="font-size:12px;color:var(--text-dim)"></span>
+              </div>
+              <div class="fin-table-wrap" id="tabelaPagar"></div>
+            </div>
+          </div>
+
+          <!-- ════ ABA FLUXO ════ -->
+          <div id="aba-fluxo" style="display:none">
+            <div class="fluxo-header">
+              <div class="fin-date-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <input type="date" id="fluxoInicio" onchange="carregarFluxo()">
+              </div>
+              <div class="fin-date-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <input type="date" id="fluxoFim" onchange="carregarFluxo()">
+              </div>
+              <div style="background:var(--bg-card2);border:1px solid var(--border);border-radius:9px;padding:7px 14px;font-size:13px">
+                Saldo inicial: <strong id="fluxoSaldoInicial" style="color:var(--primary)">—</strong>
+              </div>
+              <button class="btn btn-ghost" onclick="carregarFluxo()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                Atualizar
+              </button>
+            </div>
+            <div id="fluxoConteudo">
+              <div class="empty-state" style="padding:40px">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                <h3>Carregando fluxo...</h3>
+              </div>
+            </div>
+          </div>
+
+          <!-- ════ ABA CONTAS ════ -->
+          <div id="aba-contas" style="display:none">
+            <div class="fin-actions">
+              <button class="btn btn-primary" onclick="abrirModalConta()">+ Nova Conta</button>
+              <button class="btn btn-ghost" onclick="abrirTransferencia()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                Transferência
+              </button>
+            </div>
+            <div class="contas-grid" id="contasGrid"></div>
+          </div>
+
+          <!-- ════ ABA RELATÓRIOS ════ -->
+          <div id="aba-relatorios" style="display:none">
+            <div class="fin-actions" style="margin-bottom:20px">
+              <div class="fin-date-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <input type="date" id="relInicio">
+              </div>
+              <div class="fin-date-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <input type="date" id="relFim">
+              </div>
+              <button class="btn btn-primary" onclick="carregarRelatorio()">Gerar</button>
+              <button class="btn btn-ghost" onclick="exportarPDF()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                PDF
+              </button>
+            </div>
+            <div id="relConteudo">
+              <div class="empty-state" style="padding:40px">
+                <h3>Selecione o período e clique em Gerar</h3>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /fin-scroll -->
+      </div><!-- /fin-main -->
+
+      <!-- ── Sidebar direita: alertas + resumo ── -->
+      <div class="fin-right">
+        <div class="fin-right-scroll">
+          <!-- Resumo -->
+          <div class="fin-right-section">
+            <div class="fin-right-title">Resumo do mês</div>
+            <div id="sideResumo">
+              <div class="fin-resumo-item"><label>Saldo caixa</label><span id="sr-saldo">—</span></div>
+              <div class="fin-resumo-item"><label>A receber</label><span id="sr-receber" style="color:#4ade80">—</span></div>
+              <div class="fin-resumo-item"><label>A pagar</label><span id="sr-pagar" style="color:#f87171">—</span></div>
+              <div class="fin-resumo-item"><label>Recebido mês</label><span id="sr-recebido">—</span></div>
+              <div class="fin-resumo-item"><label>Pago mês</label><span id="sr-pago">—</span></div>
+              <div class="fin-resumo-item" style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
+                <label><strong>Lucro mês</strong></label>
+                <span id="sr-lucro" style="font-size:15px;font-weight:700">—</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alertas vencendo hoje -->
+          <div class="fin-right-section">
+            <div class="fin-right-title" style="color:#fbbf24"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#fbbf24;margin-right:6px;vertical-align:middle"></span>Vencem Hoje</div>
+            <div id="alertasHoje"><div style="font-size:12px;color:var(--text-dim)">Carregando...</div></div>
+          </div>
+
+          <!-- Alertas vencidos -->
+          <div class="fin-right-section">
+            <div class="fin-right-title" style="color:#f87171"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#f87171;margin-right:6px;vertical-align:middle"></span>Vencidos</div>
+            <div id="alertasVencidos"><div style="font-size:12px;color:var(--text-dim)">Carregando...</div></div>
+          </div>
+
+          <!-- Vencem amanhã -->
+          <div class="fin-right-section">
+            <div class="fin-right-title"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#94a3b8;margin-right:6px;vertical-align:middle"></span>Vencem Amanhã</div>
+            <div id="alertasAmanha"><div style="font-size:12px;color:var(--text-dim)">Carregando...</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /fin-layout -->
+  </div><!-- /main-content -->
+</div><!-- /app-layout -->
+
+<!-- ════ MODAL LANÇAMENTO ════ -->
+<div class="modal-overlay" id="modalLanc">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h2 id="mLancTitulo">Novo Lançamento</h2>
+      <button class="modal-close" onclick="fecharModal()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <!-- Tipo rápido -->
+      <div class="modal-quick-btns">
+        <button class="quick-btn ativo-rec" id="qRec" onclick="setTipo('receita')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          Receita
+        </button>
+        <button class="quick-btn" id="qDes" onclick="setTipo('despesa')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+          Despesa
+        </button>
+      </div>
+      <input type="hidden" id="lId">
+      <input type="hidden" id="lTipo" value="receita">
+
+      <div class="form-group">
+        <label>Descrição *</label>
+        <input type="text" id="lDescricao" placeholder="Ex: Recebimento João Silva — Apto. Completo">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor Total (R$) *</label>
+          <input type="text" id="lValor" inputmode="numeric" placeholder="0,00"
+                 oninput="mascaraMoedaSimples(this)" onfocus="if(this.value==='0,00')this.value=''">
+        </div>
+        <div class="form-group">
+          <label>Vencimento *</label>
+          <input type="date" id="lVencimento">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Parcelas</label>
+          <select id="lParcelas" onchange="atualizarPreviewParcelas()">
+            <option value="1">À vista</option>
+            <option value="2">2x</option><option value="3">3x</option>
+            <option value="4">4x</option><option value="5">5x</option>
+            <option value="6">6x</option><option value="8">8x</option>
+            <option value="10">10x</option><option value="12">12x</option>
+            <option value="18">18x</option><option value="24">24x</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Entrada (R$)</label>
+          <input type="text" id="lEntrada" inputmode="numeric" placeholder="0,00"
+                 oninput="mascaraMoedaSimples(this);atualizarPreviewParcelas()"
+                 onfocus="if(this.value==='0,00')this.value=''">
+        </div>
+      </div>
+
+      <!-- Preview de parcelas -->
+      <div id="parcelasPreview" style="display:none">
+        <div class="parcelas-preview" id="parcelasLista"></div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Categoria</label>
+          <select id="lCategoria"><option value="">Sem categoria</option></select>
+        </div>
+        <div class="form-group">
+          <label>Forma de Pagamento</label>
+          <select id="lForma">
+            <option value="">Selecione...</option>
+            <option>Pix</option><option>Dinheiro</option><option>Cartão de Débito</option>
+            <option>Cartão de Crédito</option><option>Boleto</option><option>Transferência</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Conta Bancária</label>
+          <select id="lConta"><option value="">Selecione...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Nº Documento</label>
+          <input type="text" id="lDocumento" placeholder="NF, Boleto...">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Observações</label>
+        <textarea id="lObs" rows="2" placeholder="Observações opcionais..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarLanc()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Salvar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL PAGAR/RECEBER ════ -->
+<div class="modal-overlay" id="modalPagar">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      <h2 id="mPagarTitulo">Confirmar Recebimento</h2>
+      <button class="modal-close" onclick="fecharModalPagar()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+        <div style="font-size:12px;color:var(--text-dim)" id="mPagarDesc"></div>
+        <div style="font-size:20px;font-weight:700;color:var(--text);margin-top:4px" id="mPagarValor"></div>
+      </div>
+      <div class="form-group"><label>Data</label><input type="date" id="pData"></div>
+      <div class="form-group">
+        <label>Forma de Pagamento</label>
+        <select id="pForma">
+          <option value="">Selecione...</option>
+          <option>Pix</option><option>Dinheiro</option><option>Cartão de Débito</option>
+          <option>Cartão de Crédito</option><option>Boleto</option><option>Transferência</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Conta de destino</label>
+        <select id="pConta"><option value="">Padrão</option></select>
+      </div>
+      <input type="hidden" id="pId">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModalPagar()">Cancelar</button>
+      <button class="btn btn-primary" id="btnConfirmarPagar" onclick="confirmarPagar()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Confirmar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL TRANSFERÊNCIA ════ -->
+<div class="modal-overlay" id="modalTransf">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h2>Transferência entre Contas</h2>
+      <button class="modal-close" onclick="fecharTransf()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Conta Origem *</label>
+          <select id="tOrigem"><option value="">Selecione...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Conta Destino *</label>
+          <select id="tDestino"><option value="">Selecione...</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor (R$) *</label>
+          <input type="text" id="tValor" inputmode="numeric" placeholder="0,00" oninput="mascaraMoedaSimples(this)">
+        </div>
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" id="tData">
+        </div>
+      </div>
+      <div class="form-group"><label>Descrição</label><input type="text" id="tDesc" placeholder="Motivo da transferência..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharTransf()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarTransf()">Transferir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal conta bancária -->
+<div class="modal-overlay" id="modalConta">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2 id="mContaTitulo">Nova Conta</h2>
+      <button class="modal-close" onclick="fecharModalConta()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nome *</label><input type="text" id="cNome" placeholder="Ex: Caixa, Bradesco, Nubank">
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="cTipo">
+            <option value="corrente">Corrente</option><option value="poupanca">Poupança</option>
+            <option value="caixa">Caixa</option><option value="digital">Digital</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Banco</label><input type="text" id="cBanco" placeholder="Bradesco"></div>
+        <div class="form-group"><label>Agência</label><input type="text" id="cAgencia" placeholder="0001"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Conta</label><input type="text" id="cNumero" placeholder="12345-6"></div>
+        <div class="form-group"><label>PIX</label><input type="text" id="cPix" placeholder="CNPJ, CPF, e-mail..."></div>
+      </div>
+      <div class="form-group"><label>Saldo Inicial (R$)</label><input type="text" id="cSaldo" inputmode="numeric" placeholder="0,00" oninput="mascaraMoedaSimples(this)"></div>
+      <input type="hidden" id="cId">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModalConta()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarConta()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+lucide.createIcons();
+
+/* ════════════════════════════════════════════════════════════════
+   ESTADO GLOBAL
+   ════════════════════════════════════════════════════════════════ */
+let _categorias = [], _contas = [];
+let _chartRec, _chartDonut;
+const hoje = new Date();
+const hojeStr  = hoje.toISOString().split('T')[0];
+const mesStr   = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+const inicioMes = `${mesStr}-01`;
+const fimMes    = `${mesStr}-31`;
+
+/* ── Debounce helper ── */
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+/* ── Máscara monetária simples ── */
+function mascaraMoedaSimples(el) {
+  let v = el.value.replace(/\D/g,'');
+  if (!v) { el.value = ''; return; }
+  v = (parseInt(v,10)/100).toFixed(2);
+  el.value = v.replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+}
+function getMoeda(id) {
+  const v = (document.getElementById(id)?.value||'').replace(/\./g,'').replace(',','.');
+  return parseFloat(v) || 0;
+}
+function setMoeda(id, val) {
+  const el = document.getElementById(id); if (!el) return;
+  if (!val) { el.value=''; return; }
+  el.value = (+val).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+/* ════════════════════════════════════════════════════════════════
+   NAVEGAÇÃO ENTRE ABAS
+   ════════════════════════════════════════════════════════════════ */
+const _abaLoaders = {
+  dashboard:  () => carregarDashboard(),
+  receber:    () => carregarReceber(),
+  pagar:      () => carregarPagar(),
+  fluxo:      () => carregarFluxo(),
+  contas:     () => carregarContas(),
+  relatorios: () => {},
+};
+const _abasCarregadas = new Set();
+
+function trocarAba(aba, el) {
+  document.querySelectorAll('.fin-tab').forEach(t => t.classList.remove('ativo'));
+  el.classList.add('ativo');
+  document.querySelectorAll('[id^="aba-"]').forEach(d => d.style.display='none');
+  const div = document.getElementById('aba-'+aba);
+  if (div) div.style.display='';
+  if (!_abasCarregadas.has(aba)) { _abasCarregadas.add(aba); _abaLoaders[aba]?.(); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   INICIALIZAÇÃO
+   ════════════════════════════════════════════════════════════════ */
+async function init() {
+  try {
+    [_categorias, _contas] = await Promise.all([
+      Api.get('/financeiro/categorias').catch(()=>[]),
+      Api.get('/financeiro/contas').catch(()=>[]),
+    ]);
+
+    // Preenche selects de contas nos modais
+    ['lConta','pConta','tOrigem','tDestino'].forEach(id => {
+      const sel = document.getElementById(id); if (!sel) return;
+      _contas.forEach(c => sel.innerHTML += `<option value="${c.id}">${c.nome} — ${moeda(c.saldo_atual)}</option>`);
+    });
+
+    // Datas padrão
+    ['recInicio','pagInicio','fluxoInicio'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = inicioMes;
+    });
+    ['recFim','pagFim','fluxoFim'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = fimMes;
+    });
+    document.getElementById('lVencimento').value = hojeStr;
+    document.getElementById('tData').value = hojeStr;
+    document.getElementById('relInicio').value = inicioMes;
+    document.getElementById('relFim').value = fimMes;
+
+    // Carrega dashboard e alertas iniciais
+    _abasCarregadas.add('dashboard');
+    carregarDashboard();
+    carregarAlertas();
+  } catch(e) { console.error('[init]', e); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   DASHBOARD
+   ════════════════════════════════════════════════════════════════ */
+async function carregarDashboard() {
+  try {
+    const d = await Api.get('/financeiro/dashboard');
+
+    // KPI cards
+    const _ico = {
+      wallet:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>`,
+      arrowDown: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
+      arrowUp:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>`,
+      check:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+      card:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>`,
+      trending:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
+      alert:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+      calendar:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+    };
+    const kpis = [
+      { label:'Saldo em Caixa',     val:d.saldo_caixa,         icon:_ico.wallet,   bg:'rgba(99,102,241,.12)', cor:'#818cf8', aba:null },
+      { label:'A Receber',          val:d.a_receber,           icon:_ico.arrowDown,bg:'rgba(34,197,94,.12)',  cor:'#4ade80', aba:'receber', varPct: d.variacao?.recebido_mes },
+      { label:'A Pagar',            val:d.a_pagar,             icon:_ico.arrowUp,  bg:'rgba(239,68,68,.12)',  cor:'#f87171', aba:'pagar',   varPct: d.variacao?.pago_mes },
+      { label:'Recebido / Mês',     val:d.recebido_mes,        icon:_ico.check,    bg:'rgba(99,102,241,.12)', cor:'#818cf8', aba:'receber', varPct: d.variacao?.recebido_mes },
+      { label:'Pago / Mês',         val:d.pago_mes,            icon:_ico.card,     bg:'rgba(245,158,11,.12)', cor:'#fbbf24', aba:'pagar',   varPct: d.variacao?.pago_mes },
+      { label:'Lucro do Mês',       val:d.lucro_mes,           icon:_ico.trending, bg:'rgba(34,197,94,.12)',  cor:'#4ade80', aba:null,      varPct: d.variacao?.lucro_mes },
+      { label:'Vencidos',           val:d.vencidos_valor,      icon:_ico.alert,    bg:'rgba(239,68,68,.12)',  cor:'#f87171', aba:'receber', sub:`${d.vencidos_qtd} título(s)` },
+      { label:'Receitas Previstas', val:d.receitas_previstas,  icon:_ico.calendar, bg:'rgba(99,102,241,.08)', cor:'#818cf8', aba:null },
+    ];
+
+    const grid = document.getElementById('kpiGrid');
+    grid.style.gridTemplateColumns = 'repeat(4,1fr)';
+    grid.innerHTML = kpis.map(k => {
+      const varHtml = k.varPct != null
+        ? `<span class="kpi-var ${k.varPct>=0?'pos':'neg'}">
+             ${k.varPct>=0?'▲':'▼'} ${Math.abs(k.varPct)}%
+           </span><span class="kpi-sub">vs mês anterior</span>`
+        : (k.sub ? `<span class="kpi-sub">${k.sub}</span>` : '');
+      const abaIdx = ['dashboard','receber','pagar','fluxo','contas','relatorios'].indexOf(k.aba);
+      return `
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon" style="background:${k.bg};color:${k.cor}">${k.icon}</div>
+            <span class="kpi-label">${k.label}</span>
+          </div>
+          <div class="kpi-valor" style="color:${k.cor}">${moeda(k.val)}</div>
+          <div class="kpi-bottom">
+            ${varHtml}
+            ${k.aba ? `<button class="kpi-link" onclick="trocarAba('${k.aba}',document.querySelectorAll('.fin-tab')[${abaIdx}])" title="Ver detalhes">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+
+    // Atualiza sidebar
+    document.getElementById('sr-saldo').textContent   = moeda(d.saldo_caixa);
+    document.getElementById('sr-receber').textContent = moeda(d.a_receber);
+    document.getElementById('sr-pagar').textContent   = moeda(d.a_pagar);
+    document.getElementById('sr-recebido').textContent= moeda(d.recebido_mes);
+    document.getElementById('sr-pago').textContent    = moeda(d.pago_mes);
+    const lucroEl = document.getElementById('sr-lucro');
+    lucroEl.textContent    = moeda(d.lucro_mes);
+    lucroEl.style.color    = d.lucro_mes >= 0 ? '#4ade80' : '#f87171';
+
+    // Gráficos
+    await carregarGraficos();
+
+    // Lançamentos recentes
+    const recentes = await Api.get(`/financeiro/lancamentos?limite=10&inicio=${inicioMes}&fim=${fimMes}`);
+    renderTabelaLanc('tabelaRecente', recentes, false);
+
+  } catch(e) { console.error('[dashboard]', e); toast('Erro ao carregar dashboard','error'); }
+}
+
+async function carregarGraficos() {
+  try {
+    // Últimos 6 meses
+    const labels = [], datasets_rec = [], datasets_des = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+      const m = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      labels.push(d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}));
+      const r = await Api.get(`/financeiro/resumo?mes=${m}`);
+      datasets_rec.push(+(r.receita_realizada)||0);
+      datasets_des.push(+(r.a_pagar)||0);
+    }
+
+    if (_chartRec) _chartRec.destroy();
+    const ctx1 = document.getElementById('chartRecDesp').getContext('2d');
+    _chartRec = new Chart(ctx1, {
+      type:'bar',
+      data:{
+        labels,
+        datasets:[
+          { label:'Receitas', data:datasets_rec, backgroundColor:'rgba(34,197,94,0.7)', borderRadius:5 },
+          { label:'Despesas', data:datasets_des, backgroundColor:'rgba(239,68,68,0.55)', borderRadius:5 },
+        ]
+      },
+      options:{
+        responsive:true,
+        plugins:{ legend:{ labels:{ color:'#94a3b8', font:{size:11} } } },
+        scales:{
+          x:{ ticks:{ color:'#64748b', font:{size:10} }, grid:{ color:'rgba(255,255,255,.04)' } },
+          y:{ ticks:{ color:'#64748b', callback:v=>'R$'+v.toLocaleString('pt-BR'), font:{size:10} }, grid:{ color:'rgba(255,255,255,.04)' } }
+        }
+      }
+    });
+
+    // Donut distribuição mês
+    const dre = await Api.get(`/financeiro/dre`);
+    const donutLabels = dre.despesas.slice(0,5).map(d=>d.categoria||'Outros');
+    const donutData   = dre.despesas.slice(0,5).map(d=>+d.total);
+    const CORES = ['#818cf8','#f87171','#fbbf24','#4ade80','#2dd4bf'];
+
+    if (_chartDonut) _chartDonut.destroy();
+    const ctx2 = document.getElementById('chartDonut').getContext('2d');
+    _chartDonut = new Chart(ctx2, {
+      type:'doughnut',
+      data:{ labels:donutLabels, datasets:[{ data:donutData, backgroundColor:CORES, borderWidth:0, hoverOffset:6 }] },
+      options:{
+        responsive:true, cutout:'65%',
+        plugins:{ legend:{ position:'bottom', labels:{ color:'#94a3b8', font:{size:11}, boxWidth:10 } } }
+      }
+    });
+  } catch(e) { console.error('[graficos]', e); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ALERTAS SIDEBAR
+   ════════════════════════════════════════════════════════════════ */
+async function carregarAlertas() {
+  try {
+    const a = await Api.get('/financeiro/alertas');
+    renderAlertas('alertasHoje',    a.vencem_hoje,   '#fbbf24');
+    renderAlertas('alertasVencidos',a.vencidos,      '#f87171');
+    renderAlertas('alertasAmanha',  a.vencem_amanha, '#94a3b8');
+  } catch(e) {}
+}
+
+function renderAlertas(elId, lista, cor) {
+  const el = document.getElementById(elId);
+  if (!lista?.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-dim)">Nenhum</div>'; return; }
+  el.innerHTML = lista.slice(0,5).map(l => `
+    <div class="alerta-item">
+      <div class="alerta-dot" style="background:${cor}"></div>
+      <div class="alerta-desc">
+        <strong>${escapeHtml(l.descricao||'').slice(0,40)}</strong>
+        ${l.cliente_nome ? escapeHtml(l.cliente_nome) : ''} ${l.data_vencimento ? '· '+formatarData(l.data_vencimento) : ''}
+      </div>
+      <span class="alerta-val" style="color:${l.tipo==='receita'?'#4ade80':'#f87171'}">${moeda(l.valor)}</span>
+    </div>`).join('');
+}
+
+/* ════════════════════════════════════════════════════════════════
+   CONTAS A RECEBER
+   ════════════════════════════════════════════════════════════════ */
+async function carregarReceber() {
+  const inicio = document.getElementById('recInicio')?.value || inicioMes;
+  const fim    = document.getElementById('recFim')?.value    || fimMes;
+  const status = document.getElementById('recStatus')?.value || '';
+  const busca  = document.getElementById('recBusca')?.value  || '';
+  try {
+    const dados = await Api.get(`/financeiro/lancamentos?tipo=receita&inicio=${inicio}&fim=${fim}&status=${encodeURIComponent(status)}&busca=${encodeURIComponent(busca)}`);
+    const totalValor = dados.reduce((s,l)=>s+(+l.valor||0), 0);
+    document.getElementById('totalReceber').textContent = `${dados.length} lançamento(s) · ${moeda(totalValor)}`;
+    renderTabelaLanc('tabelaReceber', dados, true);
+  } catch(e) { toast('Erro ao carregar recebimentos','error'); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   CONTAS A PAGAR
+   ════════════════════════════════════════════════════════════════ */
+async function carregarPagar() {
+  const inicio = document.getElementById('pagInicio')?.value || inicioMes;
+  const fim    = document.getElementById('pagFim')?.value    || fimMes;
+  const status = document.getElementById('pagStatus')?.value || '';
+  const busca  = document.getElementById('pagBusca')?.value  || '';
+  try {
+    const dados = await Api.get(`/financeiro/lancamentos?tipo=despesa&inicio=${inicio}&fim=${fim}&status=${encodeURIComponent(status)}&busca=${encodeURIComponent(busca)}`);
+    const totalValor = dados.reduce((s,l)=>s+(+l.valor||0), 0);
+    document.getElementById('totalPagar').textContent = `${dados.length} lançamento(s) · ${moeda(totalValor)}`;
+    renderTabelaLanc('tabelaPagar', dados, true);
+  } catch(e) { toast('Erro ao carregar despesas','error'); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   RENDER TABELA LANÇAMENTOS
+   ════════════════════════════════════════════════════════════════ */
+function renderTabelaLanc(elId, dados, fullCols) {
+  const el = document.getElementById(elId);
+  if (!dados.length) {
+    el.innerHTML = `<div class="empty-state" style="padding:40px">
+      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+      <h3>Nenhum lançamento</h3></div>`;
+    return;
+  }
+
+  const STATUS = { pendente:'pendente', pago:'pago', atrasado:'atrasado', cancelado:'cancelado' };
+  const STATUS_LABEL = { pendente:'Pendente', pago:'Pago', atrasado:'Vencido', cancelado:'Cancelado' };
+
+  const rows = dados.map(l => {
+    const parcelaBadge = l.parcela_total > 1
+      ? `<span class="pill pill-parcela">${l.parcela_num}/${l.parcela_total}</span>` : '';
+    const catDot = l.categoria_cor ? `<span class="cat-dot" style="background:${escapeHtml(l.categoria_cor)}"></span>` : '';
+
+    const acoesHtml = `
+      <div style="display:flex;gap:4px;align-items:center">
+        ${l.status==='pendente'?`
+          <button class="acao-btn ok" onclick="abrirPagar(${l.id},'${escapeHtml(l.descricao||'').replace(/'/g,"\\'")}',${l.valor})" title="Marcar como pago">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>`:''}
+        <button class="acao-btn" onclick="editarLanc(${l.id})" title="Editar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+        </button>
+        ${l.status!=='cancelado'?`
+          <button class="acao-btn danger" onclick="cancelarLanc(${l.id})" title="Cancelar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>`:''}
+      </div>`;
+
+    if (!fullCols) {
+      // Tabela compacta (recentes)
+      return `<tr>
+        <td><span class="pill pill-${l.tipo}">${l.tipo==='receita'?'Receita':'Despesa'}</span></td>
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          ${escapeHtml(l.descricao||'')} ${parcelaBadge}
+          ${l.cliente_nome?`<br><span style="font-size:11px;color:var(--text-dim)">${escapeHtml(l.cliente_nome)}</span>`:''}
+        </td>
+        <td style="font-weight:600;color:${l.tipo==='receita'?'#4ade80':'#f87171'}">${l.tipo==='receita'?'+':'−'} ${moeda(l.valor)}</td>
+        <td style="font-size:12px;color:var(--text-dim)">${formatarData(l.data_vencimento)}</td>
+        <td><span class="pill pill-${STATUS[l.status]||'pendente'}">${STATUS_LABEL[l.status]||l.status}</span></td>
+        <td>${acoesHtml}</td>
+      </tr>`;
+    }
+
+    return `<tr>
+      <td>
+        <div style="max-width:240px">
+          <div style="font-size:13px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            ${escapeHtml(l.descricao||'')} ${parcelaBadge}
+          </div>
+          ${l.cliente_nome?`<div style="font-size:11.5px;color:var(--text-dim)">${escapeHtml(l.cliente_nome)}</div>`:''}
+        </div>
+      </td>
+      <td>${catDot}${l.categoria_nome?escapeHtml(l.categoria_nome):'<span style="color:var(--text-dim)">—</span>'}</td>
+      <td style="font-weight:700;color:${l.tipo==='receita'?'#4ade80':'#f87171'};white-space:nowrap">
+        ${l.tipo==='receita'?'+':'−'} ${moeda(l.valor)}
+      </td>
+      <td style="font-size:12.5px;color:var(--text-muted);white-space:nowrap">${formatarData(l.data_vencimento)}</td>
+      <td>${l.forma_pagamento?`<span style="font-size:12px;color:var(--text-dim)">${escapeHtml(l.forma_pagamento)}</span>`:'<span style="color:var(--text-dim)">—</span>'}</td>
+      <td><span class="pill pill-${STATUS[l.status]||'pendente'}">${STATUS_LABEL[l.status]||l.status}</span></td>
+      <td>${acoesHtml}</td>
+    </tr>`;
+  }).join('');
+
+  const thead = fullCols
+    ? `<tr><th>Descrição / Cliente</th><th>Categoria</th><th>Valor</th><th>Vencimento</th><th>Forma</th><th>Status</th><th>Ações</th></tr>`
+    : `<tr><th>Tipo</th><th>Descrição</th><th>Valor</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr>`;
+
+  el.innerHTML = `<table><thead>${thead}</thead><tbody>${rows}</tbody></table>`;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   FLUXO DE CAIXA DIÁRIO
+   ════════════════════════════════════════════════════════════════ */
+async function carregarFluxo() {
+  const inicio = document.getElementById('fluxoInicio')?.value || inicioMes;
+  const fim    = document.getElementById('fluxoFim')?.value    || fimMes;
+  try {
+    const { saldo_inicial, dias } = await Api.get(`/financeiro/fluxo-diario?inicio=${inicio}&fim=${fim}`);
+    document.getElementById('fluxoSaldoInicial').textContent = moeda(saldo_inicial);
+
+    if (!dias.length) {
+      document.getElementById('fluxoConteudo').innerHTML =
+        `<div class="empty-state" style="padding:40px"><h3>Nenhum lançamento no período</h3></div>`;
+      return;
+    }
+
+    const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+    const html = dias.map(d => {
+      const dt = new Date(d.data + 'T12:00:00');
+      const label = `${DIAS_SEMANA[dt.getDay()]}, ${dt.getDate()} ${MESES[dt.getMonth()]}`;
+      const isPrevisto = d.data > hojeStr;
+
+      const itensHtml = d.itens.map(l => {
+        const isRec = l.tipo === 'receita';
+        const cor   = isRec ? '#4ade80' : '#f87171';
+        const bgIco = isRec ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.12)';
+        const sinal = isRec ? '+' : '−';
+        const sub   = [l.cliente_nome, l.fornecedor_nome, l.categoria_nome, l.forma_pagamento]
+                        .filter(Boolean).join(' · ');
+        return `
+          <div class="fluxo-item ${isPrevisto?'fluxo-previsto':''}">
+            <div class="fluxo-item-icon" style="background:${bgIco}">
+              ${isRec
+                ? `<svg viewBox="0 0 24 24" fill="none" stroke="${cor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`
+                : `<svg viewBox="0 0 24 24" fill="none" stroke="${cor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>`
+              }
+            </div>
+            <div class="fluxo-item-desc">
+              <strong>${escapeHtml(l.descricao||'')}</strong>
+              <span>${escapeHtml(sub)}</span>
+            </div>
+            <div class="fluxo-item-valor" style="color:${cor}">${sinal} ${moeda(l.valor)}</div>
+            <div class="fluxo-item-saldo">
+              <div style="font-size:10px;margin-bottom:1px">saldo</div>
+            </div>
+          </div>`;
+      }).join('');
+
+      const corSaldo = d.saldo_acumulado >= 0 ? '#4ade80' : '#f87171';
+
+      return `
+        <div class="fluxo-dia">
+          <div class="fluxo-dia-label">${label}${isPrevisto?' · <span style="color:var(--primary);font-size:10px">PREVISTO</span>':''}</div>
+          ${itensHtml}
+          <div class="fluxo-saldo-fim">
+            Saldo: <strong style="color:${corSaldo};margin-left:6px">${moeda(d.saldo_acumulado)}</strong>
+          </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('fluxoConteudo').innerHTML = html;
+  } catch(e) { console.error('[fluxo]',e); toast('Erro ao carregar fluxo','error'); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   CONTAS BANCÁRIAS
+   ════════════════════════════════════════════════════════════════ */
+async function carregarContas() {
+  try {
+    _contas = await Api.get('/financeiro/contas');
+    const TIPO_ICON = {
+      corrente: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
+      poupanca: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg>`,
+      caixa:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>`,
+      digital:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`,
+    };
+    const CORES = ['#818cf8','#4ade80','#fbbf24','#f87171','#2dd4bf'];
+    document.getElementById('contasGrid').innerHTML = _contas.map((c,i) => `
+      <div class="conta-card">
+        <div class="conta-top">
+          <div class="conta-icon" style="background:rgba(${hexToRgb(CORES[i%CORES.length])},.12)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="${CORES[i%CORES.length]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${TIPO_ICON[c.tipo||'corrente'].match(/<svg[^>]*>(.*?)<\/svg>/s)?.[1]||''}</svg>
+          </div>
+          <div>
+            <div class="conta-nome">${escapeHtml(c.nome)}</div>
+            <div class="conta-banco">${c.banco||''} ${c.numero_conta?'· Conta '+c.numero_conta:''}</div>
+          </div>
+        </div>
+        <div>
+          <div class="conta-sub">Saldo atual</div>
+          <div class="conta-saldo" style="color:${c.saldo_atual>=0?'#4ade80':'#f87171'}">${moeda(c.saldo_atual)}</div>
+        </div>
+        ${c.pix?`<div style="font-size:12px;color:var(--text-dim)">PIX: ${escapeHtml(c.pix)}</div>`:''}
+        <div class="conta-actions">
+          <button class="btn btn-ghost" style="font-size:12px;flex:1" onclick="abrirModalConta(${c.id})">Editar</button>
+          <button class="btn btn-ghost" style="font-size:12px" onclick="abrirTransferencia(${c.id})" title="Transferir">⇄</button>
+        </div>
+      </div>
+    `).join('') || '<div style="color:var(--text-dim);font-size:13px">Nenhuma conta cadastrada.</div>';
+  } catch(e) { toast('Erro ao carregar contas','error'); }
+}
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   RELATÓRIO DRE
+   ════════════════════════════════════════════════════════════════ */
+async function carregarRelatorio() {
+  const inicio = document.getElementById('relInicio').value;
+  const fim    = document.getElementById('relFim').value;
+  try {
+    const [dre, fluxo] = await Promise.all([
+      Api.get(`/financeiro/dre`),
+      Api.get(`/financeiro/fluxo?inicio=${inicio}&fim=${fim}`),
+    ]);
+
+    const recHtml = dre.receitas.map(r => `
+      <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px">
+        <span style="color:var(--text-muted)">${escapeHtml(r.categoria||'Sem categoria')}</span>
+        <span style="color:#4ade80;font-weight:600">+ ${moeda(r.total)}</span>
+      </div>`).join('');
+
+    const desHtml = dre.despesas.map(r => `
+      <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px">
+        <span style="color:var(--text-muted)">${escapeHtml(r.categoria||'Sem categoria')}</span>
+        <span style="color:#f87171;font-weight:600">− ${moeda(r.total)}</span>
+      </div>`).join('');
+
+    const lucro  = dre.totais.lucro;
+    const margem = dre.totais.margem;
+
+    document.getElementById('relConteudo').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+        <div class="fin-table-card">
+          <div class="fin-table-hdr"><h3 style="color:#4ade80">↓ Receitas — ${moeda(dre.totais.receitas)}</h3></div>
+          <div style="padding:0 16px">${recHtml || '<div style="padding:16px;color:var(--text-dim);font-size:13px">Sem receitas</div>'}</div>
+        </div>
+        <div class="fin-table-card">
+          <div class="fin-table-hdr"><h3 style="color:#f87171">↑ Despesas — ${moeda(dre.totais.despesas)}</h3></div>
+          <div style="padding:0 16px">${desHtml || '<div style="padding:16px;color:var(--text-dim);font-size:13px">Sem despesas</div>'}</div>
+        </div>
+      </div>
+      <div class="fin-table-card" style="padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:13px;color:var(--text-dim)">Resultado do período</div>
+            <div style="font-size:28px;font-weight:700;color:${lucro>=0?'#4ade80':'#f87171'};margin-top:4px">${moeda(lucro)}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:12px;color:var(--text-dim)">Margem</div>
+            <div style="font-size:24px;font-weight:700;color:${margem>=30?'#4ade80':margem>=15?'#fbbf24':'#f87171'}">${margem}%</div>
+          </div>
+        </div>
+      </div>`;
+  } catch(e) { toast('Erro ao gerar relatório','error'); }
+}
+
+async function exportarPDF() {
+  toast('Em breve: exportação PDF completa','info');
+}
+
+/* ════════════════════════════════════════════════════════════════
+   MODAL LANÇAMENTO
+   ════════════════════════════════════════════════════════════════ */
+let _categoriasFiltradas = [];
+
+function abrirModal(tipo='receita', lanc=null) {
+  document.getElementById('lId').value = '';
+  document.getElementById('lDescricao').value = '';
+  document.getElementById('lValor').value = '';
+  document.getElementById('lEntrada').value = '';
+  document.getElementById('lDocumento').value = '';
+  document.getElementById('lObs').value = '';
+  document.getElementById('lParcelas').value = '1';
+  document.getElementById('lForma').value = '';
+  document.getElementById('lConta').value = '';
+  document.getElementById('lVencimento').value = hojeStr;
+  document.getElementById('parcelasPreview').style.display = 'none';
+
+  setTipo(tipo);
+
+  if (lanc) {
+    document.getElementById('lId').value = lanc.id;
+    setTipo(lanc.tipo);
+    document.getElementById('lDescricao').value = lanc.descricao || '';
+    setMoeda('lValor', lanc.valor);
+    document.getElementById('lVencimento').value = (lanc.data_vencimento||'').slice(0,10);
+    document.getElementById('lForma').value = lanc.forma_pagamento || '';
+    document.getElementById('lConta').value = lanc.conta_id || '';
+    document.getElementById('lObs').value = lanc.observacoes || '';
+    document.getElementById('lDocumento').value = lanc.num_documento || '';
+    document.getElementById('mLancTitulo').textContent = 'Editar Lançamento';
+  } else {
+    document.getElementById('mLancTitulo').textContent = tipo === 'receita' ? 'Nova Receita' : 'Nova Despesa';
+  }
+
+  filtrarCategorias();
+  if (lanc?.categoria_id) document.getElementById('lCategoria').value = lanc.categoria_id;
+
+  document.getElementById('modalLanc').classList.add('open');
+}
+
+function fecharModal() { document.getElementById('modalLanc').classList.remove('open'); }
+
+function setTipo(tipo) {
+  document.getElementById('lTipo').value = tipo;
+  const qR = document.getElementById('qRec'), qD = document.getElementById('qDes');
+  qR.className = 'quick-btn' + (tipo==='receita'?' ativo-rec':'');
+  qD.className = 'quick-btn' + (tipo==='despesa'?' ativo-des':'');
+  filtrarCategorias();
+}
+
+function filtrarCategorias() {
+  const tipo = document.getElementById('lTipo').value;
+  const sel  = document.getElementById('lCategoria');
+  sel.innerHTML = '<option value="">Sem categoria</option>';
+  (_categorias||[]).filter(c => c.tipo===tipo).forEach(c =>
+    sel.innerHTML += `<option value="${c.id}">${escapeHtml(c.nome)}</option>`
+  );
+}
+
+function atualizarPreviewParcelas() {
+  const n     = parseInt(document.getElementById('lParcelas').value) || 1;
+  const total = getMoeda('lValor');
+  const entr  = getMoeda('lEntrada');
+  const prev  = document.getElementById('parcelasPreview');
+  const lista = document.getElementById('parcelasLista');
+
+  if (n <= 1 && entr === 0) { prev.style.display='none'; return; }
+
+  const restante   = total - entr;
+  const valParc    = n > 0 ? +(restante/n).toFixed(2) : 0;
+  const dataBase   = new Date((document.getElementById('lVencimento').value||hojeStr)+'T12:00:00');
+
+  let html = '';
+  if (entr > 0) {
+    html += `<div class="parcela-row"><span>Entrada</span><span>${moeda(entr)}</span><span>${formatarData(hojeStr)}</span></div>`;
+  }
+  for (let i=0;i<n;i++) {
+    const d = new Date(dataBase); d.setMonth(d.getMonth()+i);
+    html += `<div class="parcela-row"><span>${i+1}/${n}</span><span>${moeda(valParc)}</span><span>${d.toLocaleDateString('pt-BR')}</span></div>`;
+  }
+
+  lista.innerHTML = html;
+  prev.style.display = '';
+}
+
+async function salvarLanc() {
+  const id    = document.getElementById('lId').value;
+  const tipo  = document.getElementById('lTipo').value;
+  const desc  = document.getElementById('lDescricao').value.trim();
+  const valor = getMoeda('lValor');
+  const venc  = document.getElementById('lVencimento').value;
+
+  if (!desc || !valor || !venc) { toast('Preencha descrição, valor e vencimento','warning'); return; }
+
+  const body = {
+    tipo, descricao: desc, valor,
+    data_vencimento:    venc,
+    forma_pagamento:    document.getElementById('lForma').value    || null,
+    conta_id:           document.getElementById('lConta').value    || null,
+    categoria_id:       document.getElementById('lCategoria').value|| null,
+    observacoes:        document.getElementById('lObs').value      || null,
+    num_documento:      document.getElementById('lDocumento').value|| null,
+    parcelas:           parseInt(document.getElementById('lParcelas').value)||1,
+    valor_entrada:      getMoeda('lEntrada'),
+  };
+
+  try {
+    if (id) { await Api.put(`/financeiro/lancamentos/${id}`, body); toast('Atualizado!','success'); }
+    else    { await Api.post('/financeiro/lancamentos', body);       toast('Criado!','success'); }
+    fecharModal();
+    // Recarrega aba ativa
+    const abaAtiva = document.querySelector('.fin-tab.ativo');
+    if (abaAtiva) abaAtiva.click();
+    carregarAlertas();
+  } catch(e) { toast(e.message||'Erro ao salvar','error'); }
+}
+
+async function editarLanc(id) {
+  try {
+    const dados = await Api.get(`/financeiro/lancamentos?limite=2000&inicio=2000-01-01&fim=2099-12-31`);
+    const l = dados.find(x => x.id === id);
+    if (l) abrirModal(l.tipo, l);
+  } catch(e) { toast('Erro ao carregar lançamento','error'); }
+}
+
+async function cancelarLanc(id) {
+  if (!confirm('Cancelar este lançamento?')) return;
+  try {
+    await Api.delete(`/financeiro/lancamentos/${id}`);
+    toast('Cancelado','success');
+    const abaAtiva = document.querySelector('.fin-tab.ativo');
+    if (abaAtiva) abaAtiva.click();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   MODAL PAGAR / RECEBER
+   ════════════════════════════════════════════════════════════════ */
+function abrirPagar(id, desc, valor) {
+  document.getElementById('pId').value = id;
+  document.getElementById('pData').value = hojeStr;
+  document.getElementById('pForma').value = '';
+  document.getElementById('pConta').value = '';
+  document.getElementById('mPagarDesc').textContent = desc;
+  document.getElementById('mPagarValor').textContent = moeda(valor);
+  document.getElementById('modalPagar').classList.add('open');
+}
+function fecharModalPagar() { document.getElementById('modalPagar').classList.remove('open'); }
+
+async function confirmarPagar() {
+  const id   = document.getElementById('pId').value;
+  const data = document.getElementById('pData').value;
+  const forma= document.getElementById('pForma').value;
+  const conta= document.getElementById('pConta').value;
+  if (!conta) { toast('Selecione a conta onde o valor entrou/saiu — ela alimenta a Central de Tesouraria','warning'); return; }
+  try {
+    await Api.put(`/financeiro/lancamentos/${id}/pagar`, { data_pagamento:data, forma_pagamento:forma, conta_id:conta||null });
+    toast('Marcado como pago!','success');
+    fecharModalPagar();
+    const abaAtiva = document.querySelector('.fin-tab.ativo');
+    if (abaAtiva) abaAtiva.click();
+    carregarAlertas();
+    // Recarrega resumo sidebar
+    const dash = await Api.get('/financeiro/dashboard');
+    document.getElementById('sr-saldo').textContent    = moeda(dash.saldo_caixa);
+    document.getElementById('sr-receber').textContent  = moeda(dash.a_receber);
+    document.getElementById('sr-pagar').textContent    = moeda(dash.a_pagar);
+    document.getElementById('sr-recebido').textContent = moeda(dash.recebido_mes);
+    document.getElementById('sr-pago').textContent     = moeda(dash.pago_mes);
+    const el = document.getElementById('sr-lucro');
+    el.textContent = moeda(dash.lucro_mes);
+    el.style.color = dash.lucro_mes >= 0 ? '#4ade80' : '#f87171';
+  } catch(e) { toast(e.message,'error'); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   MODAL TRANSFERÊNCIA
+   ════════════════════════════════════════════════════════════════ */
+function abrirTransferencia(contaId = null) {
+  document.getElementById('tOrigem').value  = contaId || '';
+  document.getElementById('tDestino').value = '';
+  document.getElementById('tValor').value   = '';
+  document.getElementById('tDesc').value    = '';
+  document.getElementById('tData').value    = hojeStr;
+  document.getElementById('modalTransf').classList.add('open');
+}
+function fecharTransf() { document.getElementById('modalTransf').classList.remove('open'); }
+
+async function confirmarTransf() {
+  const body = {
+    conta_origem_id:  document.getElementById('tOrigem').value,
+    conta_destino_id: document.getElementById('tDestino').value,
+    valor:            getMoeda('tValor'),
+    data:             document.getElementById('tData').value,
+    descricao:        document.getElementById('tDesc').value,
+  };
+  if (!body.conta_origem_id || !body.conta_destino_id || !body.valor)
+    return toast('Preencha origem, destino e valor','warning');
+  if (body.conta_origem_id === body.conta_destino_id)
+    return toast('Contas devem ser diferentes','warning');
+  try {
+    await Api.post('/financeiro/transferencias', body);
+    toast('Transferência realizada!','success');
+    fecharTransf();
+    carregarContas();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   MODAL CONTA BANCÁRIA
+   ════════════════════════════════════════════════════════════════ */
+function abrirModalConta(id=null) {
+  ['cNome','cBanco','cAgencia','cNumero','cPix'].forEach(i => document.getElementById(i).value='');
+  document.getElementById('cTipo').value = 'corrente';
+  document.getElementById('cSaldo').value = '';
+  document.getElementById('cId').value = id || '';
+  document.getElementById('mContaTitulo').textContent = id ? 'Editar Conta' : 'Nova Conta';
+  if (id) {
+    const c = _contas.find(x => x.id === id);
+    if (c) {
+      document.getElementById('cNome').value    = c.nome   || '';
+      document.getElementById('cBanco').value   = c.banco  || '';
+      document.getElementById('cTipo').value    = c.tipo   || 'corrente';
+      document.getElementById('cAgencia').value = c.agencia|| '';
+      document.getElementById('cNumero').value  = c.numero_conta||'';
+      document.getElementById('cPix').value     = c.pix    || '';
+      setMoeda('cSaldo', c.saldo_inicial||0);
+    }
+  }
+  document.getElementById('modalConta').classList.add('open');
+}
+function fecharModalConta() { document.getElementById('modalConta').classList.remove('open'); }
+
+async function salvarConta() {
+  const id = document.getElementById('cId').value;
+  const body = {
+    nome:         document.getElementById('cNome').value,
+    tipo:         document.getElementById('cTipo').value,
+    banco:        document.getElementById('cBanco').value,
+    agencia:      document.getElementById('cAgencia').value,
+    numero_conta: document.getElementById('cNumero').value,
+    pix:          document.getElementById('cPix').value,
+    saldo_inicial:getMoeda('cSaldo'),
+  };
+  if (!body.nome) return toast('Nome é obrigatório','warning');
+  try {
+    if (id) await Api.put(`/financeiro/contas/${id}`, body);
+    else    await Api.post('/financeiro/contas', body);
+    toast('Conta salva!','success');
+    fecharModalConta();
+    carregarContas();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   FECHAR MODAIS AO CLICAR FORA
+   ════════════════════════════════════════════════════════════════ */
+['modalLanc','modalPagar','modalTransf','modalConta'].forEach(id => {
+  document.getElementById(id)?.addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+});
+
+/* ════════════════════════════════════════════════════════════════
+   ATALHOS DE TECLADO
+   ════════════════════════════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'n' || e.key === 'N') abrirModal('receita');
+  if (e.key === 'd' || e.key === 'D') abrirModal('despesa');
+  if (e.key === 'Escape') {
+    ['modalLanc','modalPagar','modalTransf','modalConta'].forEach(id =>
+      document.getElementById(id)?.classList.remove('open')
+    );
+  }
+});
+
+/* ── Inicializa ── */
+init();
+</script>
+</body>
+</html>
