@@ -1,5 +1,5 @@
 const express = require('express');
-const { v4: uuid } = require('uuid');
+const { randomUUID: uuid } = require('crypto');
 const db = require('../utils/db');
 const { autenticar } = require('../middlewares/auth');
 

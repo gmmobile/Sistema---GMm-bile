@@ -2,6 +2,7 @@
 backend/.env
 .env
 *.env
+credenciais/
 
 # Dependências (a Vercel instala sozinha)
 backend/node_modules

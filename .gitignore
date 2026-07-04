@@ -2,6 +2,7 @@
 .env
 *.env
 backend/.env
+credenciais/
 
 # Dependências
 node_modules/
@@ -15,3 +16,5 @@ server_err.txt
 
 # Uploads locais (produção usa Cloudinary)
 backend/uploads/
+
+.vercel

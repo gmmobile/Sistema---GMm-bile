@@ -347,7 +347,7 @@ async function criarPedidoDeOrcamento(orc, opcoes = {}) {
 
     // ── Contas a Receber: gera parcelas automaticamente ──
     try {
-      const { v4: uuidv4 } = require('uuid');
+      const uuidv4 = require('crypto').randomUUID;
       const valorFinal   = +(orc.valor_final || orc.valor_total) || 0;
       const entrada      = +(orc.valor_entrada) || 0;
       const nParcelas    = +(orc.num_parcelas) || 1;
