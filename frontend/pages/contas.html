@@ -60,7 +60,10 @@
   .cta-bell{position:relative;width:26px;height:26px;border-radius:7px;background:rgba(255,255,255,.05);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-dim)}
   .cta-bell svg{width:12px;height:12px}
   .cta-bell-n{position:absolute;top:-5px;right:-5px;min-width:14px;height:14px;border-radius:7px;background:#f87171;color:#fff;font-size:8.5px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 3px}
-  .cta-menu-btn{width:26px;height:26px;border-radius:7px;background:rgba(255,255,255,.05);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-dim);cursor:pointer;transition:all .15s}
+  /* padding:0 é necessário — a regra global "button,.btn{padding:10px 20px}"
+     também vale aqui; sem zerar o padding, ele sozinho (40px) é maior que a
+     largura de 26px e o botão cresce, espremendo o ícone a 0px de largura. */
+  .cta-menu-btn{width:26px;height:26px;padding:0;min-width:0;border-radius:7px;background:rgba(255,255,255,.05);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-dim);cursor:pointer;transition:all .15s}
   .cta-menu-btn:hover{color:var(--text);background:rgba(255,255,255,.1)}
   .cta-menu-btn svg{width:13px;height:13px}
   .cta-menu{position:absolute;top:46px;right:14px;background:#1c1c20;border:1px solid var(--border);border-radius:10px;padding:5px;z-index:50;min-width:170px;box-shadow:0 10px 30px rgba(0,0,0,.5);display:none}
@@ -112,7 +115,7 @@
   .tz-drawer-ov.open{display:block}
   .tz-drawer{position:fixed;right:-540px;top:0;bottom:0;width:520px;max-width:100vw;background:var(--bg-card);border-left:1px solid var(--border);z-index:1000;transition:right .35s cubic-bezier(.4,0,.2,1);overflow-y:auto;padding:22px}
   .tz-drawer.open{right:0}
-  .dw-close{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;width:30px;height:30px;cursor:pointer;color:var(--text-dim);display:flex;align-items:center;justify-content:center}
+  .dw-close{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;width:30px;height:30px;padding:0;min-width:0;cursor:pointer;color:var(--text-dim);display:flex;align-items:center;justify-content:center}
   .dw-close:hover{color:var(--text)}
   .dw-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-right:44px}
   .dw-saldos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
