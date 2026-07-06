@@ -134,6 +134,60 @@
 .bi-view-hd p{font-size:12px;color:var(--text-dim);margin-top:2px;}
 .prog-bar{height:4px;border-radius:2px;background:var(--border);overflow:hidden;margin-top:3px;}
 .prog-fill{height:100%;border-radius:2px;background:var(--primary);}
+
+/* ── BI Nav: botão mobile + backdrop (escondidos no desktop) ── */
+.bi-nav-toggle{display:none;}
+.bi-nav-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:290;}
+.bi-nav-backdrop.open{display:block;}
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE
+══════════════════════════════════════════════════════════════ */
+@media(max-width:900px){
+  /* Botão para abrir o menu de seções do BI */
+  .bi-nav-toggle{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card2);color:var(--text);font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;}
+  .bi-nav-toggle svg{width:14px;height:14px;}
+
+  /* Menu vira drawer deslizante da esquerda */
+  .bi-nav{
+    position:fixed; top:0; left:0; bottom:0; z-index:300;
+    width:min(78vw,280px); min-width:0;
+    transform:translateX(-100%);
+    transition:transform .25s cubic-bezier(.4,0,.2,1);
+    box-shadow:10px 0 30px rgba(0,0,0,.45);
+  }
+  .bi-nav.open{ transform:translateX(0); }
+
+  /* Barra de período: rola horizontalmente em vez de quebrar linha */
+  .bi-filterbar{ flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; padding:8px 12px; gap:6px; }
+  .bi-filterbar::-webkit-scrollbar{ display:none; }
+  .pb{ flex-shrink:0; white-space:nowrap; padding:5px 10px; font-size:11.5px; }
+  .fl-sep{ flex-shrink:0; }
+  #cstPeriod{ flex-shrink:0; }
+  #cstPeriod input[type=date]{ width:118px; }
+  .fl-right{ margin-left:8px; flex-shrink:0; }
+  .pLabel{ display:none; } /* já mostrado no cabeçalho da view */
+
+  .bi-view{ padding:12px; }
+  .bi-view-hd h2{ font-size:15px; }
+
+  /* KPIs: nunca mais que 2 colunas apertadas */
+  .krow.k3, .krow.k4{ grid-template-columns:repeat(2,1fr); }
+  .bi-kpi{ padding:12px 14px; gap:5px; }
+  .kpi-val{ font-size:17px; }
+  .kico{ width:26px; height:26px; }
+  .kico svg{ width:11px; height:11px; }
+
+  /* Tabelas: scroll horizontal (padrão já usado no resto do app) */
+  .btc{ overflow-x:auto; }
+  .bt{ min-width:560px; }
+  .dre-card{ overflow-x:auto; }
+  .dret{ min-width:480px; }
+}
+
+@media(max-width:480px){
+  .krow.k2, .krow.k3, .krow.k4{ grid-template-columns:1fr; }
+}
 </style>
 </head>
 <body>
@@ -159,6 +213,8 @@
 </header>
 
 <div class="bi-wrap">
+
+  <div class="bi-nav-backdrop" id="biNavBackdrop" onclick="toggleBiNav(false)"></div>
 
   <!-- BI Sidebar -->
   <nav class="bi-nav" id="biNav">
@@ -205,6 +261,9 @@
 
     <!-- Filter Bar -->
     <div class="bi-filterbar">
+      <button class="bi-nav-toggle" onclick="toggleBiNav()">
+        <i data-lucide="menu"></i> Seções
+      </button>
       <button class="pb" data-p="hoje"   onclick="setPeriodo('hoje')">Hoje</button>
       <button class="pb" data-p="semana" onclick="setPeriodo('semana')">Semana</button>
       <button class="pb ativo" data-p="mes" onclick="setPeriodo('mes')">Este Mês</button>
@@ -366,6 +425,15 @@ function setView(nome) {
   killCharts();
   const fn=VIEWS[nome];
   if(fn) fn(); else errView('View não implementada.');
+  if (window.innerWidth <= 900) toggleBiNav(false);
+}
+
+// ── Menu do BI (drawer no mobile) ──────────────────────────────────────
+function toggleBiNav(force) {
+  const nav = document.getElementById('biNav');
+  const open = force !== undefined ? force : !nav.classList.contains('open');
+  nav.classList.toggle('open', open);
+  document.getElementById('biNavBackdrop').classList.toggle('open', open);
 }
 
 function recarregar() { killCharts(); const fn=VIEWS[_view]; if(fn) fn(); }
