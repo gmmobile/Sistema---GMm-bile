@@ -15,8 +15,10 @@
                      gap:10px; padding:14px 18px; overflow:hidden; }
 
     /* ── KPI strip ───────────────────────────────────────── */
-    .kpi-strip { display:grid; grid-template-columns:repeat(8,1fr); gap:8px; flex-shrink:0; }
-    @media(max-width:1400px){ .kpi-strip { grid-template-columns:repeat(4,1fr); } }
+    /* minmax(0,1fr) é essencial — sem isso as colunas não encolhem
+       abaixo do conteúdo e a página inteira ganha scroll horizontal */
+    .kpi-strip { display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:8px; flex-shrink:0; }
+    @media(max-width:1400px){ .kpi-strip { grid-template-columns:repeat(4,minmax(0,1fr)); } }
     .kpi-card {
       background:var(--bg-card); border:1px solid var(--border); border-radius:10px;
       padding:10px 14px; display:flex; flex-direction:column; gap:4px; position:relative;
@@ -282,6 +284,23 @@
     @media(max-width:800px) {
       .conc-cols { grid-template-columns:1fr; }
       .conc-sidebar { display:none; }
+    }
+    @media(max-width:640px){
+      .kpi-strip { grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+      .kpi-card { padding:8px 10px; }
+      .kpi-valor { font-size:14px; }
+      .kpi-label { font-size:9px; }
+      .kpi-sub { font-size:9px; }
+
+      .page-content { padding:10px; gap:8px; }
+
+      /* Filtros: cada campo ocupa a linha inteira */
+      .filtros-bar { flex-direction:column; align-items:stretch; padding:10px; }
+      .filtros-bar .form-group { width:100%; }
+      .filtros-bar select, .filtros-bar input { width:100%; box-sizing:border-box; }
+      .filtros-bar .busca-wrap input { width:100% !important; }
+      .filtros-actions { margin-left:0; width:100%; }
+      .filtros-actions .btn { flex:1; }
     }
   </style>
 </head>
