@@ -61,6 +61,10 @@
     .kpi-link svg { width:12px; height:12px; }
     .kpi-card:hover .kpi-link { opacity:1; }
 
+    /* ── Relatório / DRE ── */
+    .dre-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .dre-resultado { display:flex; justify-content:space-between; align-items:center; gap:14px; }
+
     /* ── Gráfico ── */
     .fin-charts { display:grid; grid-template-columns:2fr 1fr; gap:14px; margin-bottom:20px; }
     .chart-card { background:var(--bg-card2); border:1px solid var(--border); border-radius:14px; padding:18px; }
@@ -256,6 +260,11 @@
 
       /* Modal de lançamento: botões rápidos empilham em telas bem estreitas */
       .modal-quick-btns { flex-wrap:wrap; }
+
+      /* Relatório / DRE: Receitas e Despesas empilham, resultado também */
+      .dre-grid { grid-template-columns:1fr; gap:10px; }
+      .dre-resultado { flex-direction:column; align-items:flex-start; gap:10px; padding:16px !important; }
+      .dre-resultado > div:last-child { text-align:left; }
       .quick-btn { min-width:90px; }
     }
 
@@ -1279,7 +1288,7 @@ async function carregarRelatorio() {
     const margem = dre.totais.margem;
 
     document.getElementById('relConteudo').innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+      <div class="dre-grid" style="margin-bottom:16px">
         <div class="fin-table-card">
           <div class="fin-table-hdr"><h3 style="color:#4ade80">↓ Receitas — ${moeda(dre.totais.receitas)}</h3></div>
           <div style="padding:0 16px">${recHtml || '<div style="padding:16px;color:var(--text-dim);font-size:13px">Sem receitas</div>'}</div>
@@ -1289,16 +1298,14 @@ async function carregarRelatorio() {
           <div style="padding:0 16px">${desHtml || '<div style="padding:16px;color:var(--text-dim);font-size:13px">Sem despesas</div>'}</div>
         </div>
       </div>
-      <div class="fin-table-card" style="padding:20px">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div style="font-size:13px;color:var(--text-dim)">Resultado do período</div>
-            <div style="font-size:28px;font-weight:700;color:${lucro>=0?'#4ade80':'#f87171'};margin-top:4px">${moeda(lucro)}</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-size:12px;color:var(--text-dim)">Margem</div>
-            <div style="font-size:24px;font-weight:700;color:${margem>=30?'#4ade80':margem>=15?'#fbbf24':'#f87171'}">${margem}%</div>
-          </div>
+      <div class="fin-table-card dre-resultado" style="padding:20px">
+        <div>
+          <div style="font-size:13px;color:var(--text-dim)">Resultado do período</div>
+          <div style="font-size:28px;font-weight:700;color:${lucro>=0?'#4ade80':'#f87171'};margin-top:4px">${moeda(lucro)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;color:var(--text-dim)">Margem</div>
+          <div style="font-size:24px;font-weight:700;color:${margem>=30?'#4ade80':margem>=15?'#fbbf24':'#f87171'}">${margem}%</div>
         </div>
       </div>`;
   } catch(e) { toast('Erro ao gerar relatório','error'); }
