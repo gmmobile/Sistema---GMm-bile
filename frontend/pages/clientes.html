@@ -354,8 +354,11 @@
       .cli-search-wrap { min-width:0; width:100%; order:-1; }
       .cli-topbar .btn { font-size:12px; padding:7px 12px; }
 
-      /* Filters: horizontal scroll */
-      .cli-filters { flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px; gap:8px; }
+      /* Filters: horizontal scroll.
+         min-height explícito é necessário: overflow-x:auto tira o piso
+         de altura automático do item flex, e ele fica esmagado a ~0px
+         quando o conteúdo da página é mais alto que a tela. */
+      .cli-filters { flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px; gap:8px; min-height:38px; flex-shrink:0; }
       .cli-filters::-webkit-scrollbar { display:none; }
       .cli-filter-select { flex-shrink:0; font-size:12px; }
 
