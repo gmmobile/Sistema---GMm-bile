@@ -156,10 +156,24 @@
     .alert-bar svg { width:14px; height:14px; flex-shrink:0; }
     .alert-bar.warn { background:rgba(251,191,36,.08); border-color:rgba(251,191,36,.2); color:#fbbf24; }
 
-    @media (max-width:700px) {
-      .prod-stats { grid-template-columns:repeat(3,1fr); }
+    @media (max-width:900px) {
+      .prod-stats { grid-template-columns:repeat(3,1fr); gap:6px; }
+      .pstat { padding:9px 10px; }
+      .pstat-val { font-size:18px; }
+      .pstat-lbl { font-size:10px; }
       .drawer { width:100vw; }
       .df-row { grid-template-columns:1fr; }
+      .prod-toolbar { gap:6px; }
+      .prod-search { min-width:0; max-width:none; flex:1 1 100%; }
+      .pfilter { flex:1 1 auto; min-width:0; }
+      .kb-col { max-height:calc(100vh - 300px); }
+      .dr-tab { font-size:10px; padding:9px 2px; }
+    }
+
+    @media (max-width:480px) {
+      .prod-stats { grid-template-columns:repeat(2,1fr); }
+      .pstat-lbl svg { display:none; }
+      :root { --col-w:220px; }
     }
   </style>
 </head>
