@@ -235,10 +235,13 @@
          de empilhado, já que formam uma unidade só (intervalo). */
       .fin-filters { flex-direction:column; align-items:stretch; gap:8px; }
       #aba-relatorios .fin-actions { flex-direction:column; align-items:stretch; gap:8px; }
-      .fin-date-pair { width:100%; gap:8px; }
+      .fin-date-pair { width:100%; gap:6px; }
       .fin-date-pair .fin-date-wrap { flex:1 1 0; min-width:0; }
       .fin-sel, .fin-search { width:100%; min-width:0; }
-      .fin-date-wrap input[type=date] { font-size:12.5px; padding-right:6px; }
+      /* Ícone próprio some — o campo de data já tem o ícone nativo do
+         celular; sem ele sobra espaço e as duas datas não se sobrepõem */
+      .fin-date-pair .fin-date-wrap svg { display:none; }
+      .fin-date-pair input[type=date] { font-size:11px; padding:7px 4px; text-align:center; }
       .fin-filters .btn, #aba-relatorios .fin-actions .btn { width:100%; }
 
       /* Contas bancárias: 1 coluna, cards mais enxutos */
