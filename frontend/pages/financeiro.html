@@ -110,12 +110,13 @@
 
     /* ── Filtros ── */
     .fin-filters { display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+    .fin-date-pair { display:flex; align-items:center; gap:8px; }
     .fin-date-wrap { position:relative; }
     .fin-date-wrap svg { position:absolute; left:11px; top:50%; transform:translateY(-50%);
                          width:14px; height:14px; color:var(--text-dim); pointer-events:none; }
-    .fin-date-wrap input[type=date] { padding:8px 12px 8px 34px; background:var(--bg-card2);
+    .fin-date-wrap input[type=date] { padding:8px 10px 8px 34px; background:var(--bg-card2);
       border:1px solid var(--border); border-radius:9px; color:var(--text); font-size:13px;
-      outline:none; transition:.2s; cursor:pointer; }
+      outline:none; transition:.2s; cursor:pointer; width:100%; box-sizing:border-box; }
     .fin-date-wrap input[type=date]:focus { border-color:var(--primary); }
     .fin-sel { padding:8px 30px 8px 12px; background:var(--bg-card2); border:1px solid var(--border);
                border-radius:9px; color:var(--text); font-size:13px; cursor:pointer; outline:none;
@@ -229,11 +230,16 @@
       .kpi-valor { font-size:16px; }
       .kpi-bottom{ font-size:10px; flex-wrap:wrap; }
 
-      /* Filtros: cada campo ocupa a linha inteira — mais fácil de tocar */
+      /* Filtros: cada campo ocupa a linha inteira — mais fácil de tocar.
+         O par De/Até fica lado a lado (metade da largura cada) em vez
+         de empilhado, já que formam uma unidade só (intervalo). */
       .fin-filters { flex-direction:column; align-items:stretch; gap:8px; }
-      .fin-date-wrap, .fin-sel, .fin-search { width:100%; min-width:0; }
-      .fin-date-wrap input[type=date] { width:100%; box-sizing:border-box; }
-      .fin-filters .btn { width:100%; }
+      #aba-relatorios .fin-actions { flex-direction:column; align-items:stretch; gap:8px; }
+      .fin-date-pair { width:100%; gap:8px; }
+      .fin-date-pair .fin-date-wrap { flex:1 1 0; min-width:0; }
+      .fin-sel, .fin-search { width:100%; min-width:0; }
+      .fin-date-wrap input[type=date] { font-size:12.5px; padding-right:6px; }
+      .fin-filters .btn, #aba-relatorios .fin-actions .btn { width:100%; }
 
       /* Contas bancárias: 1 coluna, cards mais enxutos */
       .contas-grid { grid-template-columns:1fr; gap:10px; }
@@ -373,13 +379,15 @@
           <!-- ════ ABA A RECEBER ════ -->
           <div id="aba-receber" style="display:none">
             <div class="fin-filters">
-              <div class="fin-date-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <input type="date" id="recInicio" onchange="carregarReceber()">
-              </div>
-              <div class="fin-date-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <input type="date" id="recFim" onchange="carregarReceber()">
+              <div class="fin-date-pair">
+                <div class="fin-date-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <input type="date" id="recInicio" onchange="carregarReceber()">
+                </div>
+                <div class="fin-date-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <input type="date" id="recFim" onchange="carregarReceber()">
+                </div>
               </div>
               <select class="fin-sel" id="recStatus" onchange="carregarReceber()">
                 <option value="">Todos status</option>
@@ -408,13 +416,15 @@
           <!-- ════ ABA A PAGAR ════ -->
           <div id="aba-pagar" style="display:none">
             <div class="fin-filters">
-              <div class="fin-date-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <input type="date" id="pagInicio" onchange="carregarPagar()">
-              </div>
-              <div class="fin-date-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <input type="date" id="pagFim" onchange="carregarPagar()">
+              <div class="fin-date-pair">
+                <div class="fin-date-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <input type="date" id="pagInicio" onchange="carregarPagar()">
+                </div>
+                <div class="fin-date-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <input type="date" id="pagFim" onchange="carregarPagar()">
+                </div>
               </div>
               <select class="fin-sel" id="pagStatus" onchange="carregarPagar()">
                 <option value="">Todos status</option>
@@ -443,13 +453,15 @@
           <!-- ════ ABA FLUXO ════ -->
           <div id="aba-fluxo" style="display:none">
             <div class="fluxo-header">
-              <div class="fin-date-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <input type="date" id="fluxoInicio" onchange="carregarFluxo()">
-              </div>
-              <div class="fin-date-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <input type="date" id="fluxoFim" onchange="carregarFluxo()">
+              <div class="fin-date-pair">
+                <div class="fin-date-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <input type="date" id="fluxoInicio" onchange="carregarFluxo()">
+                </div>
+                <div class="fin-date-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <input type="date" id="fluxoFim" onchange="carregarFluxo()">
+                </div>
               </div>
               <div style="background:var(--bg-card2);border:1px solid var(--border);border-radius:9px;padding:7px 14px;font-size:13px">
                 Saldo inicial: <strong id="fluxoSaldoInicial" style="color:var(--primary)">—</strong>
@@ -482,13 +494,15 @@
           <!-- ════ ABA RELATÓRIOS ════ -->
           <div id="aba-relatorios" style="display:none">
             <div class="fin-actions" style="margin-bottom:20px">
-              <div class="fin-date-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <input type="date" id="relInicio">
-              </div>
-              <div class="fin-date-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <input type="date" id="relFim">
+              <div class="fin-date-pair">
+                <div class="fin-date-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <input type="date" id="relInicio">
+                </div>
+                <div class="fin-date-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <input type="date" id="relFim">
+                </div>
               </div>
               <button class="btn btn-primary" onclick="carregarRelatorio()">Gerar</button>
               <button class="btn btn-ghost" onclick="exportarPDF()">
