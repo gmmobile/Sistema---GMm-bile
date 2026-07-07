@@ -208,6 +208,92 @@ async function inicializar() {
     `CREATE INDEX IF NOT EXISTS idx_extrato_fitid  ON extrato_bancario(fitid)`,
     `CREATE INDEX IF NOT EXISTS idx_conclog_extrato ON conciliacao_log(extrato_id)`,
 
+    // ── Módulo Fornecedores v2 (central de relacionamento) ──
+    `ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS razao_social   TEXT`,
+    `ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS nome_fantasia  TEXT`,
+    `ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS ie             TEXT`,
+    `ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS website        TEXT`,
+    `ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS responsavel    TEXT`,
+    `ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS tipo           TEXT DEFAULT 'materiais'`,
+    `ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS favorito       BOOLEAN DEFAULT false`,
+    `ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS homologado     BOOLEAN DEFAULT false`,
+    `ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS logo_url       TEXT`,
+    `ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS categoria_id   INTEGER`,
+    `CREATE TABLE IF NOT EXISTS forn_categorias (
+      id     SERIAL PRIMARY KEY,
+      nome   TEXT NOT NULL UNIQUE,
+      cor    TEXT DEFAULT '#818cf8',
+      ativo  BOOLEAN DEFAULT true
+    )`,
+    `CREATE TABLE IF NOT EXISTS forn_produtos (
+      id                  SERIAL PRIMARY KEY,
+      fornecedor_id       INTEGER NOT NULL REFERENCES fornecedores(id) ON DELETE CASCADE,
+      nome                TEXT NOT NULL,
+      unidade             TEXT DEFAULT 'un',
+      preco_atual         NUMERIC(14,2) DEFAULT 0,
+      preco_anterior      NUMERIC(14,2),
+      prazo_entrega_dias  INTEGER,
+      principal           BOOLEAN DEFAULT false,
+      ativo               BOOLEAN DEFAULT true,
+      criado_em           TIMESTAMPTZ DEFAULT NOW(),
+      atualizado_em       TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS forn_compras (
+      id                    SERIAL PRIMARY KEY,
+      fornecedor_id         INTEGER NOT NULL REFERENCES fornecedores(id) ON DELETE CASCADE,
+      numero                TEXT,
+      data_pedido           DATE NOT NULL DEFAULT CURRENT_DATE,
+      data_entrega_prevista DATE,
+      data_entrega_real     DATE,
+      status                TEXT NOT NULL DEFAULT 'aberto',
+      valor_total           NUMERIC(14,2) NOT NULL DEFAULT 0,
+      itens                 JSONB DEFAULT '[]',
+      forma_pagamento       TEXT,
+      num_parcelas          INTEGER DEFAULT 1,
+      grupo_parcela_id      UUID,
+      observacoes           TEXT,
+      criado_por            INTEGER,
+      criado_em             TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS forn_documentos (
+      id             SERIAL PRIMARY KEY,
+      fornecedor_id  INTEGER NOT NULL REFERENCES fornecedores(id) ON DELETE CASCADE,
+      tipo           TEXT NOT NULL DEFAULT 'anexo',
+      nome           TEXT NOT NULL,
+      url            TEXT NOT NULL,
+      data_inicio    DATE,
+      data_fim       DATE,
+      valor_contrato NUMERIC(14,2),
+      criado_por     INTEGER,
+      criado_em      TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS forn_avaliacoes (
+      id                  SERIAL PRIMARY KEY,
+      fornecedor_id       INTEGER NOT NULL REFERENCES fornecedores(id) ON DELETE CASCADE,
+      nota_preco          INTEGER NOT NULL CHECK(nota_preco BETWEEN 1 AND 5),
+      nota_qualidade      INTEGER NOT NULL CHECK(nota_qualidade BETWEEN 1 AND 5),
+      nota_prazo          INTEGER NOT NULL CHECK(nota_prazo BETWEEN 1 AND 5),
+      nota_atendimento    INTEGER NOT NULL CHECK(nota_atendimento BETWEEN 1 AND 5),
+      nota_pontualidade   INTEGER NOT NULL CHECK(nota_pontualidade BETWEEN 1 AND 5),
+      nota_confiabilidade INTEGER NOT NULL CHECK(nota_confiabilidade BETWEEN 1 AND 5),
+      comentario          TEXT,
+      criado_por          INTEGER,
+      criado_em           TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS forn_historico (
+      id             SERIAL PRIMARY KEY,
+      fornecedor_id  INTEGER NOT NULL REFERENCES fornecedores(id) ON DELETE CASCADE,
+      tipo           TEXT NOT NULL,
+      descricao      TEXT NOT NULL,
+      criado_em      TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_forn_produtos_forn  ON forn_produtos(fornecedor_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_forn_compras_forn   ON forn_compras(fornecedor_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_forn_documentos_forn ON forn_documentos(fornecedor_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_forn_avaliacoes_forn ON forn_avaliacoes(fornecedor_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_forn_historico_forn  ON forn_historico(fornecedor_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_lancamentos_fornecedor ON lancamentos(fornecedor_id)`,
+
     // ── Módulo Notas Fiscais ──
     `CREATE TABLE IF NOT EXISTS notas_fiscais (
       id                      SERIAL PRIMARY KEY,
