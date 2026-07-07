@@ -586,7 +586,8 @@ let wizId = null; // id do orçamento em edição
 let _itens = []; // itens do wizard
 let _brindesOpt = ['Cooktop','Cuba Gourmet','Torneira','Limpeza pós obra','Instalação elétrica','Personalizado'];
 let _brindesSel = [];
-let _tipoProj = '';
+let _tipoProjSel = []; // array de ids selecionados (múltiplos, exceto apto_completo que é exclusivo)
+function tipoProjLabel(){ return _tipoProjSel.map(id => TIPOS_PROJ.find(t=>t.id===id)?.label).filter(Boolean).join(', '); }
 let _clienteSel = null;
 
 const MATERIAIS = ['MDF','Madeira Maciça','MDP','Vidro','Laminado','Alumínio','Outro'];
@@ -632,7 +633,7 @@ async function init() {
 
     // Catálogo de módulos
     try {
-      const prod = await Api.get('/estoque');
+      const prod = await Api.get('/estoque/produtos');
       _modulos = Array.isArray(prod) ? prod : (prod.produtos || prod.itens || []);
     } catch(e) { _modulos = []; }
 
@@ -910,7 +911,7 @@ async function abrirWizard(id = null) {
   wizId = id;
   _itens = [];
   _brindesSel = [];
-  _tipoProj = '';
+  _tipoProjSel = [];
   _clienteSel = null;
 
   // Reseta campos
@@ -962,11 +963,11 @@ async function abrirWizard(id = null) {
       document.getElementById('clienteBusca').value = _clienteSel.nome;
       renderClienteCard(_clienteSel);
 
-      // Tipo
+      // Tipo (pode ter múltiplos, separados por vírgula)
       if (o.tipo_projeto) {
-        const t = TIPOS_PROJ.find(x => x.label === o.tipo_projeto || x.id === o.tipo_projeto);
-        if (t) selTipo(t.id);
-        else { _tipoProj = o.tipo_projeto; }
+        const partes = String(o.tipo_projeto).split(',').map(s => s.trim()).filter(Boolean);
+        const ids = partes.map(p => TIPOS_PROJ.find(x => x.label === p || x.id === p)?.id).filter(Boolean);
+        aplicarTiposSelecionados(ids);
       }
 
       // Campos básicos
@@ -1128,12 +1129,23 @@ function renderClienteCard(c) {
 }
 
 function selTipo(id) {
+  if (id === 'apto_completo') {
+    // Apto. Completo é exclusivo: substitui qualquer outra seleção
+    _tipoProjSel = _tipoProjSel.includes('apto_completo') ? [] : ['apto_completo'];
+  } else {
+    _tipoProjSel = _tipoProjSel.filter(x => x !== 'apto_completo');
+    const idx = _tipoProjSel.indexOf(id);
+    if (idx >= 0) _tipoProjSel.splice(idx, 1);
+    else _tipoProjSel.push(id);
+  }
+  aplicarTiposSelecionados(_tipoProjSel);
+}
+function aplicarTiposSelecionados(ids) {
+  _tipoProjSel = ids.slice();
   TIPOS_PROJ.forEach(t => {
     const el = document.getElementById(`tipo_${t.id}`);
-    if (el) el.classList.toggle('ativo', t.id === id);
+    if (el) el.classList.toggle('ativo', _tipoProjSel.includes(t.id));
   });
-  const t = TIPOS_PROJ.find(x => x.id === id);
-  _tipoProj = t ? t.label : id;
 }
 
 // ── Catálogo ──
@@ -1365,7 +1377,7 @@ function renderResumoFinal() {
       <h4>Cliente e Projeto</h4>
       <div class="resumo-grid">
         <div class="resumo-field"><label>Cliente</label><span>${_clienteSel ? escapeHtml(_clienteSel.nome) : '—'}</span></div>
-        <div class="resumo-field"><label>Tipo de Projeto</label><span>${_tipoProj || '—'}</span></div>
+        <div class="resumo-field"><label>Tipo de Projeto</label><span>${tipoProjLabel() || '—'}</span></div>
         <div class="resumo-field"><label>Validade</label><span>${document.getElementById('wValidade').value} dias</span></div>
         ${campanha ? `<div class="resumo-field"><label>Campanha</label><span style="color:var(--primary)">${escapeHtml(campanha)}</span></div>` : ''}
       </div>
@@ -1461,7 +1473,7 @@ async function salvarOrcamento(status = 'rascunho') {
     desconto: getValMoeda('wDesconto'),
     frete: getValMoeda('wFrete'),
     montagem: getValMoeda('wMontagem'),
-    tipo_projeto: _tipoProj||null,
+    tipo_projeto: tipoProjLabel()||null,
     valor_entrada: getValMoeda('wEntrada'),
     num_parcelas: parseInt(document.getElementById('wParcelas').value)||1,
     data_primeira_parcela: document.getElementById('wData1Parc').value||null,
