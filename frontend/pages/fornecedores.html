@@ -662,6 +662,7 @@ function renderTabela(){
       <td><span class="status-chip" style="background:${st.cor}1c;color:${st.cor}"><span class="sc-dot"></span>${st.lbl}</span></td>
       <td class="acoes" onclick="event.stopPropagation()">
         <button class="acao-btn2" title="Favoritar" onclick="toggleFavorito(${f.id})"><i data-lucide="star" style="${f.favorito?'color:#d4af37':''}"></i></button>
+        <button class="acao-btn2" title="${f.ativo?'Inativar':'Reativar'}" onclick="atualizarStatusFornecedor(${f.id}, ${f.ativo?0:1}, '${escapeHtml(f.nome).replace(/'/g,"\\'")}')"><i data-lucide="${f.ativo?'power-off':'power'}"></i></button>
         <button class="acao-btn2" title="Excluir" onclick="excluirFornecedor(${f.id}, '${escapeHtml(f.nome).replace(/'/g,"\\'")}')"><i data-lucide="trash-2"></i></button>
       </td>
     </tr>`;
@@ -670,11 +671,21 @@ function renderTabela(){
 }
 
 async function excluirFornecedor(id, nome){
-  if(!confirm(`Excluir "${nome}"? O fornecedor será inativado (histórico, compras e documentos são preservados).`)) return;
+  if(!confirm(`Excluir "${nome}" definitivamente? Só é possível se ele não tiver compras, lançamentos ou documentos vinculados. Esta ação não pode ser desfeita.`)) return;
   try{
     await Api.delete(`/fornecedores/${id}`);
     toast('Fornecedor excluído','success');
     if(gDrawerFornId==id) fecharDrawer();
+    carregarTabela(); carregarKpis(); carregarDashboardLateral();
+  }catch(e){ toast(e.message,'error'); }
+}
+async function atualizarStatusFornecedor(id, ativo, nome){
+  const acao = ativo ? 'reativar' : 'inativar';
+  if(!confirm(`Deseja ${acao} "${nome}"?`)) return;
+  try{
+    await Api.patch(`/fornecedores/${id}/status`, { ativo: !!ativo });
+    toast(ativo?'Fornecedor reativado':'Fornecedor inativado','success');
+    if(gDrawerFornId==id) renderDrawer();
     carregarTabela(); carregarKpis(); carregarDashboardLateral();
   }catch(e){ toast(e.message,'error'); }
 }
@@ -768,6 +779,7 @@ async function renderDrawer(){
         <div style="font-size:11px;color:var(--text-dim);margin-top:2px">${forn.categoria_nome?escapeHtml(forn.categoria_nome)+' · ':''}${forn.cnpj?escapeHtml(forn.cnpj):'sem CNPJ'}</div>
       </div>
       <button class="acao-btn2" title="Favoritar" onclick="toggleFavorito(${forn.id});renderDrawer()"><i data-lucide="star" style="${forn.favorito?'color:#d4af37':''}"></i></button>
+      <button class="acao-btn2" title="${forn.ativo?'Inativar':'Reativar'}" onclick="atualizarStatusFornecedor(${forn.id}, ${forn.ativo?0:1}, '${escapeHtml(forn.nome).replace(/'/g,"\\'")}')"><i data-lucide="${forn.ativo?'power-off':'power'}"></i></button>
       <button class="acao-btn2" title="Excluir" onclick="excluirFornecedor(${forn.id}, '${escapeHtml(forn.nome).replace(/'/g,"\\'")}')"><i data-lucide="trash-2"></i></button>
     </div>
     <div class="dw-kpis">

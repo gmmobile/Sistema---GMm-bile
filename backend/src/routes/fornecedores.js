@@ -359,13 +359,35 @@ router.patch('/:id/favorito', async (req, res) => {
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
+router.patch('/:id/status', async (req, res) => {
+  try {
+    const { ativo } = req.body;
+    if (ativo === undefined) return res.status(400).json({ erro: 'Informe o status (ativo)' });
+    await db.run('UPDATE fornecedores SET ativo=$1 WHERE id=$2', [ativo ? 1 : 0, req.params.id]);
+    await registrarHistorico(req.params.id, 'alteracao', ativo ? 'Fornecedor reativado' : 'Fornecedor inativado');
+    res.json({ mensagem: 'Status atualizado' });
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao atualizar status' });
+  }
+});
+
 router.delete('/:id', async (req, res) => {
   try {
-    await db.run('UPDATE fornecedores SET ativo=0 WHERE id=$1', [req.params.id]);
-    await registrarHistorico(req.params.id, 'alteracao', 'Fornecedor inativado');
-    res.json({ mensagem: 'Fornecedor removido' });
+    const [compras, lancs, docs] = await Promise.all([
+      db.get('SELECT COUNT(*) AS q FROM forn_compras WHERE fornecedor_id=$1', [req.params.id]),
+      db.get('SELECT COUNT(*) AS q FROM lancamentos WHERE fornecedor_id=$1', [req.params.id]),
+      db.get('SELECT COUNT(*) AS q FROM forn_documentos WHERE fornecedor_id=$1', [req.params.id]),
+    ]);
+    if (i(compras.q) > 0 || i(lancs.q) > 0 || i(docs.q) > 0) {
+      return res.status(400).json({ erro: 'Este fornecedor possui compras, lançamentos ou documentos vinculados e não pode ser excluído — inative-o em vez disso.' });
+    }
+    await db.run('DELETE FROM forn_produtos WHERE fornecedor_id=$1', [req.params.id]);
+    await db.run('DELETE FROM forn_avaliacoes WHERE fornecedor_id=$1', [req.params.id]);
+    await db.run('DELETE FROM forn_historico WHERE fornecedor_id=$1', [req.params.id]);
+    await db.run('DELETE FROM fornecedores WHERE id=$1', [req.params.id]);
+    res.json({ mensagem: 'Fornecedor excluído' });
   } catch (err) {
-    res.status(500).json({ erro: 'Erro ao remover fornecedor' });
+    res.status(500).json({ erro: 'Erro ao excluir fornecedor' });
   }
 });
 

@@ -128,7 +128,10 @@
 - Cadastro completo de fornecedores (razão social, nome fantasia, CNPJ, IE, contato, responsável, categoria, tipo — materiais/serviços/ferragens/etc., dados bancários, endereço, favorito, homologado, logo) com CRM completo integrado ao restante do ERP
 - **10 KPIs automáticos no topo:** Total de Fornecedores, Ativos, Inativos, Compras no Mês (com variação e mini-gráfico), Valor em Aberto, Valor Pago, Economia no Mês (calculada automaticamente quando o preço de um item cai em relação à compra anterior), Avaliação Média (com mini-gráfico), Prazo Médio de Entrega e Pedidos Atrasados
 - **Busca e filtros:** por nome, CNPJ, cidade, estado, responsável, telefone, e-mail ou produto fornecido + filtros por categoria, status, homologado e toggles de Favoritos/Pendentes/Homologados
-- **Tabela principal:** logo, nome+CNPJ, categoria, contato, compras/mês, valor em aberto, última compra, prazo médio, avaliação em estrelas, status e favoritar
+- **Tabela principal:** logo, nome+CNPJ, categoria, contato, compras/mês, valor em aberto, última compra, prazo médio, avaliação em estrelas, status e ações (favoritar, inativar/reativar, excluir) — os mesmos botões também aparecem no cabeçalho do drawer
+- **Foto/logo do fornecedor:** ícone de câmera no avatar do drawer permite enviar uma foto, salva no Cloudinary
+- **Inativar / Reativar:** botão de energia — alterna o status sem apagar nada; o fornecedor sai da lista de "Ativos" e vai para "Inativos" (compras, documentos e histórico continuam intactos, reversível a qualquer momento)
+- **Excluir:** botão de lixeira — exclusão definitiva e permanente, só permitida quando o fornecedor **não tem nenhuma compra, lançamento ou documento vinculado**; se tiver, o sistema bloqueia e sugere inativar em vez de excluir
 - **Painel lateral:** Top 5 Fornecedores por volume de compra, gráfico de Compras por Categoria (rosca), Alertas (preços que subiram, atrasos recorrentes) e Insights de IA (sugestão de fornecedor alternativo mais barato para o mesmo produto, aumento de preço acima de 5%, etc.)
 - **Drawer do fornecedor (clicar na linha), com 7 abas:**
   - **Dados:** cadastro completo, editável
