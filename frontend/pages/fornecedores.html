@@ -334,7 +334,7 @@
       <div class="form-row2">
         <div class="form-group2"><label>IE</label><input class="form-control2" id="fIe"></div>
         <div class="form-group2"><label>Categoria</label>
-          <select class="form-control2" id="fCategoria"><option value="">Sem categoria</option></select>
+          <select class="form-control2" id="fCategoria" onchange="onFCategoriaChange(this)"><option value="">Sem categoria</option></select>
         </div>
       </div>
       <div class="form-row2">
@@ -564,8 +564,20 @@ async function carregarCategorias(){
     gCategorias = await Api.get('/fornecedores/categorias');
     const opts = c => gCategorias.map(cat=>`<option value="${cat.id}">${escapeHtml(cat.nome)}</option>`).join('');
     document.getElementById('selCategoria').innerHTML = '<option value="">Todas categorias</option>' + opts();
-    document.getElementById('fCategoria').innerHTML = '<option value="">Sem categoria</option>' + opts();
+    document.getElementById('fCategoria').innerHTML = '<option value="">Sem categoria</option>' + opts() + '<option value="__nova__">+ Nova categoria...</option>';
   }catch(e){}
+}
+async function onFCategoriaChange(sel){
+  if(sel.value !== '__nova__') return;
+  const nome = prompt('Nome da nova categoria:');
+  if(!nome || !nome.trim()){ sel.value=''; return; }
+  try{
+    const r = await Api.post('/fornecedores/categorias', { nome: nome.trim() });
+    await carregarCategorias();
+    const existente = gCategorias.find(c=>c.nome.toLowerCase()===nome.trim().toLowerCase());
+    sel.value = r.id || (existente ? existente.id : '');
+    toast('Categoria criada!','success');
+  }catch(e){ toast(e.message,'error'); sel.value=''; }
 }
 
 /* ── KPIs ── */
