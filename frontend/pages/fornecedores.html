@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="../assets/css/layout.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
 /* ══════════════════════════════════════
    LAYOUT GERAL
@@ -257,6 +259,10 @@
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             Homologados
           </button>
+          <button class="btn-ghost2" onclick="abrirModalRelatorios()">
+            <i data-lucide="file-bar-chart"></i>
+            Relatórios
+          </button>
           <button class="btn-gold" onclick="abrirNovoFornecedor()">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Novo Fornecedor
@@ -395,7 +401,7 @@
 <!-- ══ MODAL NOVA COMPRA ══ -->
 <div class="modal-overlay" id="modalCompra">
   <div class="modal" style="max-width:560px">
-    <div class="modal-header"><h2><i data-lucide="shopping-cart"></i> Nova Compra</h2><button class="modal-close" onclick="fecharModalCompra()"><i data-lucide="x"></i></button></div>
+    <div class="modal-header"><h2 id="modalCompraTitulo"><i data-lucide="shopping-cart"></i> Nova Compra</h2><button class="modal-close" onclick="fecharModalCompra()"><i data-lucide="x"></i></button></div>
     <div class="modal-body" style="max-height:65vh;overflow-y:auto">
       <div class="dw-sec-title" style="margin-top:0">Itens</div>
       <div id="itensCompraList"></div>
@@ -420,7 +426,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="fecharModalCompra()">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarCompra()">Registrar Compra</button>
+      <button class="btn btn-primary" id="btnSalvarCompra" onclick="salvarCompra()">Registrar Compra</button>
     </div>
   </div>
 </div>
@@ -465,6 +471,39 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="fecharModalDocumento()">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarDocumento()">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL RELATÓRIOS ══ -->
+<div class="modal-overlay" id="modalRelatorios">
+  <div class="modal" style="max-width:900px">
+    <div class="modal-header"><h2><i data-lucide="file-bar-chart"></i> Relatórios de Fornecedores</h2><button class="modal-close" onclick="fecharModalRelatorios()"><i data-lucide="x"></i></button></div>
+    <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+      <div class="form-row2">
+        <div class="form-group2"><label>Relatório</label>
+          <select class="form-control2" id="relTipo" onchange="gerarRelatorio()">
+            <option value="compras-por-fornecedor">Compras por Fornecedor</option>
+            <option value="compras-por-categoria">Compras por Categoria</option>
+            <option value="ranking">Ranking de Fornecedores</option>
+            <option value="historico-precos">Histórico de Preços</option>
+            <option value="avaliacoes">Avaliações</option>
+            <option value="pagamentos">Pagamentos</option>
+            <option value="entregas">Entregas</option>
+            <option value="economia">Economia Gerada</option>
+          </select>
+        </div>
+        <div class="form-group2"><label>Período início</label><input class="form-control2" type="date" id="relInicio" onchange="gerarRelatorio()"></div>
+        <div class="form-group2"><label>Período fim</label><input class="form-control2" type="date" id="relFim" onchange="gerarRelatorio()"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px">
+        <button class="btn-ghost2" onclick="exportarRelatorioCSV()"><i data-lucide="sheet"></i> Excel (CSV)</button>
+        <button class="btn-ghost2" onclick="exportarRelatorioPDF()"><i data-lucide="file-down"></i> PDF</button>
+      </div>
+      <div id="relTabelaWrap" style="overflow-x:auto"><div class="rail-empty">Carregando...</div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModalRelatorios()">Fechar</button>
     </div>
   </div>
 </div>
@@ -767,18 +806,21 @@ async function renderDrawer(){
     try{
       const compras = await Api.get(`/fornecedores/${id}/compras`);
       const STC = {aberto:'#60a5fa',entregue:'#4ade80',cancelado:'#94a3b8'};
+      gComprasList = compras;
       document.getElementById('dwCompras').innerHTML = compras.length ? compras.map(c=>{
         const itens = Array.isArray(c.itens)?c.itens:(c.itens?JSON.parse(c.itens):[]);
         const atrasado = c.status==='aberto' && c.data_entrega_prevista && new Date(c.data_entrega_prevista) < new Date();
         return `<div class="compra-item">
           <div class="compra-top"><strong>${c.numero}</strong><span class="compra-val">${fmtK(parseFloat(c.valor_total))}</span></div>
           <div class="compra-sub">${dataBR(c.data_pedido)} · ${itens.length} item(ns) ${c.data_entrega_prevista?'· entrega '+dataBR(c.data_entrega_prevista):''}</div>
-          <div style="margin-top:5px;display:flex;align-items:center;gap:6px">
+          <div style="margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
             <span class="status-chip" style="background:${(atrasado?'#f87171':STC[c.status])}1c;color:${atrasado?'#f87171':STC[c.status]}"><span class="sc-dot"></span>${atrasado?'Atrasado':c.status}</span>
             ${c.status==='aberto'?`<button class="btn-ghost2" style="padding:3px 8px;font-size:10px" onclick="marcarCompra(${c.id},'entregue')">Marcar entregue</button><button class="btn-ghost2" style="padding:3px 8px;font-size:10px" onclick="marcarCompra(${c.id},'cancelado')">Cancelar</button>`:''}
+            ${c.status!=='cancelado'?`<button class="acao-btn2" title="Editar" onclick="editarCompra(${c.id})"><i data-lucide="pencil"></i></button><button class="acao-btn2" title="Excluir" onclick="excluirCompra(${c.id})"><i data-lucide="trash-2"></i></button>`:''}
           </div>
         </div>`;
       }).join('') : '<div class="rail-empty" style="padding:20px 0">Nenhuma compra registrada</div>';
+      lucide.createIcons({nodes:[document.getElementById('dwCompras')]});
     }catch(e){ document.getElementById('dwCompras').innerHTML = `<div class="rail-empty" style="color:#f87171">Erro: ${e.message}</div>`; }
   }
   else if(gDwTab==='financeiro'){
@@ -862,6 +904,19 @@ async function renderDrawer(){
 async function marcarCompra(id, status){
   try{ await Api.patch(`/fornecedores/compras/${id}`,{status}); toast('Compra atualizada','success'); renderDrawer(); carregarKpis(); carregarTabela(); }
   catch(e){ toast(e.message,'error'); }
+}
+let gComprasList = [];
+function editarCompra(id){
+  const c = gComprasList.find(x=>x.id===id);
+  if(!c){ toast('Compra não encontrada','error'); return; }
+  abrirModalCompra(c);
+}
+async function excluirCompra(id){
+  if(!confirm('Excluir esta compra? Os lançamentos financeiros pendentes vinculados também serão removidos.')) return;
+  try{
+    await Api.delete(`/fornecedores/compras/${id}`);
+    toast('Compra excluída','success'); renderDrawer(); carregarKpis(); carregarTabela(); carregarDashboardLateral();
+  }catch(e){ toast(e.message,'error'); }
 }
 async function excluirDocumento(id){
   if(!confirm('Excluir este documento?')) return;
@@ -971,12 +1026,32 @@ async function salvarProduto(){
    MODAL COMPRA
 ══════════════════════════════════════ */
 let gItensCompra = [];
-function abrirModalCompra(){
-  gItensCompra = [];
-  document.getElementById('cData').value = new Date().toISOString().split('T')[0];
-  document.getElementById('cEntrega').value=''; document.getElementById('cForma').value='';
-  document.getElementById('cParcelas').value='1'; document.getElementById('cObs').value='';
-  addItemCompraRow();
+let gCompraEditId = null;
+function abrirModalCompra(compraExistente){
+  gCompraEditId = compraExistente ? compraExistente.id : null;
+  const titulo = document.getElementById('modalCompraTitulo');
+  const btn = document.getElementById('btnSalvarCompra');
+  if(compraExistente){
+    titulo.innerHTML = '<i data-lucide="pencil"></i> Editar Compra';
+    btn.textContent = 'Salvar Alterações';
+    gItensCompra = (Array.isArray(compraExistente.itens)?compraExistente.itens:JSON.parse(compraExistente.itens||'[]'))
+      .map(it=>({ produto_id: it.produto_id||null, nome: it.nome, qtd: parseFloat(it.qtd)||0, preco_unit: parseFloat(it.preco_unit)||0, preco_anterior: it.preco_anterior??null }));
+    document.getElementById('cData').value = (compraExistente.data_pedido||'').split('T')[0];
+    document.getElementById('cEntrega').value = (compraExistente.data_entrega_prevista||'').split('T')[0] || '';
+    document.getElementById('cForma').value = compraExistente.forma_pagamento || '';
+    document.getElementById('cParcelas').value = compraExistente.num_parcelas || '1';
+    document.getElementById('cObs').value = compraExistente.observacoes || '';
+  } else {
+    titulo.innerHTML = '<i data-lucide="shopping-cart"></i> Nova Compra';
+    btn.textContent = 'Registrar Compra';
+    gItensCompra = [];
+    document.getElementById('cData').value = new Date().toISOString().split('T')[0];
+    document.getElementById('cEntrega').value=''; document.getElementById('cForma').value='';
+    document.getElementById('cParcelas').value='1'; document.getElementById('cObs').value='';
+  }
+  renderItensCompra();
+  if(!gItensCompra.length) addItemCompraRow();
+  lucide.createIcons({nodes:[document.getElementById('modalCompra')]});
   document.getElementById('modalCompra').classList.add('open');
 }
 function fecharModalCompra(){ document.getElementById('modalCompra').classList.remove('open'); }
@@ -1011,8 +1086,14 @@ async function salvarCompra(){
     observacoes: document.getElementById('cObs').value,
   };
   try{
-    await Api.post(`/fornecedores/${gDrawerFornId}/compras`, body);
-    toast('Compra registrada!','success'); fecharModalCompra();
+    if(gCompraEditId){
+      await Api.put(`/fornecedores/compras/${gCompraEditId}`, body);
+      toast('Compra atualizada!','success');
+    } else {
+      await Api.post(`/fornecedores/${gDrawerFornId}/compras`, body);
+      toast('Compra registrada!','success');
+    }
+    fecharModalCompra();
     gDwTab='compras'; renderDrawer(); carregarKpis(); carregarTabela(); carregarDashboardLateral();
   }catch(e){ toast(e.message,'error'); }
 }
@@ -1077,9 +1158,117 @@ async function salvarDocumento(){
   }catch(e){ toast(e.message,'error'); }
 }
 
-['modalForn','modalProduto','modalCompra','modalAvaliacao','modalDocumento'].forEach(id=>{
+['modalForn','modalProduto','modalCompra','modalAvaliacao','modalDocumento','modalRelatorios'].forEach(id=>{
   document.getElementById(id).addEventListener('click', function(e){ if(e.target===this) this.classList.remove('open'); });
 });
+
+/* ══════════════════════════════════════
+   RELATÓRIOS (PDF / CSV)
+══════════════════════════════════════ */
+const REL_COLS = {
+  'compras-por-fornecedor': { titulo: 'Compras por Fornecedor', cols: [
+    { k:'nome', l:'Fornecedor' }, { k:'qtd', l:'Qtd. Compras' }, { k:'total', l:'Total', tipo:'money' } ] },
+  'compras-por-categoria': { titulo: 'Compras por Categoria', cols: [
+    { k:'categoria', l:'Categoria' }, { k:'total', l:'Total', tipo:'money' } ] },
+  'ranking': { titulo: 'Ranking de Fornecedores', cols: [
+    { k:'nome', l:'Fornecedor' }, { k:'qtd_compras', l:'Qtd. Compras' }, { k:'total', l:'Total', tipo:'money' }, { k:'avaliacao', l:'Avaliação', tipo:'nota' } ] },
+  'historico-precos': { titulo: 'Histórico de Preços', cols: [
+    { k:'fornecedor', l:'Fornecedor' }, { k:'produto', l:'Produto' }, { k:'preco_anterior', l:'Preço Anterior', tipo:'money' },
+    { k:'preco_atual', l:'Preço Atual', tipo:'money' }, { k:'atualizado_em', l:'Atualizado em', tipo:'data' } ] },
+  'avaliacoes': { titulo: 'Avaliações', cols: [
+    { k:'nome', l:'Fornecedor' }, { k:'nota_preco', l:'Preço' }, { k:'nota_qualidade', l:'Qualidade' }, { k:'nota_prazo', l:'Prazo' },
+    { k:'nota_atendimento', l:'Atend.' }, { k:'nota_pontualidade', l:'Pontual.' }, { k:'nota_confiabilidade', l:'Confiab.' },
+    { k:'comentario', l:'Comentário' }, { k:'criado_em', l:'Data', tipo:'data' } ] },
+  'pagamentos': { titulo: 'Pagamentos', cols: [
+    { k:'nome', l:'Fornecedor' }, { k:'descricao', l:'Descrição' }, { k:'valor', l:'Valor', tipo:'money' },
+    { k:'data_vencimento', l:'Vencimento', tipo:'data' }, { k:'data_pagamento', l:'Pagamento', tipo:'data' }, { k:'status', l:'Status' } ] },
+  'entregas': { titulo: 'Entregas', cols: [
+    { k:'nome', l:'Fornecedor' }, { k:'numero', l:'Compra' }, { k:'data_pedido', l:'Pedido', tipo:'data' },
+    { k:'data_entrega_prevista', l:'Prevista', tipo:'data' }, { k:'data_entrega_real', l:'Real', tipo:'data' },
+    { k:'status', l:'Status' }, { k:'dias_atraso', l:'Dias Atraso' } ] },
+  'economia': { titulo: 'Economia Gerada', cols: [
+    { k:'fornecedor', l:'Fornecedor' }, { k:'compra', l:'Compra' }, { k:'produto', l:'Produto' },
+    { k:'preco_anterior', l:'Preço Anterior', tipo:'money' }, { k:'preco_atual', l:'Preço Atual', tipo:'money' },
+    { k:'qtd', l:'Qtd' }, { k:'economia', l:'Economia', tipo:'money' } ] },
+};
+let gRelDados = [], gRelTipoAtual = null;
+function abrirModalRelatorios(){
+  const hoje = new Date();
+  const ini = new Date(hoje); ini.setDate(ini.getDate()-365);
+  document.getElementById('relInicio').value = ini.toISOString().split('T')[0];
+  document.getElementById('relFim').value = hoje.toISOString().split('T')[0];
+  document.getElementById('modalRelatorios').classList.add('open');
+  gerarRelatorio();
+}
+function fecharModalRelatorios(){ document.getElementById('modalRelatorios').classList.remove('open'); }
+function relValorFmt(v, tipo){
+  if(v===null||v===undefined||v==='') return '—';
+  if(tipo==='money') return moeda(parseFloat(v)||0);
+  if(tipo==='data') return dataBR(v);
+  if(tipo==='nota') return v? parseFloat(v).toFixed(1) : '—';
+  return escapeHtml(String(v));
+}
+async function gerarRelatorio(){
+  const tipo = document.getElementById('relTipo').value;
+  const inicio = document.getElementById('relInicio').value;
+  const fim = document.getElementById('relFim').value;
+  gRelTipoAtual = tipo;
+  const wrap = document.getElementById('relTabelaWrap');
+  wrap.innerHTML = '<div class="rail-empty">Carregando...</div>';
+  try{
+    const resp = await Api.get(`/fornecedores/relatorios/${tipo}?inicio=${inicio}&fim=${fim}`);
+    gRelDados = resp.dados || [];
+    const cfg = REL_COLS[tipo];
+    if(!gRelDados.length){ wrap.innerHTML = '<div class="rail-empty" style="padding:24px 0">Nenhum dado encontrado no período</div>'; return; }
+    wrap.innerHTML = `<table class="frn-table" style="width:100%">
+      <thead><tr>${cfg.cols.map(c=>`<th>${c.l}</th>`).join('')}</tr></thead>
+      <tbody>${gRelDados.map(row=>`<tr>${cfg.cols.map(c=>`<td>${relValorFmt(row[c.k], c.tipo)}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table>`;
+  }catch(e){ wrap.innerHTML = `<div class="rail-empty" style="color:#f87171">Erro: ${e.message}</div>`; }
+}
+function csvEscape(v){
+  const s = v===null||v===undefined ? '' : String(v);
+  return /[",\n;]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+function exportarRelatorioCSV(){
+  if(!gRelDados.length){ toast('Nenhum dado para exportar','warning'); return; }
+  const cfg = REL_COLS[gRelTipoAtual];
+  const linhas = [cfg.cols.map(c=>csvEscape(c.l)).join(';')];
+  gRelDados.forEach(row=>{
+    linhas.push(cfg.cols.map(c=>{
+      const v = row[c.k];
+      if(c.tipo==='money') return csvEscape((parseFloat(v)||0).toFixed(2).replace('.',','));
+      if(c.tipo==='data') return csvEscape(dataBR(v));
+      return csvEscape(v);
+    }).join(';'));
+  });
+  const blob = new Blob(['﻿'+linhas.join('\r\n')], { type:'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `relatorio-${gRelTipoAtual}-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function exportarRelatorioPDF(){
+  if(!gRelDados.length){ toast('Nenhum dado para exportar','warning'); return; }
+  const cfg = REL_COLS[gRelTipoAtual];
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: cfg.cols.length>6?'landscape':'portrait', unit:'mm', format:'a4' });
+  doc.setFont('helvetica','bold'); doc.setFontSize(15);
+  doc.text(`GM MÓBILE — ${cfg.titulo}`, 14, 16);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(120,120,120);
+  doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} · Período: ${dataBR(document.getElementById('relInicio').value)} a ${dataBR(document.getElementById('relFim').value)}`, 14, 22);
+  doc.autoTable({
+    startY: 28,
+    head: [cfg.cols.map(c=>c.l)],
+    body: gRelDados.map(row=>cfg.cols.map(c=>relValorFmt(row[c.k], c.tipo))),
+    headStyles: { fillColor:[26,20,12], textColor:[212,175,55], fontStyle:'bold', fontSize:8 },
+    bodyStyles: { fontSize:8, textColor:[40,40,40] },
+    alternateRowStyles: { fillColor:[248,247,244] },
+    margin: { left:14, right:14 },
+  });
+  doc.save(`relatorio-${gRelTipoAtual}-${new Date().toISOString().split('T')[0]}.pdf`);
+}
 
 carregarTudo();
 </script>

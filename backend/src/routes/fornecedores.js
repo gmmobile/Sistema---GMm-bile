@@ -502,6 +502,85 @@ router.patch('/compras/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
+// Uma compra só pode ter os itens/valores editados ou ser excluída enquanto
+// nenhuma parcela dela já tiver sido paga — isso evita corromper o histórico
+// financeiro (Contas a Pagar/Conta Corrente já refletiram o pagamento real).
+async function verificarParcelasPagas(grupoId) {
+  if (!grupoId) return false;
+  const r = await db.get(`SELECT COUNT(*) AS q FROM lancamentos WHERE grupo_parcela_id=$1 AND status='pago'`, [grupoId]);
+  return i(r.q) > 0;
+}
+
+router.put('/compras/:id', async (req, res) => {
+  try {
+    const compra = await db.get(`SELECT * FROM forn_compras WHERE id=$1`, [req.params.id]);
+    if (!compra) return res.status(404).json({ erro: 'Compra não encontrada' });
+    if (await verificarParcelasPagas(compra.grupo_parcela_id)) {
+      return res.status(400).json({ erro: 'Não é possível editar uma compra com parcelas já pagas' });
+    }
+    const { itens, data_entrega_prevista, forma_pagamento, num_parcelas, categoria_id, conta_id, observacoes } = req.body;
+    if (!Array.isArray(itens) || !itens.length) return res.status(400).json({ erro: 'Informe ao menos um item' });
+
+    const forn = await db.get(`SELECT nome FROM fornecedores WHERE id=$1`, [compra.fornecedor_id]);
+
+    const itensProcessados = [];
+    for (const it of itens) {
+      const qtd = n(it.qtd), precoUnit = n(it.preco_unit);
+      let precoAnterior = it.preco_anterior ?? null;
+      if (it.produto_id && precoAnterior === null) {
+        const prod = await db.get(`SELECT preco_atual FROM forn_produtos WHERE id=$1`, [it.produto_id]);
+        precoAnterior = prod ? n(prod.preco_atual) : null;
+      }
+      itensProcessados.push({ produto_id: it.produto_id || null, nome: it.nome, qtd, preco_unit: precoUnit, preco_anterior: precoAnterior });
+    }
+    const valorTotal = itensProcessados.reduce((s, it) => s + it.qtd * it.preco_unit, 0);
+    const nParcelas = i(num_parcelas) || 1;
+
+    // Regenera as parcelas do zero (nenhuma estava paga — já validado acima)
+    await db.run(`DELETE FROM lancamentos WHERE grupo_parcela_id=$1`, [compra.grupo_parcela_id]);
+    const valorParcela = +(valorTotal / nParcelas).toFixed(2);
+    for (let p = 0; p < nParcelas; p++) {
+      const venc = new Date(compra.data_pedido); venc.setMonth(venc.getMonth() + p);
+      const vencStr = venc.toISOString().split('T')[0];
+      const desc = nParcelas > 1 ? `${forn.nome} — Compra ${compra.numero} (${p + 1}/${nParcelas})` : `${forn.nome} — Compra ${compra.numero}`;
+      await db.run(`
+        INSERT INTO lancamentos (tipo, descricao, valor, data_vencimento, status, forma_pagamento, conta_id, categoria_id,
+          fornecedor_id, origem, parcela_num, parcela_total, grupo_parcela_id)
+        VALUES ('despesa',$1,$2,$3,'pendente',$4,$5,$6,$7,'compra_fornecedor',$8,$9,$10)`,
+        [desc, valorParcela, vencStr, forma_pagamento || null, conta_id || null, categoria_id || null,
+         compra.fornecedor_id, p + 1, nParcelas, compra.grupo_parcela_id]);
+    }
+
+    await db.run(`
+      UPDATE forn_compras SET data_entrega_prevista=$1, valor_total=$2, itens=$3, forma_pagamento=$4, num_parcelas=$5, observacoes=$6
+      WHERE id=$7`,
+      [data_entrega_prevista || null, valorTotal, JSON.stringify(itensProcessados), forma_pagamento || null, nParcelas, observacoes || null, req.params.id]);
+
+    await registrarHistorico(compra.fornecedor_id, 'compra', `Compra ${compra.numero} editada — novo total ${fmtBRL(valorTotal)}`);
+    res.json({ mensagem: 'Compra atualizada' });
+  } catch (err) {
+    console.error('[fornecedores compras PUT]', err.message);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+router.delete('/compras/:id', async (req, res) => {
+  try {
+    const compra = await db.get(`SELECT * FROM forn_compras WHERE id=$1`, [req.params.id]);
+    if (!compra) return res.status(404).json({ erro: 'Compra não encontrada' });
+    if (await verificarParcelasPagas(compra.grupo_parcela_id)) {
+      return res.status(400).json({ erro: 'Não é possível excluir uma compra com parcelas já pagas' });
+    }
+    await db.run(`DELETE FROM lancamentos WHERE grupo_parcela_id=$1`, [compra.grupo_parcela_id]);
+    await db.run(`DELETE FROM forn_compras WHERE id=$1`, [req.params.id]);
+    await registrarHistorico(compra.fornecedor_id, 'compra', `Compra ${compra.numero} excluída`);
+    res.json({ mensagem: 'Compra excluída' });
+  } catch (err) {
+    console.error('[fornecedores compras DELETE]', err.message);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
 /* ════════════════════════════════════════════════════════════════
    FINANCEIRO DO FORNECEDOR — lê direto dos lançamentos (sem duplicar)
    ════════════════════════════════════════════════════════════════ */
@@ -649,9 +728,27 @@ router.get('/relatorios/:tipo', async (req, res) => {
           FROM forn_compras c JOIN fornecedores f ON f.id=c.fornecedor_id
           WHERE c.data_pedido BETWEEN $1 AND $2 ORDER BY c.data_pedido DESC`, [dIni, dFim]);
         break;
-      case 'economia':
-        dados = await db.all(`SELECT itens, data_pedido, fornecedor_id FROM forn_compras WHERE data_pedido BETWEEN $1 AND $2`, [dIni, dFim]);
+      case 'economia': {
+        const compras = await db.all(`
+          SELECT c.itens, c.data_pedido, c.numero, f.nome AS fornecedor
+          FROM forn_compras c JOIN fornecedores f ON f.id=c.fornecedor_id
+          WHERE c.data_pedido BETWEEN $1 AND $2`, [dIni, dFim]);
+        dados = [];
+        for (const c of compras) {
+          const itens = Array.isArray(c.itens) ? c.itens : JSON.parse(c.itens || '[]');
+          for (const it of itens) {
+            const precoAnt = n(it.preco_anterior), preco = n(it.preco_unit), qtd = n(it.qtd);
+            if (precoAnt > preco && qtd > 0) {
+              dados.push({
+                fornecedor: c.fornecedor, compra: c.numero, produto: it.nome, data_pedido: c.data_pedido,
+                preco_anterior: precoAnt, preco_atual: preco, qtd, economia: +((precoAnt - preco) * qtd).toFixed(2),
+              });
+            }
+          }
+        }
+        dados.sort((a, b) => b.economia - a.economia);
         break;
+      }
       default:
         return res.status(400).json({ erro: 'Tipo de relatório inválido' });
     }

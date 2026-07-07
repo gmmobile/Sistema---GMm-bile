@@ -123,6 +123,28 @@
 - **Registrar saída:** clique no produto → botão **"Saída"** → quantidade + motivo → Salvar
 - **Filtro críticos:** toggle **"Apenas Críticos"** → mostra só produtos abaixo do mínimo
 
+### Fornecedores (Central de Relacionamento — v2 enterprise)
+- Acesso: ícone de caminhão na sidebar
+- Cadastro completo de fornecedores (razão social, nome fantasia, CNPJ, IE, contato, responsável, categoria, tipo — materiais/serviços/ferragens/etc., dados bancários, endereço, favorito, homologado, logo) com CRM completo integrado ao restante do ERP
+- **10 KPIs automáticos no topo:** Total de Fornecedores, Ativos, Inativos, Compras no Mês (com variação e mini-gráfico), Valor em Aberto, Valor Pago, Economia no Mês (calculada automaticamente quando o preço de um item cai em relação à compra anterior), Avaliação Média (com mini-gráfico), Prazo Médio de Entrega e Pedidos Atrasados
+- **Busca e filtros:** por nome, CNPJ, cidade, estado, responsável, telefone, e-mail ou produto fornecido + filtros por categoria, status, homologado e toggles de Favoritos/Pendentes/Homologados
+- **Tabela principal:** logo, nome+CNPJ, categoria, contato, compras/mês, valor em aberto, última compra, prazo médio, avaliação em estrelas, status e favoritar
+- **Painel lateral:** Top 5 Fornecedores por volume de compra, gráfico de Compras por Categoria (rosca), Alertas (preços que subiram, atrasos recorrentes) e Insights de IA (sugestão de fornecedor alternativo mais barato para o mesmo produto, aumento de preço acima de 5%, etc.)
+- **Drawer do fornecedor (clicar na linha), com 7 abas:**
+  - **Dados:** cadastro completo, editável
+  - **Produtos:** catálogo de produtos/materiais fornecidos, com preço atual, preço anterior, prazo de entrega e produto principal
+  - **Compras:** histórico de pedidos de compra; **"+ Compra"** abre modal com itens dinâmicos (produto, quantidade, preço unitário — total calculado em tempo real), data do pedido/entrega, forma de pagamento e número de parcelas
+    - Ao registrar uma compra, o sistema **gera automaticamente os lançamentos (parcelas) em Contas a Pagar**, atualiza o preço atual/anterior do produto (para cálculo de economia) e registra no histórico do fornecedor
+    - **Editar compra:** botão de lápis no item da compra → reabre o modal preenchido, permite alterar itens/valores/parcelas — só é possível enquanto nenhuma parcela da compra já tiver sido paga
+    - **Excluir compra:** botão de lixeira → remove a compra e os lançamentos pendentes vinculados — mesma trava: não é possível excluir se já houve pagamento
+    - **Marcar entregue / Cancelar:** botões rápidos em compras em aberto
+  - **Financeiro:** todos os lançamentos (parcelas) desse fornecedor, com status pendente/pago/atrasado — é o mesmo Contas a Pagar do módulo Financeiro, filtrado por fornecedor
+  - **Documentos:** upload de contrato, cartão CNPJ, certidão, tabela de preços, nota fiscal ou anexo geral, com data de vigência (para contratos) e alerta de vencimento
+  - **Avaliação:** avalia o fornecedor em 6 critérios (preço, qualidade, prazo, atendimento, pontualidade, confiabilidade) de 1 a 5 estrelas + comentário — a média entra automaticamente na KPI "Avaliação Média"
+  - **Histórico:** linha do tempo automática com tudo que aconteceu (criação, compras, avaliações, documentos, alterações)
+- **Relatórios (botão "Relatórios" na barra superior):** 8 tipos — Compras por Fornecedor, Compras por Categoria, Ranking de Fornecedores, Histórico de Preços, Avaliações, Pagamentos, Entregas e Economia Gerada; escolha o período e exporte em **PDF** ou **Excel (CSV)**
+- Toda compra registrada aqui já integra automaticamente com Financeiro, Contas a Pagar, Contas Correntes e Fluxo de Caixa — não é preciso lançar nada manualmente em outro módulo
+
 ### Parceiros
 - Acesso: ícone de aperto de mão na sidebar
 - **Novo parceiro:** botão **"+ Novo Parceiro"** → nome, contato, % de comissão, tipo (pessoa física/jurídica) → Salvar
