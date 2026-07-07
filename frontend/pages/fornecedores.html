@@ -142,7 +142,11 @@
 .dw-close{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;width:30px;height:30px;padding:0;min-width:0;cursor:pointer;color:var(--text-dim);display:flex;align-items:center;justify-content:center}
 .dw-close:hover{color:var(--text)}
 .dw-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-right:44px}
-.dw-logo{width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#000;font-size:18px;flex-shrink:0;background-size:cover;background-position:center}
+.dw-logo{width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#000;font-size:18px;flex-shrink:0;background-size:cover;background-position:center;position:relative}
+.dw-logo-wrap{position:relative;flex-shrink:0}
+.dw-logo-cam{position:absolute;bottom:-4px;right:-4px;width:20px;height:20px;border-radius:50%;background:var(--primary);border:2px solid var(--bg-card2);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.dw-logo-cam svg{width:11px;height:11px;color:#000}
+.dw-logo-cam input{display:none}
 .dw-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
 .dw-kpi{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:9px 10px}
 .dw-kpi-lbl{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;font-weight:600;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -373,7 +377,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="fecharModalForn()">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarFornecedor()"><i data-lucide="save"></i> Salvar</button>
+      <button class="btn btn-primary" id="btnSalvarForn" onclick="salvarFornecedor()"><i data-lucide="save"></i> Salvar</button>
     </div>
   </div>
 </div>
@@ -393,7 +397,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="fecharModalProduto()">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarProduto()">Salvar</button>
+      <button class="btn btn-primary" id="btnSalvarProduto" onclick="salvarProduto()">Salvar</button>
     </div>
   </div>
 </div>
@@ -441,7 +445,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="fecharModalAvaliacao()">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarAvaliacao()">Salvar Avaliação</button>
+      <button class="btn btn-primary" id="btnSalvarAvaliacao" onclick="salvarAvaliacao()">Salvar Avaliação</button>
     </div>
   </div>
 </div>
@@ -470,7 +474,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="fecharModalDocumento()">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarDocumento()">Enviar</button>
+      <button class="btn btn-primary" id="btnSalvarDocumento" onclick="salvarDocumento()">Enviar</button>
     </div>
   </div>
 </div>
@@ -742,7 +746,13 @@ async function renderDrawer(){
   let body = '<div class="rail-empty" style="padding:30px 0">Carregando...</div>';
   document.getElementById('dwContent').innerHTML = `
     <div class="dw-head">
-      <div class="dw-logo" style="${logoStyle}">${forn.logo_url?'':initials(forn.nome)}</div>
+      <div class="dw-logo-wrap">
+        <div class="dw-logo" style="${logoStyle}">${forn.logo_url?'':initials(forn.nome)}</div>
+        <label class="dw-logo-cam" title="Alterar foto">
+          <i data-lucide="camera"></i>
+          <input type="file" accept="image/*" onchange="uploadLogoFornecedor(${forn.id}, this)">
+        </label>
+      </div>
       <div style="min-width:0;flex:1">
         <div style="font-size:16px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">${escapeHtml(forn.nome)} ${forn.homologado?'<span class="cat-chip" style="background:rgba(74,222,128,.15);color:#4ade80">Homologado</span>':''}</div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:2px">${forn.categoria_nome?escapeHtml(forn.categoria_nome)+' · ':''}${forn.cnpj?escapeHtml(forn.cnpj):'sem CNPJ'}</div>
@@ -930,6 +940,20 @@ async function excluirCompra(id){
     toast('Compra excluída','success'); renderDrawer(); carregarKpis(); carregarTabela(); carregarDashboardLateral();
   }catch(e){ toast(e.message,'error'); }
 }
+async function uploadLogoFornecedor(id, input){
+  const file = input.files[0];
+  if(!file) return;
+  const fd = new FormData();
+  fd.append('logo', file);
+  try{
+    const tk = localStorage.getItem('token');
+    const r = await fetch(`/api/fornecedores/${id}/logo`, { method:'POST', headers:{ Authorization:'Bearer '+tk }, body: fd });
+    if(!r.ok){ const e = await r.json().catch(()=>({})); throw new Error(e.erro||'Erro ao enviar foto'); }
+    toast('Foto atualizada!','success');
+    renderDrawer(); carregarTabela();
+  }catch(e){ toast(e.message,'error'); }
+  finally{ input.value=''; }
+}
 async function excluirDocumento(id){
   if(!confirm('Excluir este documento?')) return;
   try{ await Api.delete(`/fornecedores/documentos/${id}`); toast('Documento removido','success'); renderDrawer(); }
@@ -981,7 +1005,15 @@ async function abrirEditarFornecedor(id){
   }catch(e){ toast(e.message,'error'); }
 }
 function fecharModalForn(){ document.getElementById('modalForn').classList.remove('open'); }
+function travarBotao(id, travar){
+  const b = document.getElementById(id);
+  if(!b) return;
+  b.disabled = travar;
+  b.style.opacity = travar ? '0.6' : '';
+  b.style.pointerEvents = travar ? 'none' : '';
+}
 async function salvarFornecedor(){
+  if(document.getElementById('btnSalvarForn').disabled) return;
   const body = {
     nome: document.getElementById('fNome').value.trim(),
     nome_fantasia: document.getElementById('fNomeFantasia').value,
@@ -1005,6 +1037,7 @@ async function salvarFornecedor(){
     homologado: document.getElementById('fHomologado').checked,
   };
   if(!body.nome){ toast('Nome é obrigatório','warning'); return; }
+  travarBotao('btnSalvarForn', true);
   try{
     const id = document.getElementById('fId').value;
     if(id) await Api.put(`/fornecedores/${id}`, body); else await Api.post('/fornecedores', body);
@@ -1012,6 +1045,7 @@ async function salvarFornecedor(){
     fecharModalForn(); carregarTabela(); carregarKpis();
     if(id && gDrawerFornId==id) renderDrawer();
   }catch(e){ toast(e.message,'error'); }
+  finally{ travarBotao('btnSalvarForn', false); }
 }
 
 /* ══════════════════════════════════════
@@ -1024,14 +1058,17 @@ function abrirModalProduto(){
 }
 function fecharModalProduto(){ document.getElementById('modalProduto').classList.remove('open'); }
 async function salvarProduto(){
+  if(document.getElementById('btnSalvarProduto').disabled) return;
   const body = { nome: document.getElementById('pNome').value.trim(), unidade: document.getElementById('pUnidade').value,
     preco_atual: document.getElementById('pPreco').value, prazo_entrega_dias: document.getElementById('pPrazo').value,
     principal: document.getElementById('pPrincipal').checked };
   if(!body.nome || !body.preco_atual){ toast('Nome e preço são obrigatórios','warning'); return; }
+  travarBotao('btnSalvarProduto', true);
   try{
     await Api.post(`/fornecedores/${gDrawerFornId}/produtos`, body);
     toast('Produto salvo!','success'); fecharModalProduto(); renderDrawer();
   }catch(e){ toast(e.message,'error'); }
+  finally{ travarBotao('btnSalvarProduto', false); }
 }
 
 /* ══════════════════════════════════════
@@ -1090,6 +1127,7 @@ function atualizarTotalCompra(){
   document.getElementById('compraTotalPreview').textContent = moeda(total);
 }
 async function salvarCompra(){
+  if(document.getElementById('btnSalvarCompra').disabled) return;
   const itens = gItensCompra.filter(it=>it.nome && it.qtd>0 && it.preco_unit>0);
   if(!itens.length){ toast('Adicione ao menos um item válido','warning'); return; }
   const body = {
@@ -1097,6 +1135,7 @@ async function salvarCompra(){
     forma_pagamento: document.getElementById('cForma').value, num_parcelas: document.getElementById('cParcelas').value,
     observacoes: document.getElementById('cObs').value,
   };
+  travarBotao('btnSalvarCompra', true);
   try{
     if(gCompraEditId){
       await Api.put(`/fornecedores/compras/${gCompraEditId}`, body);
@@ -1108,6 +1147,7 @@ async function salvarCompra(){
     fecharModalCompra();
     gDwTab='compras'; renderDrawer(); carregarKpis(); carregarTabela(); carregarDashboardLateral();
   }catch(e){ toast(e.message,'error'); }
+  finally{ travarBotao('btnSalvarCompra', false); }
 }
 
 /* ══════════════════════════════════════
@@ -1135,12 +1175,15 @@ function setNota(critId, n){
 }
 function fecharModalAvaliacao(){ document.getElementById('modalAvaliacao').classList.remove('open'); }
 async function salvarAvaliacao(){
+  if(document.getElementById('btnSalvarAvaliacao').disabled) return;
   if(Object.values(gNotas).some(v=>!v)){ toast('Avalie todos os critérios','warning'); return; }
+  travarBotao('btnSalvarAvaliacao', true);
   try{
     await Api.post(`/fornecedores/${gDrawerFornId}/avaliacoes`, { ...gNotas, comentario: document.getElementById('avComentario').value });
     toast('Avaliação registrada!','success'); fecharModalAvaliacao();
     gDwTab='avaliacao'; renderDrawer(); carregarTabela(); carregarKpis();
   }catch(e){ toast(e.message,'error'); }
+  finally{ travarBotao('btnSalvarAvaliacao', false); }
 }
 
 /* ══════════════════════════════════════
@@ -1153,6 +1196,7 @@ function abrirModalDocumento(){
 }
 function fecharModalDocumento(){ document.getElementById('modalDocumento').classList.remove('open'); }
 async function salvarDocumento(){
+  if(document.getElementById('btnSalvarDocumento').disabled) return;
   const file = document.getElementById('dArquivo').files[0];
   if(!file){ toast('Selecione um arquivo','warning'); return; }
   const fd = new FormData();
@@ -1161,6 +1205,7 @@ async function salvarDocumento(){
   fd.append('nome', document.getElementById('dNome').value || file.name);
   fd.append('data_inicio', document.getElementById('dInicio').value);
   fd.append('data_fim', document.getElementById('dFim').value);
+  travarBotao('btnSalvarDocumento', true);
   try{
     const tk = localStorage.getItem('token');
     const r = await fetch(`/api/fornecedores/${gDrawerFornId}/documentos`, { method:'POST', headers:{ Authorization:'Bearer '+tk }, body: fd });
@@ -1168,6 +1213,7 @@ async function salvarDocumento(){
     toast('Documento enviado!','success'); fecharModalDocumento();
     gDwTab='documentos'; renderDrawer();
   }catch(e){ toast(e.message,'error'); }
+  finally{ travarBotao('btnSalvarDocumento', false); }
 }
 
 ['modalForn','modalProduto','modalCompra','modalAvaliacao','modalDocumento','modalRelatorios'].forEach(id=>{
