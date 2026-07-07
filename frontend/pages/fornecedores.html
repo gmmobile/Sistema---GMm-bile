@@ -662,12 +662,22 @@ function renderTabela(){
       <td><span class="status-chip" style="background:${st.cor}1c;color:${st.cor}"><span class="sc-dot"></span>${st.lbl}</span></td>
       <td class="acoes" onclick="event.stopPropagation()">
         <button class="acao-btn2" title="Favoritar" onclick="toggleFavorito(${f.id})"><i data-lucide="star" style="${f.favorito?'color:#d4af37':''}"></i></button>
+        <button class="acao-btn2" title="Excluir" onclick="excluirFornecedor(${f.id}, '${escapeHtml(f.nome).replace(/'/g,"\\'")}')"><i data-lucide="trash-2"></i></button>
       </td>
     </tr>`;
   }).join('');
   lucide.createIcons({nodes:[document.getElementById('tbodyFrn')]});
 }
 
+async function excluirFornecedor(id, nome){
+  if(!confirm(`Excluir "${nome}"? O fornecedor será inativado (histórico, compras e documentos são preservados).`)) return;
+  try{
+    await Api.delete(`/fornecedores/${id}`);
+    toast('Fornecedor excluído','success');
+    if(gDrawerFornId==id) fecharDrawer();
+    carregarTabela(); carregarKpis(); carregarDashboardLateral();
+  }catch(e){ toast(e.message,'error'); }
+}
 async function toggleFavorito(id){
   try{ await Api.patch(`/fornecedores/${id}/favorito`,{}); carregarTabela(); }catch(e){ toast(e.message,'error'); }
 }
@@ -758,6 +768,7 @@ async function renderDrawer(){
         <div style="font-size:11px;color:var(--text-dim);margin-top:2px">${forn.categoria_nome?escapeHtml(forn.categoria_nome)+' · ':''}${forn.cnpj?escapeHtml(forn.cnpj):'sem CNPJ'}</div>
       </div>
       <button class="acao-btn2" title="Favoritar" onclick="toggleFavorito(${forn.id});renderDrawer()"><i data-lucide="star" style="${forn.favorito?'color:#d4af37':''}"></i></button>
+      <button class="acao-btn2" title="Excluir" onclick="excluirFornecedor(${forn.id}, '${escapeHtml(forn.nome).replace(/'/g,"\\'")}')"><i data-lucide="trash-2"></i></button>
     </div>
     <div class="dw-kpis">
       <div class="dw-kpi"><div class="dw-kpi-lbl">Compras</div><div class="dw-kpi-val">${fmtK(resumo.compras.total)}</div></div>
