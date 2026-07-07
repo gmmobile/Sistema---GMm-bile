@@ -188,6 +188,43 @@
     .imp-field input { width:100%; height:28px; font-size:11px; background:var(--bg-card2);
                        border:1px solid var(--border); border-radius:6px; color:var(--text);
                        padding:0 8px; outline:none; }
+
+    /* Grids com 1fr puro não encolhem abaixo do conteúdo — minmax(0,1fr)
+       evita que a página inteira ganhe scroll horizontal. */
+    .imp-strip { grid-template-columns:repeat(5,minmax(0,1fr)); }
+
+    /* ══════════════════════════════════════════════════════════════
+       MOBILE
+    ══════════════════════════════════════════════════════════════ */
+    @media(max-width:900px){
+      .page-content { padding:10px; gap:8px; }
+
+      .kpi-strip { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+      .kpi-card { padding:10px 12px; }
+      .kpi-valor { font-size:17px; }
+
+      .imp-strip { grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+
+      /* Filtros: cada campo ocupa a linha inteira */
+      .filtros-bar { flex-direction:column; align-items:stretch; padding:10px; }
+      .filtros-bar .form-group { width:100%; }
+      .filtros-bar select, .filtros-bar input { width:100%; box-sizing:border-box; }
+      .filtros-actions { margin-left:0; width:100%; }
+      .filtros-actions .btn { flex:1; }
+
+      /* Layout tabela+sidebar empilha */
+      .nf-layout { flex-direction:column; }
+      .nf-sidebar { width:100%; }
+
+      /* Tabela: scroll próprio em vez de vazar a página */
+      .table-card { overflow-x:auto; }
+      .table-card table { min-width:640px; }
+
+      /* Linha expandida e grid de tipo de NF: 1 coluna */
+      .expand-body { grid-template-columns:1fr; gap:10px; }
+      .tipo-nf-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .item-linha { grid-template-columns:1fr; gap:4px; }
+    }
   </style>
 </head>
 <body>
