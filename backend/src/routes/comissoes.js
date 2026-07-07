@@ -68,10 +68,24 @@ router.put('/:id/pagar', autorizar('gestor','financeiro'), async (req, res) => {
     await db.run(`UPDATE comissoes SET status='pago', data_pagamento=$1, forma_pagamento=$2 WHERE id=$3`,
       [hoje, forma_pagamento||null, req.params.id]);
 
+    let descPessoa = com.tipo, parceiroId = null;
+    if (com.tipo === 'parceiro') {
+      const p = await db.get('SELECT nome FROM parceiros WHERE id=$1', [com.pessoa_id]);
+      descPessoa = p?.nome || 'Parceiro';
+      parceiroId = com.pessoa_id;
+    }
+
     await db.run(`
-      INSERT INTO lancamentos (tipo, descricao, valor, data_vencimento, data_pagamento, status, forma_pagamento)
-      VALUES ('despesa',$1,$2,$3,$3,'pago',$4)
-    `, [`Comissão #${req.params.id} — ${com.tipo}`, com.valor_comissao, hoje, forma_pagamento||null]);
+      INSERT INTO lancamentos (tipo, descricao, valor, data_vencimento, data_pagamento, status, forma_pagamento, parceiro_id, pedido_id)
+      VALUES ('despesa',$1,$2,$3,$3,'pago',$4,$5,$6)
+    `, [`Comissão — ${descPessoa} (Ped. ${com.pedido_id||'—'})`, com.valor_comissao, hoje, forma_pagamento||null, parceiroId, com.pedido_id||null]);
+
+    if (parceiroId) {
+      await db.run(
+        `INSERT INTO parc_historico (parceiro_id, tipo, descricao) VALUES ($1,'comissao_paga',$2)`,
+        [parceiroId, `Comissão de R$ ${(+com.valor_comissao).toLocaleString('pt-BR',{minimumFractionDigits:2})} paga`]
+      );
+    }
 
     res.json({ mensagem: 'Comissão paga e lançada no financeiro' });
   } catch (err) {

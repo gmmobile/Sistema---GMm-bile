@@ -148,10 +148,26 @@
 - **Relatórios (botão "Relatórios" na barra superior):** 8 tipos — Compras por Fornecedor, Compras por Categoria, Ranking de Fornecedores, Histórico de Preços, Avaliações, Pagamentos, Entregas e Economia Gerada; escolha o período e exporte em **PDF** ou **Excel (CSV)**
 - Toda compra registrada aqui já integra automaticamente com Financeiro, Contas a Pagar, Contas Correntes e Fluxo de Caixa — não é preciso lançar nada manualmente em outro módulo
 
-### Parceiros
+### Parceiros (Plataforma de Gestão de Relacionamento Comercial — v2)
 - Acesso: ícone de aperto de mão na sidebar
-- **Novo parceiro:** botão **"+ Novo Parceiro"** → nome, contato, % de comissão, tipo (pessoa física/jurídica) → Salvar
-- **Ver comissões do parceiro:** clique no parceiro → aba "Comissões"
+- Controla toda a relação comercial com parceiros externos — arquitetos, designers, corretores, construtoras, empresas de reforma, lojas parceiras, influenciadores, afiliados, empresas indicadoras e profissionais autônomos — rastreando cada indicação até a venda e a comissão
+- **10 KPIs automáticos:** Total de Parceiros, Ativos, Inativos, Indicações no Mês (com mini-gráfico), Vendas Geradas, Valor Vendido (com mini-gráfico), Comissões Pendentes, Comissões Pagas (com mini-gráfico), Conversão (indicação → venda) e Ticket Médio
+- **Busca e filtros:** por nome, empresa, CPF/CNPJ, cidade, telefone, e-mail, categoria ou responsável + filtros por categoria, status e toggles de VIP/Premium/Homologado/Comissão Pendente
+- **Tabela principal:** parceiro, categoria, contato, indicações, vendas, conversão, valor gerado, comissões, última venda, status e ações (VIP, inativar/reativar, excluir)
+- **Painel lateral:** Top Parceiros por vendas, gráfico de Vendas por Categoria (rosca), Alertas (comissões pendentes há +90 dias, contratos/documentos vencendo, sem vendas ou sem indicar há 90 dias, conversão baixa) e Insights de IA
+- **Ranking (botão "Ranking" na barra superior):** Top 10 parceiros por critério escolhido — mais vendas, mais indicações, maior faturamento, maior conversão, maior ticket médio ou maior comissão
+- **Drawer do parceiro (clicar na linha), com 7 abas:**
+  - **Dados:** cadastro completo (empresa, CPF/CNPJ, tipo, % de comissão, contato, Instagram, website, endereço, dados bancários), editável
+  - **Indicações:** lista todos os clientes/leads indicados por esse parceiro (vem direto do CRM), com etapa do funil e taxa de conversão
+  - **Comissões:** histórico de comissões geradas para esse parceiro — pedido, cliente, valor, percentual, status (pendente/pago) e data
+  - **Vendas:** todos os pedidos fechados originados por esse parceiro, com valor e status
+  - **Documentos:** upload de contrato, tabela de comissão, certificado, foto, portfólio ou anexo geral, com vigência e alerta de vencimento
+  - **Avaliação:** avalia o parceiro em 6 critérios (qualidade das indicações, relacionamento, comprometimento, comunicação, volume de vendas, pontualidade) de 1 a 5 estrelas + comentário
+  - **Histórico:** linha do tempo automática (criação, venda gerada, comissão paga, avaliação, documento, alterações)
+- **Foto do parceiro:** ícone de câmera no avatar do drawer permite enviar uma foto
+- **Rastreio automático indicação → venda → comissão:** ao criar um orçamento vinculado a um parceiro (herdado automaticamente do lead indicado, ou selecionado manualmente) e esse orçamento virar pedido, o sistema **gera automaticamente a comissão do parceiro** (% cadastrado × valor da venda) e atualiza Vendas, Comissões, Histórico e o Dashboard do parceiro — sem nenhum lançamento manual
+- **Pagamento de comissão:** feito na tela de Comissões (mesmo fluxo usado para vendedores) — ao marcar como paga, atualiza automaticamente Financeiro, Contas Correntes e o Histórico do parceiro
+- **Relatórios (botão "Relatórios" na barra superior):** 8 tipos — Ranking, Comissões, Vendas, Conversão, Parceiros Ativos, Parceiros Inativos, Indicações e Faturamento; escolha o período e exporte em **PDF** ou **Excel (CSV)**
 
 ### Assistência Técnica
 - Acesso: ícone de chave/ferramenta na sidebar

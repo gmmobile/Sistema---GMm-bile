@@ -128,12 +128,14 @@ router.post('/', async (req, res) => {
             valor_global, comissao_vendedor, comissao_projetista, projetista_id, indicacao_projetista, taxa_medicao,
             frete, montagem, tipo_projeto, valor_entrada, num_parcelas, data_primeira_parcela,
             dias_projeto, dias_producao, dias_montagem, brindes, campanha } = req.body;
+    let { parceiro_id } = req.body;
     if (!cliente_id) return res.status(400).json({ erro: 'Cliente é obrigatório' });
 
-    // Se veio de um lead, registra interação e busca origem para rastreabilidade
+    // Se veio de um lead, registra interação e busca origem/parceiro para rastreabilidade
     if (lead_id) {
-      const lead = await db.get('SELECT origem FROM leads WHERE id=$1', [lead_id]);
+      const lead = await db.get('SELECT origem, parceiro_id FROM leads WHERE id=$1', [lead_id]);
       if (lead) {
+        if (!parceiro_id && lead.parceiro_id) parceiro_id = lead.parceiro_id;
         await db.run(
           `UPDATE leads SET etapa='orcamento_enviado', atualizado_em=NOW() WHERE id=$1 AND etapa NOT IN ('pedido_confirmado','perdido')`,
           [lead_id]
@@ -160,8 +162,8 @@ router.post('/', async (req, res) => {
         INSERT INTO orcamentos (numero, cliente_id, lead_id, vendedor_id, valor_global, valor_total, desconto, valor_final,
           condicao_pagamento, validade_dias, observacoes, comissao_vendedor, comissao_projetista, projetista_id, indicacao_projetista, taxa_medicao,
           frete, montagem, tipo_projeto, valor_entrada, num_parcelas, data_primeira_parcela,
-          dias_projeto, dias_producao, dias_montagem, brindes, campanha)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27) RETURNING id
+          dias_projeto, dias_producao, dias_montagem, brindes, campanha, parceiro_id)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28) RETURNING id
       `, [numero, cliente_id, lead_id||null, req.usuario.id, vg, valor_total, desc, valor_final,
           condicao_pagamento||null, parseInt(validade_dias)||15, observacoes||null,
           parseFloat(comissao_vendedor)||0, parseFloat(comissao_projetista)||0, projetista_id||null,
@@ -169,7 +171,7 @@ router.post('/', async (req, res) => {
           parseFloat(frete)||0, parseFloat(montagem)||0, tipo_projeto||null,
           parseFloat(valor_entrada)||0, parseInt(num_parcelas)||1, data_primeira_parcela||null,
           parseInt(dias_projeto)||7, parseInt(dias_producao)||20, parseInt(dias_montagem)||2,
-          JSON.stringify(brindes||[]), campanha||null]);
+          JSON.stringify(brindes||[]), campanha||null, parceiro_id||null]);
       id = rows[0].id;
 
       for (const i of itens) {
@@ -202,7 +204,7 @@ router.put('/:id', async (req, res) => {
     const { validade_dias, desconto, condicao_pagamento, observacoes, itens = [],
             valor_global, comissao_vendedor, comissao_projetista, projetista_id, indicacao_projetista, taxa_medicao,
             frete, montagem, tipo_projeto, valor_entrada, num_parcelas, data_primeira_parcela,
-            dias_projeto, dias_producao, dias_montagem, brindes, campanha } = req.body;
+            dias_projeto, dias_producao, dias_montagem, brindes, campanha, parceiro_id } = req.body;
     const vg = parseFloat(valor_global) || 0;
     const itens_total = itens.reduce((s, i) => s + (parseFloat(i.valor_unitario)||0) * (parseInt(i.quantidade)||1), 0);
     const valor_total = vg + itens_total;
@@ -217,7 +219,7 @@ router.put('/:id', async (req, res) => {
           condicao_pagamento=$6, observacoes=$7, comissao_vendedor=$8, comissao_projetista=$9, projetista_id=$10,
           indicacao_projetista=$11, taxa_medicao=$12,
           frete=$13, montagem=$14, tipo_projeto=$15, valor_entrada=$16, num_parcelas=$17, data_primeira_parcela=$18,
-          dias_projeto=$19, dias_producao=$20, dias_montagem=$21, brindes=$22, campanha=$23,
+          dias_projeto=$19, dias_producao=$20, dias_montagem=$21, brindes=$22, campanha=$23, parceiro_id=$25,
           atualizado_em=NOW() WHERE id=$24
       `, [parseInt(validade_dias)||15, vg, desc, valor_total, valor_final,
           condicao_pagamento||null, observacoes||null,
@@ -227,7 +229,7 @@ router.put('/:id', async (req, res) => {
           parseFloat(valor_entrada)||0, parseInt(num_parcelas)||1, data_primeira_parcela||null,
           parseInt(dias_projeto)||7, parseInt(dias_producao)||20, parseInt(dias_montagem)||2,
           JSON.stringify(brindes||[]), campanha||null,
-          req.params.id]);
+          req.params.id, parceiro_id||null]);
 
       await client.query('DELETE FROM itens_pedido WHERE orcamento_id=$1 AND pedido_id IS NULL', [req.params.id]);
       for (const i of itens) {
@@ -327,12 +329,12 @@ async function criarPedidoDeOrcamento(orc, opcoes = {}) {
   const { rows } = await client.query(`
       INSERT INTO pedidos (numero, orcamento_id, cliente_id, vendedor_id, valor_total, desconto, valor_final,
         condicao_pagamento, data_prevista_entrega, observacoes, token, prazo_garantia_meses,
-        lead_id, origem, etapa_producao, etapa_atualizada_em)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'novo_pedido',NOW()) RETURNING id
+        lead_id, origem, etapa_producao, etapa_atualizada_em, parceiro_id)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'novo_pedido',NOW(),$15) RETURNING id
     `, [num, orc.id, orc.cliente_id, orc.vendedor_id, orc.valor_total, orc.desconto,
         orc.valor_final || orc.valor_total, orc.condicao_pagamento,
         data_prevista_entrega||null, orc.observacoes, token, prazo_garantia_meses,
-        orc.lead_id || null, leadOrigem]);
+        orc.lead_id || null, leadOrigem, orc.parceiro_id || null]);
     const pedidoId = rows[0].id;
 
     const itens = await db.all('SELECT * FROM itens_pedido WHERE orcamento_id=$1 AND pedido_id IS NULL', [orc.id]);
@@ -397,6 +399,27 @@ async function criarPedidoDeOrcamento(orc, opcoes = {}) {
         );
       }
     } catch (e) { console.error('[fin-parcelas]', e.message); }
+
+    // ── Comissão do parceiro indicador: gerada automaticamente quando o
+    // orçamento vinculado a um parceiro vira pedido, rastreando indicação → venda ──
+    if (orc.parceiro_id) {
+      try {
+        const parc = await db.get('SELECT nome, percentual_comissao FROM parceiros WHERE id=$1', [orc.parceiro_id]);
+        const valorFinalComissao = +(orc.valor_final || orc.valor_total) || 0;
+        const percentual = +(parc?.percentual_comissao) || 0;
+        if (parc && percentual > 0 && valorFinalComissao > 0) {
+          const valorComissao = +(valorFinalComissao * percentual / 100).toFixed(2);
+          await db.run(`
+            INSERT INTO comissoes (tipo, pessoa_id, pedido_id, orcamento_id, valor_pedido, percentual, valor_comissao, status)
+            VALUES ('parceiro',$1,$2,$3,$4,$5,$6,'pendente')
+          `, [orc.parceiro_id, pedidoId, orc.id, valorFinalComissao, percentual, valorComissao]);
+          await db.run(
+            `INSERT INTO parc_historico (parceiro_id, tipo, descricao) VALUES ($1,'venda',$2)`,
+            [orc.parceiro_id, `Venda gerada — Pedido ${num} (R$ ${valorFinalComissao.toLocaleString('pt-BR',{minimumFractionDigits:2})}) — comissão de R$ ${valorComissao.toLocaleString('pt-BR',{minimumFractionDigits:2})} pendente`]
+          );
+        }
+      } catch (e) { console.error('[comissao-parceiro]', e.message); }
+    }
 
     return { pedido_id: pedidoId, numero: num, token };
   } catch(e) {

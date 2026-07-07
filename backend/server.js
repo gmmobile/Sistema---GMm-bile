@@ -294,6 +294,78 @@ async function inicializar() {
     `CREATE INDEX IF NOT EXISTS idx_forn_historico_forn  ON forn_historico(fornecedor_id)`,
     `CREATE INDEX IF NOT EXISTS idx_lancamentos_fornecedor ON lancamentos(fornecedor_id)`,
 
+    // ── Módulo Parceiros v2 (plataforma de gestão de relacionamento comercial) ──
+    `ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS empresa             TEXT`,
+    `ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS categoria_id        INTEGER`,
+    `ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS percentual_comissao NUMERIC(5,2) DEFAULT 0`,
+    `ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS instagram           TEXT`,
+    `ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS website             TEXT`,
+    `ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS responsavel         TEXT`,
+    `ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS foto_url            TEXT`,
+    `ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS vip                 BOOLEAN DEFAULT false`,
+    `ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS premium             BOOLEAN DEFAULT false`,
+    `ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS homologado          BOOLEAN DEFAULT false`,
+    `CREATE TABLE IF NOT EXISTS parc_categorias (
+      id     SERIAL PRIMARY KEY,
+      nome   TEXT NOT NULL UNIQUE,
+      cor    TEXT DEFAULT '#818cf8',
+      ativo  BOOLEAN DEFAULT true
+    )`,
+    `CREATE TABLE IF NOT EXISTS parc_documentos (
+      id             SERIAL PRIMARY KEY,
+      parceiro_id    INTEGER NOT NULL REFERENCES parceiros(id) ON DELETE CASCADE,
+      tipo           TEXT NOT NULL DEFAULT 'anexo',
+      nome           TEXT NOT NULL,
+      url            TEXT NOT NULL,
+      data_inicio    DATE,
+      data_fim       DATE,
+      valor_contrato NUMERIC(14,2),
+      criado_por     INTEGER,
+      criado_em      TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS parc_avaliacoes (
+      id                          SERIAL PRIMARY KEY,
+      parceiro_id                 INTEGER NOT NULL REFERENCES parceiros(id) ON DELETE CASCADE,
+      nota_qualidade_indicacoes   INTEGER NOT NULL CHECK(nota_qualidade_indicacoes BETWEEN 1 AND 5),
+      nota_relacionamento         INTEGER NOT NULL CHECK(nota_relacionamento BETWEEN 1 AND 5),
+      nota_comprometimento        INTEGER NOT NULL CHECK(nota_comprometimento BETWEEN 1 AND 5),
+      nota_comunicacao            INTEGER NOT NULL CHECK(nota_comunicacao BETWEEN 1 AND 5),
+      nota_volume_vendas          INTEGER NOT NULL CHECK(nota_volume_vendas BETWEEN 1 AND 5),
+      nota_pontualidade           INTEGER NOT NULL CHECK(nota_pontualidade BETWEEN 1 AND 5),
+      comentario                  TEXT,
+      criado_por                  INTEGER,
+      criado_em                   TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS parc_historico (
+      id           SERIAL PRIMARY KEY,
+      parceiro_id  INTEGER NOT NULL REFERENCES parceiros(id) ON DELETE CASCADE,
+      tipo         TEXT NOT NULL,
+      descricao    TEXT NOT NULL,
+      criado_em    TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `ALTER TABLE orcamentos ADD COLUMN IF NOT EXISTS parceiro_id INTEGER REFERENCES parceiros(id)`,
+    `ALTER TABLE pedidos    ADD COLUMN IF NOT EXISTS parceiro_id INTEGER REFERENCES parceiros(id)`,
+    `CREATE INDEX IF NOT EXISTS idx_parc_documentos_parc ON parc_documentos(parceiro_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_parc_avaliacoes_parc ON parc_avaliacoes(parceiro_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_parc_historico_parc  ON parc_historico(parceiro_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_leads_parceiro       ON leads(parceiro_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_orcamentos_parceiro  ON orcamentos(parceiro_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_pedidos_parceiro     ON pedidos(parceiro_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_lancamentos_parceiro ON lancamentos(parceiro_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_comissoes_pessoa_tipo ON comissoes(tipo, pessoa_id)`,
+
+    // ── Corrige leads.etapa: a constraint original só aceitava o vocabulário
+    // antigo (novo/contato/visita/proposta/negociacao/fechado/perdido), mas o
+    // código (leads.js ETAPAS_VALIDAS) já usa o vocabulário novo do funil de
+    // 13 etapas — toda criação de lead vinha falhando por violar a constraint.
+    `ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_etapa_check`,
+    `ALTER TABLE leads ADD CONSTRAINT leads_etapa_check CHECK (etapa IN (
+      'novo','contato','visita','proposta','negociacao','fechado','perdido',
+      'novo_lead','primeiro_contato','qualificacao','visita_agendada',
+      'projeto','orcamento_enviado','contrato','pedido_confirmado',
+      'producao','entrega','pos_venda'
+    ))`,
+
     // ── Módulo Notas Fiscais ──
     `CREATE TABLE IF NOT EXISTS notas_fiscais (
       id                      SERIAL PRIMARY KEY,
