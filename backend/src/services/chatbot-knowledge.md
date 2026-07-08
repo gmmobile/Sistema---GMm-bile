@@ -169,6 +169,27 @@
 - **Pagamento de comissão:** feito na tela de Comissões (mesmo fluxo usado para vendedores) — ao marcar como paga, atualiza automaticamente Financeiro, Contas Correntes e o Histórico do parceiro
 - **Relatórios (botão "Relatórios" na barra superior):** 8 tipos — Ranking, Comissões, Vendas, Conversão, Parceiros Ativos, Parceiros Inativos, Indicações e Faturamento; escolha o período e exporte em **PDF** ou **Excel (CSV)**
 
+### Ordens de Serviço (Centro Operacional — v2)
+- Acesso: ícone de prancheta na sidebar
+- É o centro operacional da execução dos pedidos — controla desde a aprovação do pedido até a instalação concluída e a assinatura do cliente, integrado a Pedidos, Clientes, Produção (Kanban), Estoque, Financeiro e Dashboard
+- **Geração automática:** quando um orçamento é aprovado e vira pedido, o sistema **cria automaticamente uma OS de instalação**, herdando cliente, endereço, telefone, projeto, ambientes/produtos, valor e cronograma — com checklist padrão de 11 itens e a lista de materiais já pré-carregada a partir dos itens do pedido; nada precisa ser recadastrado
+- **10 KPIs automáticos:** Total de OS, Agendadas, Em Andamento, Concluídas, Atrasadas, Canceladas, Tempo Médio de Execução, Taxa de Conclusão, OS deste Mês e OS Hoje
+- **Busca e filtros:** por número, cliente, telefone, pedido, projeto, técnico, cidade, bairro ou responsável + filtros por status, tipo, técnico, cidade, prioridade, período, equipe e toggles de Atrasadas/Materiais Pendentes
+- **Workflow de status (12 etapas):** Nova → Agendada → Separando materiais → Em produção → Pronta para instalação → Em deslocamento → Em execução → Pausada / Aguardando cliente / Aguardando material → Concluída (ou Cancelada a qualquer momento) — toda mudança atualiza o Dashboard automaticamente
+- **Tabela principal:** número, cliente, tipo, equipe, técnico, data agendada, pedido, valor, status e prioridade (bolinha colorida)
+- **Painel lateral:** Próximas OS (hoje/amanhã/semana, com endereço e equipe), Top Técnicos, Alertas (atrasadas, materiais faltando, equipe sem técnico, prazo vencendo, garantia próxima) e Insights de IA
+- **Drawer da OS (clicar na linha), com 7 abas:**
+  - **Dados:** select de status (muda o workflow), dados do cliente, endereço, técnico responsável, valor, descrição e ambientes/produtos; botão de WhatsApp direto pro cliente
+  - **Checklist:** itens agrupados por categoria (materiais/execução/entrega) com 3 estados — clique no quadradinho alterna pendente → em andamento → concluído; barra de progresso calculada automaticamente; permite adicionar itens extras
+  - **Equipe:** adiciona montadores, projetistas, instaladores ou motoristas (nome, função, telefone), cada um com status próprio
+  - **Materiais:** lista os produtos usados na OS com quantidade e o estoque atual lado a lado; ao marcar como **"separado"**, o sistema **dá baixa real no estoque** (gera um movimento de saída); se o estoque for insuficiente, mostra aviso "⚠ estoque insuficiente" automaticamente
+  - **Fotos:** upload por categoria (antes/durante/depois/garantia/cliente), organizadas em grade
+  - **Assinatura:** check-in e check-out por **GPS** (localização de chegada/saída da equipe, com link direto pro Google Maps); **assinatura digital** — o cliente e o técnico desenham a assinatura na tela (canvas touch/mouse) e ela é salva como imagem; é um registro visual de confirmação, sem validade jurídica formal; logo abaixo, avaliação do cliente em estrelas (1-5)
+  - **Histórico:** timeline automática (criação, mudança de status, checklist, equipe, material, foto, assinatura, check-in, avaliação)
+- **Ranking (botão "Ranking"):** Top 10 técnicos por mais OS concluídas, menor tempo, melhor avaliação, maior produtividade ou maior pontualidade
+- **Integração com Produção (Kanban):** ao concluir uma OS de instalação vinculada a um pedido, o sistema avança automaticamente a etapa do pedido no Kanban (instalação → concluído, entrega → entregue, visita → projeto 3D), sem retroceder etapa já alcançada
+- **Relatórios (botão "Relatórios"):** 7 tipos — OS Concluídas, OS Atrasadas, Tempo Médio, Produtividade, Materiais Utilizados, Equipe e Garantias; exporte em **PDF** ou **Excel (CSV)**
+
 ### Assistência Técnica
 - Acesso: ícone de chave/ferramenta na sidebar
 - Lista com filtro por status: aberto | em andamento | concluído

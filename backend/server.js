@@ -366,6 +366,83 @@ async function inicializar() {
       'producao','entrega','pos_venda'
     ))`,
 
+    // ── Módulo Ordens de Serviço v2 (centro operacional) ──
+    // Amplia o workflow de status (era só pendente/em_andamento/concluido/cancelado)
+    `ALTER TABLE ordens_servico DROP CONSTRAINT IF EXISTS ordens_servico_status_check`,
+    `ALTER TABLE ordens_servico ADD CONSTRAINT ordens_servico_status_check CHECK (status IN (
+      'pendente','agendada','separando_materiais','em_producao','pronta_instalacao',
+      'em_deslocamento','em_andamento','pausada','aguardando_cliente','aguardando_material',
+      'concluido','cancelado'
+    ))`,
+    `ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS prioridade            TEXT DEFAULT 'normal'`,
+    `ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS tempo_previsto_min    INTEGER`,
+    `ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS hora_chegada          TIMESTAMPTZ`,
+    `ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS hora_saida            TIMESTAMPTZ`,
+    `ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS latitude_chegada      NUMERIC(10,6)`,
+    `ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS longitude_chegada     NUMERIC(10,6)`,
+    `ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS latitude_saida        NUMERIC(10,6)`,
+    `ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS longitude_saida       NUMERIC(10,6)`,
+    `ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS assinatura_cliente_url TEXT`,
+    `ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS assinatura_tecnico_url TEXT`,
+    `ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS avaliacao_nota        INTEGER CHECK(avaliacao_nota BETWEEN 1 AND 5)`,
+    `ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS avaliacao_comentario  TEXT`,
+    `ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS checklist_progresso   INTEGER DEFAULT 0`,
+    `CREATE TABLE IF NOT EXISTS os_checklist (
+      id             SERIAL PRIMARY KEY,
+      os_id          INTEGER NOT NULL REFERENCES ordens_servico(id) ON DELETE CASCADE,
+      categoria      TEXT NOT NULL DEFAULT 'geral',
+      item           TEXT NOT NULL,
+      status         TEXT NOT NULL DEFAULT 'pendente' CHECK(status IN ('pendente','em_andamento','concluido')),
+      ordem          INTEGER DEFAULT 0,
+      concluido_por  INTEGER,
+      concluido_em   TIMESTAMPTZ,
+      criado_em      TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS os_equipe (
+      id          SERIAL PRIMARY KEY,
+      os_id       INTEGER NOT NULL REFERENCES ordens_servico(id) ON DELETE CASCADE,
+      usuario_id  INTEGER REFERENCES usuarios(id),
+      nome        TEXT NOT NULL,
+      funcao      TEXT NOT NULL DEFAULT 'montador',
+      telefone    TEXT,
+      status      TEXT NOT NULL DEFAULT 'pendente' CHECK(status IN ('pendente','confirmado','concluido')),
+      criado_em   TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS os_materiais (
+      id           SERIAL PRIMARY KEY,
+      os_id        INTEGER NOT NULL REFERENCES ordens_servico(id) ON DELETE CASCADE,
+      produto_id   INTEGER REFERENCES produtos(id),
+      nome         TEXT NOT NULL,
+      quantidade   NUMERIC(14,2) NOT NULL DEFAULT 1,
+      status       TEXT NOT NULL DEFAULT 'pendente' CHECK(status IN ('pendente','reservado','separado','utilizado')),
+      criado_em    TIMESTAMPTZ DEFAULT NOW(),
+      atualizado_em TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS os_fotos (
+      id          SERIAL PRIMARY KEY,
+      os_id       INTEGER NOT NULL REFERENCES ordens_servico(id) ON DELETE CASCADE,
+      categoria   TEXT NOT NULL DEFAULT 'durante' CHECK(categoria IN ('antes','durante','depois','garantia','cliente')),
+      url         TEXT NOT NULL,
+      criado_por  INTEGER,
+      criado_em   TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS os_historico (
+      id          SERIAL PRIMARY KEY,
+      os_id       INTEGER NOT NULL REFERENCES ordens_servico(id) ON DELETE CASCADE,
+      tipo        TEXT NOT NULL,
+      descricao   TEXT NOT NULL,
+      criado_em   TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_os_checklist_os  ON os_checklist(os_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_os_equipe_os     ON os_equipe(os_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_os_materiais_os  ON os_materiais(os_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_os_fotos_os      ON os_fotos(os_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_os_historico_os  ON os_historico(os_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_os_cliente        ON ordens_servico(cliente_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_os_pedido         ON ordens_servico(pedido_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_os_tecnico        ON ordens_servico(tecnico_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_os_status         ON ordens_servico(status)`,
+
     // ── Módulo Notas Fiscais ──
     `CREATE TABLE IF NOT EXISTS notas_fiscais (
       id                      SERIAL PRIMARY KEY,

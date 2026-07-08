@@ -47,6 +47,14 @@ async function gerarNumero() {
   return 'ORC-' + String(parseInt(match[1]) + 1).padStart(4, '0');
 }
 
+async function gerarNumeroOs() {
+  const ultimo = await db.get('SELECT numero FROM ordens_servico ORDER BY id DESC LIMIT 1');
+  if (!ultimo) return 'OS-0001';
+  const match = ultimo.numero.match(/(\d+)$/);
+  if (!match) return 'OS-' + String(Date.now()).slice(-6);
+  return 'OS-' + String(parseInt(match[1]) + 1).padStart(4, '0');
+}
+
 // GET /api/orcamentos
 router.get('/', async (req, res) => {
   try {
@@ -420,6 +428,34 @@ async function criarPedidoDeOrcamento(orc, opcoes = {}) {
         }
       } catch (e) { console.error('[comissao-parceiro]', e.message); }
     }
+
+    // ── Ordens de Serviço: gera automaticamente a OS de instalação deste
+    // pedido, herdando cliente, projeto, ambientes/produtos, valor e
+    // observações — nenhum recadastro manual é necessário ──
+    try {
+      const itensOs = await db.all('SELECT * FROM itens_pedido WHERE pedido_id=$1', [pedidoId]);
+      const itensTexto = itensOs.map(it => `${it.ambiente ? it.ambiente + ' — ' : ''}${it.descricao}${it.material ? ' (' + it.material + ')' : ''} x${it.quantidade}`).join('\n');
+      const numeroOs = await gerarNumeroOs();
+      const osId = await db.insert(`
+        INSERT INTO ordens_servico (numero, cliente_id, pedido_id, tipo, data_agendada, descricao, itens_instalados)
+        VALUES ($1,$2,$3,'instalacao',$4,$5,$6)`,
+        [numeroOs, orc.cliente_id, pedidoId, data_prevista_entrega || null,
+         `Instalação — ${orc.tipo_projeto || 'Projeto'} (Pedido ${num})`, itensTexto || null]);
+      const CHECKLIST_PADRAO_OS = [
+        ['materiais','Separação de materiais'], ['materiais','Materiais conferidos'], ['materiais','Projeto conferido'],
+        ['materiais','Ferragens'], ['materiais','Vidros'], ['execucao','Montagem'], ['execucao','Instalação'],
+        ['execucao','Limpeza'], ['entrega','Entrega'], ['entrega','Assinatura cliente'], ['entrega','Fotos finais'],
+      ];
+      for (let k = 0; k < CHECKLIST_PADRAO_OS.length; k++) {
+        await db.run(`INSERT INTO os_checklist (os_id, categoria, item, ordem) VALUES ($1,$2,$3,$4)`,
+          [osId, CHECKLIST_PADRAO_OS[k][0], CHECKLIST_PADRAO_OS[k][1], k]);
+      }
+      for (const it of itensOs) {
+        await db.run(`INSERT INTO os_materiais (os_id, nome, quantidade) VALUES ($1,$2,$3)`, [osId, it.descricao, it.quantidade || 1]);
+      }
+      await db.run(`INSERT INTO os_historico (os_id, tipo, descricao) VALUES ($1,'criada',$2)`,
+        [osId, `OS ${numeroOs} gerada automaticamente a partir do Pedido ${num}`]);
+    } catch (e) { console.error('[os-auto-criacao]', e.message); }
 
     return { pedido_id: pedidoId, numero: num, token };
   } catch(e) {
