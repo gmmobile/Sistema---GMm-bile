@@ -443,6 +443,9 @@ async function inicializar() {
     `CREATE INDEX IF NOT EXISTS idx_os_tecnico        ON ordens_servico(tecnico_id)`,
     `CREATE INDEX IF NOT EXISTS idx_os_status         ON ordens_servico(status)`,
 
+    // ── Cliente: imóvel/empreendimento onde reside ──
+    `ALTER TABLE clientes ADD COLUMN IF NOT EXISTS imovel TEXT`,
+
     // ── Módulo Notas Fiscais ──
     `CREATE TABLE IF NOT EXISTS notas_fiscais (
       id                      SERIAL PRIMARY KEY,

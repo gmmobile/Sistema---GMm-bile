@@ -653,6 +653,12 @@
           </div>
         </div>
         <div class="form-row">
+          <div class="form-group" style="grid-column: span 2">
+            <label>Imóvel / Empreendimento</label>
+            <input type="text" id="fImovel" placeholder="Ex: Residencial Viverde">
+          </div>
+        </div>
+        <div class="form-row">
           <div class="form-group">
             <label>Como nos conheceu?</label>
             <select id="fOrigem">
@@ -666,10 +672,6 @@
               <option>Loja física</option>
               <option>Outro</option>
             </select>
-          </div>
-          <div class="form-group">
-            <label>Data de Nascimento</label>
-            <input type="date" id="fNascimento2" style="display:none">
           </div>
         </div>
         <input type="hidden" id="fTipoServico">
@@ -1132,6 +1134,7 @@ function abrirModal(cliente = null) {
   document.getElementById('fBairro').value = '';
   document.getElementById('fCidade').value = '';
   document.getElementById('fEstado').value = 'SP';
+  document.getElementById('fImovel').value = '';
   document.getElementById('fOrigem').value = '';
   document.getElementById('fObs').value = '';
 
@@ -1151,6 +1154,7 @@ function abrirModal(cliente = null) {
     document.getElementById('fBairro').value   = cliente.bairro || '';
     document.getElementById('fCidade').value   = cliente.cidade || '';
     document.getElementById('fEstado').value   = cliente.estado || 'SP';
+    document.getElementById('fImovel').value   = cliente.imovel || '';
     document.getElementById('fOrigem').value   = cliente.origem || '';
     document.getElementById('fObs').value      = cliente.observacoes || '';
     _carregarTipoServico(cliente);
@@ -1188,6 +1192,7 @@ async function salvarCliente() {
     bairro:         document.getElementById('fBairro').value,
     cidade:         document.getElementById('fCidade').value,
     estado:         document.getElementById('fEstado').value,
+    imovel:         document.getElementById('fImovel').value,
     origem:         document.getElementById('fOrigem').value,
     observacoes:    document.getElementById('fObs').value,
     tipo_servico:   document.getElementById('fTipoServico').value || null,

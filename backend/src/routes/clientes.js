@@ -65,18 +65,18 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { nome, cpf_cnpj, email, telefone, whatsapp, cep, rua, numero,
-            bairro, cidade, estado, data_nascimento, origem, vendedor_id,
+            bairro, cidade, estado, imovel, data_nascimento, origem, vendedor_id,
             observacoes, tipo_servico, comodos } = req.body;
 
     if (!nome) return res.status(400).json({ erro: 'Nome é obrigatório' });
 
     const id = await db.insert(`
       INSERT INTO clientes (nome, cpf_cnpj, email, telefone, whatsapp, cep, rua, numero,
-        bairro, cidade, estado, data_nascimento, origem, vendedor_id, observacoes,
+        bairro, cidade, estado, imovel, data_nascimento, origem, vendedor_id, observacoes,
         tipo_servico, comodos)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
     `, [nome, cpf_cnpj, email, telefone, whatsapp, cep, rua, numero,
-        bairro, cidade, estado, data_nascimento, origem, vendedor_id, observacoes,
+        bairro, cidade, estado, imovel||null, data_nascimento, origem, vendedor_id, observacoes,
         tipo_servico, comodos ? JSON.stringify(comodos) : null]);
 
     res.status(201).json({ id, mensagem: 'Cliente criado com sucesso' });
@@ -90,19 +90,19 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { nome, cpf_cnpj, email, telefone, whatsapp, cep, rua, numero,
-            bairro, cidade, estado, data_nascimento, origem, vendedor_id,
+            bairro, cidade, estado, imovel, data_nascimento, origem, vendedor_id,
             observacoes, tipo_servico, comodos } = req.body;
 
     if (!nome) return res.status(400).json({ erro: 'Nome é obrigatório' });
 
     await db.run(`
       UPDATE clientes SET nome=$1, cpf_cnpj=$2, email=$3, telefone=$4, whatsapp=$5,
-        cep=$6, rua=$7, numero=$8, bairro=$9, cidade=$10, estado=$11,
-        data_nascimento=$12, origem=$13, vendedor_id=$14, observacoes=$15,
-        tipo_servico=$16, comodos=$17, atualizado_em=NOW()
-      WHERE id=$18
+        cep=$6, rua=$7, numero=$8, bairro=$9, cidade=$10, estado=$11, imovel=$12,
+        data_nascimento=$13, origem=$14, vendedor_id=$15, observacoes=$16,
+        tipo_servico=$17, comodos=$18, atualizado_em=NOW()
+      WHERE id=$19
     `, [nome, cpf_cnpj, email, telefone, whatsapp, cep, rua, numero,
-        bairro, cidade, estado, data_nascimento, origem, vendedor_id, observacoes,
+        bairro, cidade, estado, imovel||null, data_nascimento, origem, vendedor_id, observacoes,
         tipo_servico, comodos ? JSON.stringify(comodos) : null, req.params.id]);
 
     res.json({ mensagem: 'Cliente atualizado com sucesso' });
