@@ -14,7 +14,8 @@ server_out.txt
 server_err.txt
 backend/uploads
 
-# Imagens soltas na raiz do projeto (não fazem parte do app)
-*.png
-*.jpeg
-*.jpg
+# Imagens soltas na raiz do projeto (não fazem parte do app) — âncora
+# no início evita excluir imagens legítimas dentro de frontend/assets/img/
+/*.png
+/*.jpeg
+/*.jpg
