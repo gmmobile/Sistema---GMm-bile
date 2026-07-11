@@ -34,7 +34,9 @@
 ### Clientes
 - Acesso: ícone de pessoas na sidebar
 - Lista com busca por nome, CPF, telefone, cidade
-- **Novo cliente:** botão **"+ Novo Cliente"** → nome, CPF/CNPJ, telefone, email, endereço, cidade, origem → Salvar
+- **Novo cliente:** botão **"+ Novo Cliente"** → nome, CPF/CNPJ, telefone, email, endereço, cidade, **Imóvel/Empreendimento** (ex: "Residencial Viverde"), origem → Salvar
+- **Importar com IA (botão "Importar com IA"):** envie uma planilha **.xlsx** onde cada aba tem o nome de um imóvel/empreendimento (ex: aba "Residencial Viverde"); a IA lê os cabeçalhos de cada aba — mesmo que tenham nomes diferentes do sistema (ex: "Morador", "Celular") — identifica sozinha qual coluna é nome, telefone, e-mail, CPF etc., preenche automaticamente o campo **Imóvel** de cada cliente com o nome da aba, e mostra uma prévia agrupada por imóvel antes de confirmar a importação. Colunas sem correspondência (ex: bloco, apartamento) são combinadas nas observações do cliente
+- **Importar CSV (botão "Importar CSV"):** importação simples e literal por cabeçalho fixo (nome,email,telefone,whatsapp,cpf_cnpj,cidade,estado) — sem IA, para planilhas já no formato exato
 - **Ver histórico:** clique no cliente → abas: **Dados | Orçamentos | Pedidos | Assistências | Renders**
 - **Carnê de parcelas:** ícone de carnê (dourado) na coluna Ações → abre o carnê completo do cliente com resumo (total do contrato, pago, em aberto, vencido) e parcelas agrupadas em **Vencidas / Próximas / Quitadas**; cada parcela pendente tem botão **"Receber"** que pede data, forma de pagamento e **conta de destino (obrigatória)** — o valor entra automaticamente na Central de Tesouraria, fluxo de caixa e dashboard
 - **Editar:** botão de lápis no card ou dentro do cadastro

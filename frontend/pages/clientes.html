@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="../assets/css/layout.css">
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <style>
+    .spinner { display:inline-block; border:2px solid rgba(167,139,250,.25); border-top-color:#a78bfa; border-radius:50%; animation:spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .cliente-avatar {
       width: 34px;
       height: 34px;
@@ -489,6 +491,10 @@
         <button class="btn btn-ghost" onclick="abrirImportCSV()" style="white-space:nowrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           <span>Importar CSV</span>
+        </button>
+        <button class="btn btn-ghost" onclick="abrirImportIA()" style="white-space:nowrap;border-color:#a78bfa66;color:#c4b5fd">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3m0 12v3m9-9h-3M6 12H3m14.24-5.24-2.12 2.12M8.88 15.12l-2.12 2.12m10.48 0-2.12-2.12M8.88 8.88 6.76 6.76"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Importar com IA</span>
         </button>
         <button class="btn btn-primary" onclick="abrirModal()" style="white-space:nowrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
@@ -1308,6 +1314,70 @@ async function confirmarImportCSV() {
   } catch(e) { toast(e.message, 'error'); }
 }
 
+// ── IMPORTAR COM IA (planilha .xlsx com abas por imóvel) ──
+let _iaClientes = [];
+
+function abrirImportIA() {
+  _iaClientes = [];
+  document.getElementById('iaFile').value = '';
+  document.getElementById('iaStatus').innerHTML = '';
+  document.getElementById('iaPreview').innerHTML = '';
+  document.getElementById('btnConfirmarIA').disabled = true;
+  document.getElementById('modalImportIA').classList.add('open');
+}
+function fecharImportIA() { document.getElementById('modalImportIA').classList.remove('open'); }
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('iaFile').addEventListener('change', async function() {
+    const file = this.files[0];
+    if (!file) return;
+    _iaClientes = [];
+    document.getElementById('btnConfirmarIA').disabled = true;
+    document.getElementById('iaPreview').innerHTML = '';
+    document.getElementById('iaStatus').innerHTML = `<span style="color:#a78bfa;display:flex;align-items:center;gap:6px"><span class="spinner" style="width:13px;height:13px"></span> IA analisando a planilha...</span>`;
+
+    const fd = new FormData();
+    fd.append('arquivo', file);
+    try {
+      const tk = localStorage.getItem('token');
+      const r = await fetch('/api/clientes/importar-ia/preview', { method: 'POST', headers: { Authorization: 'Bearer ' + tk }, body: fd });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.erro || 'Erro ao processar planilha');
+
+      _iaClientes = data.clientes;
+      document.getElementById('iaStatus').innerHTML = `<span style="color:#4ade80">✓ ${_iaClientes.length} cliente(s) identificado(s) em ${data.abas.length} aba(s)</span>`;
+
+      const resumoAbas = data.abas.map(a => `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--bg-card2);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:11.5px;margin:0 6px 6px 0"><strong style="color:var(--primary)">${a.total}</strong> ${escapeHtml(a.nome)}</span>`).join('');
+      const preview = _iaClientes.slice(0, 8).map(c => `<tr>
+        <td>${escapeHtml(c.nome)}</td>
+        <td>${escapeHtml(c.imovel||'')||'—'}</td>
+        <td>${escapeHtml(c.telefone||c.whatsapp||'')||'—'}</td>
+        <td>${escapeHtml(c.email||'')||'—'}</td>
+      </tr>`).join('');
+      document.getElementById('iaPreview').innerHTML = `
+        <div style="margin:10px 0">${resumoAbas}</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <thead><tr style="color:var(--text-muted)"><th style="text-align:left;padding:4px 6px">Nome</th><th style="text-align:left">Imóvel</th><th style="text-align:left">Telefone</th><th style="text-align:left">E-mail</th></tr></thead>
+          <tbody>${preview}</tbody>
+        </table>
+        ${_iaClientes.length > 8 ? `<p style="font-size:11px;color:var(--text-dim);margin-top:6px">+ ${_iaClientes.length - 8} outro(s)…</p>` : ''}`;
+      document.getElementById('btnConfirmarIA').disabled = false;
+    } catch (e) {
+      document.getElementById('iaStatus').innerHTML = `<span style="color:#f87171">${escapeHtml(e.message)}</span>`;
+    }
+  });
+});
+
+async function confirmarImportIA() {
+  if (!_iaClientes.length) { toast('Nenhum cliente para importar', 'warning'); return; }
+  try {
+    const r = await Api.post('/clientes/importar', { clientes: _iaClientes });
+    toast(r.mensagem, 'success');
+    fecharImportIA();
+    carregarClientes();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
 carregarClientes();
 </script>
 
@@ -1334,6 +1404,34 @@ carregarClientes();
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="fecharCSV()">Cancelar</button>
       <button class="btn btn-primary" onclick="confirmarImportCSV()">Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal importar com IA (planilha .xlsx) -->
+<div class="modal-overlay" id="modalImportIA">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <h2 style="display:flex;align-items:center;gap:8px"><i data-lucide="sparkles" style="width:17px;height:17px;color:#a78bfa"></i> Importar Clientes com IA</h2>
+      <button class="modal-close" onclick="fecharImportIA()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;font-size:12px;color:var(--text-muted)">
+        Envie uma planilha <strong>.xlsx</strong> com uma aba para cada imóvel/empreendimento
+        (ex: aba "<strong>Residencial Viverde</strong>"). A IA identifica sozinha as colunas de cada
+        aba (nome, telefone, e-mail, etc.) e já preenche o campo <strong>Imóvel</strong> de cada
+        cliente com o nome da aba correspondente.
+      </div>
+      <div class="form-group">
+        <label>Planilha (.xlsx)</label>
+        <input type="file" id="iaFile" accept=".xlsx" style="cursor:pointer">
+      </div>
+      <div id="iaStatus" style="font-size:13px;font-weight:600;margin-top:4px"></div>
+      <div id="iaPreview"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharImportIA()">Cancelar</button>
+      <button class="btn btn-primary" id="btnConfirmarIA" onclick="confirmarImportIA()" disabled>Importar</button>
     </div>
   </div>
 </div>
@@ -1491,7 +1589,7 @@ async function confirmarReceberParc(){
   }catch(e){ toast(e.message,'error'); }
 }
 
-['modalParcelas','modalReceberParc'].forEach(id=>{
+['modalParcelas','modalReceberParc','modalImportIA'].forEach(id=>{
   document.getElementById(id).addEventListener('click', function(e){ if(e.target===this) this.classList.remove('open'); });
 });
 </script>
