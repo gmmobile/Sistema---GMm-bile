@@ -1334,7 +1334,7 @@ document.addEventListener('DOMContentLoaded', function() {
     _iaClientes = [];
     document.getElementById('btnConfirmarIA').disabled = true;
     document.getElementById('iaPreview').innerHTML = '';
-    document.getElementById('iaStatus').innerHTML = `<span style="color:#a78bfa;display:flex;align-items:center;gap:6px"><span class="spinner" style="width:13px;height:13px"></span> IA analisando a planilha...</span>`;
+    document.getElementById('iaStatus').innerHTML = `<span style="color:#a78bfa;display:flex;align-items:center;gap:6px"><span class="spinner" style="width:13px;height:13px"></span> IA lendo os carnês da planilha...</span>`;
 
     const fd = new FormData();
     fd.append('arquivo', file);
@@ -1345,23 +1345,24 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!r.ok) throw new Error(data.erro || 'Erro ao processar planilha');
 
       _iaClientes = data.clientes;
-      document.getElementById('iaStatus').innerHTML = `<span style="color:#4ade80">✓ ${_iaClientes.length} cliente(s) identificado(s) em ${data.abas.length} aba(s)</span>`;
+      const totalParcelas = data.abas.reduce((s, a) => s + (a.parcelas||0), 0);
+      const comErro = data.abas.filter(a => a.erro).length;
+      document.getElementById('iaStatus').innerHTML = `<span style="color:#4ade80">✓ ${_iaClientes.length} carnê(s) identificado(s), ${totalParcelas} parcela(s) no total</span>${comErro ? `<div style="color:#fbbf24;font-size:11.5px;font-weight:400;margin-top:2px">${comErro} aba(s) não puderam ser lidas e serão ignoradas</div>` : ''}`;
 
-      const resumoAbas = data.abas.map(a => `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--bg-card2);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:11.5px;margin:0 6px 6px 0"><strong style="color:var(--primary)">${a.total}</strong> ${escapeHtml(a.nome)}</span>`).join('');
-      const preview = _iaClientes.slice(0, 8).map(c => `<tr>
-        <td>${escapeHtml(c.nome)}</td>
-        <td>${escapeHtml(c.imovel||'')||'—'}</td>
-        <td>${escapeHtml(c.telefone||c.whatsapp||'')||'—'}</td>
-        <td>${escapeHtml(c.email||'')||'—'}</td>
+      const linhas = data.abas.filter(a => !a.erro).map(a => `<tr>
+        <td>${escapeHtml(a.cliente||a.nome)}</td>
+        <td>${escapeHtml(a.imovel||'')||'—'}</td>
+        <td style="text-align:center">${a.parcelas}</td>
+        <td style="text-align:center;color:#4ade80">${a.pagas}</td>
+        <td style="text-align:right">${moeda(a.valorTotal||0)}</td>
       </tr>`).join('');
       document.getElementById('iaPreview').innerHTML = `
-        <div style="margin:10px 0">${resumoAbas}</div>
-        <table style="width:100%;font-size:12px;border-collapse:collapse">
-          <thead><tr style="color:var(--text-muted)"><th style="text-align:left;padding:4px 6px">Nome</th><th style="text-align:left">Imóvel</th><th style="text-align:left">Telefone</th><th style="text-align:left">E-mail</th></tr></thead>
-          <tbody>${preview}</tbody>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:10px">
+          <thead><tr style="color:var(--text-muted)"><th style="text-align:left;padding:4px 6px">Cliente</th><th style="text-align:left">Imóvel</th><th style="text-align:center">Parcelas</th><th style="text-align:center">Pagas</th><th style="text-align:right">Valor total</th></tr></thead>
+          <tbody>${linhas}</tbody>
         </table>
-        ${_iaClientes.length > 8 ? `<p style="font-size:11px;color:var(--text-dim);margin-top:6px">+ ${_iaClientes.length - 8} outro(s)…</p>` : ''}`;
-      document.getElementById('btnConfirmarIA').disabled = false;
+        <p style="font-size:11px;color:var(--text-dim);margin-top:8px">As parcelas serão criadas em Contas a Receber já com o status pago/pendente identificado na planilha.</p>`;
+      document.getElementById('btnConfirmarIA').disabled = !_iaClientes.length;
     } catch (e) {
       document.getElementById('iaStatus').innerHTML = `<span style="color:#f87171">${escapeHtml(e.message)}</span>`;
     }
@@ -1369,13 +1370,18 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function confirmarImportIA() {
-  if (!_iaClientes.length) { toast('Nenhum cliente para importar', 'warning'); return; }
+  const btn = document.getElementById('btnConfirmarIA');
+  if (!_iaClientes.length || btn.disabled) return;
+  btn.disabled = true; btn.style.opacity = '0.6';
   try {
-    const r = await Api.post('/clientes/importar', { clientes: _iaClientes });
+    const r = await Api.post('/clientes/importar-ia/confirmar', { clientes: _iaClientes });
     toast(r.mensagem, 'success');
     fecharImportIA();
     carregarClientes();
-  } catch(e) { toast(e.message, 'error'); }
+  } catch(e) {
+    toast(e.message, 'error');
+    btn.disabled = false; btn.style.opacity = '';
+  }
 }
 
 carregarClientes();
@@ -1417,10 +1423,10 @@ carregarClientes();
     </div>
     <div class="modal-body">
       <div style="background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;font-size:12px;color:var(--text-muted)">
-        Envie uma planilha <strong>.xlsx</strong> com uma aba para cada imóvel/empreendimento
-        (ex: aba "<strong>Residencial Viverde</strong>"). A IA identifica sozinha as colunas de cada
-        aba (nome, telefone, e-mail, etc.) e já preenche o campo <strong>Imóvel</strong> de cada
-        cliente com o nome da aba correspondente.
+        Envie uma planilha <strong>.xlsx</strong> onde cada aba é o carnê de pagamento de um cliente
+        (nome da aba = nome do cliente). A IA localiza o nome do imóvel/empreendimento dentro da
+        planilha (ex: "<strong>Residencial Viverde</strong>") e identifica a tabela de parcelas
+        (número, data, valor e se já foi paga), mesmo que o layout varie de aba para aba.
       </div>
       <div class="form-group">
         <label>Planilha (.xlsx)</label>
