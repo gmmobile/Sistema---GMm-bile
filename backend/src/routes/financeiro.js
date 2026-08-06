@@ -2,6 +2,7 @@ const express = require('express');
 const { randomUUID: uuid } = require('crypto');
 const db = require('../utils/db');
 const { autenticar } = require('../middlewares/auth');
+const categoriasRoute = require('./categorias');
 
 const router = express.Router();
 router.use(autenticar);
@@ -430,13 +431,14 @@ router.post('/lancamentos', async (req, res) => {
   try {
     const {
       tipo, descricao, valor, data_vencimento,
-      forma_pagamento, conta_id, categoria_id, observacoes,
+      forma_pagamento, conta_id, observacoes,
       cliente_id, fornecedor_id, orcamento_id, pedido_id,
       centro_custo_id, num_documento, origem = 'manual',
       recorrencia = 'unica',
       parcelas = 1,
       valor_entrada = 0,
     } = req.body;
+    let { categoria_id } = req.body;
 
     if (!tipo || !descricao || !valor || !data_vencimento)
       return res.status(400).json({ erro: 'Campos obrigatórios: tipo, descrição, valor, vencimento' });
@@ -449,6 +451,22 @@ router.post('/lancamentos', async (req, res) => {
 
     if (isNaN(valorNum) || valorNum <= 0)
       return res.status(400).json({ erro: 'Valor inválido' });
+
+    if (!categoria_id) {
+      const [clienteRow, fornecedorRow] = await Promise.all([
+        cliente_id ? db.get(`SELECT nome FROM clientes WHERE id=$1`, [cliente_id]) : null,
+        fornecedor_id ? db.get(`SELECT nome FROM fornecedores WHERE id=$1`, [fornecedor_id]) : null,
+      ]);
+      categoria_id = await categoriasRoute.aplicarRegras({
+        descricao,
+        cliente_nome: clienteRow?.nome,
+        fornecedor_nome: fornecedorRow?.nome,
+        forma_pagamento,
+      });
+    }
+    if (!categoria_id && categoriasRoute.EXIGIR_CATEGORIA) {
+      return res.status(400).json({ erro: 'Categoria é obrigatória' });
+    }
 
     const inserir = (vals) => db.run(
       `INSERT INTO lancamentos

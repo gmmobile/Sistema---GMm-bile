@@ -44,6 +44,8 @@ app.use('/api/radar',         require('./src/routes/radar'));
 app.use('/api/assistencia',   require('./src/routes/assistencia'));
 app.use('/api/parceiros',     require('./src/routes/parceiros'));
 app.use('/api/comissoes',     require('./src/routes/comissoes'));
+app.use('/api/categorias',    require('./src/routes/categorias'));
+app.use('/api/cora',          require('./src/routes/cora'));
 app.use('/api/metas',         require('./src/routes/metas'));
 app.use('/api/renders',       require('./src/routes/renders'));
 app.use('/api/usuarios',      require('./src/routes/usuarios'));
@@ -63,6 +65,7 @@ app.use('/api/chatbot',       require('./src/routes/chatbot'));
 app.use('/api/relatorios',    require('./src/routes/relatorios'));
 app.use('/api/ranking',       require('./src/routes/ranking'));
 app.use('/api/tesouraria',    require('./src/routes/tesouraria'));
+app.use('/api/cora',          require('./src/routes/cora'));
 
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) {
@@ -615,6 +618,115 @@ async function inicializar() {
     `UPDATE pedidos SET etapa_producao='entrega_agendada'     WHERE etapa_producao='entrega'`,
     `UPDATE pedidos SET etapa_producao='montagem'             WHERE etapa_producao='instalacao'`,
     `UPDATE pedidos SET etapa_producao='concluido'            WHERE etapa_producao='pronto' OR etapa_producao='concluido'`,
+
+    // ── Central de Categorias (classificação financeira) ──
+    `ALTER TABLE categorias ADD COLUMN IF NOT EXISTS codigo TEXT`,
+    `ALTER TABLE categorias ADD COLUMN IF NOT EXISTS descricao TEXT`,
+    `ALTER TABLE categorias ADD COLUMN IF NOT EXISTS conta_contabil_id INTEGER`,
+    `ALTER TABLE categorias ADD COLUMN IF NOT EXISTS automatica BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE categorias ADD COLUMN IF NOT EXISTS ordem INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE categorias ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
+    `ALTER TABLE categorias ADD COLUMN IF NOT EXISTS criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
+    `ALTER TABLE categorias DROP CONSTRAINT IF EXISTS categorias_tipo_check`,
+    `ALTER TABLE categorias ADD CONSTRAINT categorias_tipo_check
+      CHECK (tipo IN ('receita','despesa','custo','imposto','comissao'))`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_categorias_codigo ON categorias(codigo) WHERE codigo IS NOT NULL`,
+    `CREATE INDEX IF NOT EXISTS idx_categorias_pai ON categorias(categoria_pai_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_categorias_centro_custo ON categorias(centro_custo_id)`,
+    `CREATE TABLE IF NOT EXISTS contas_contabeis (
+      id SERIAL PRIMARY KEY,
+      codigo TEXT NOT NULL UNIQUE,
+      nome TEXT NOT NULL,
+      natureza TEXT CHECK (natureza IN ('ativo','passivo','receita','despesa','patrimonio')),
+      ativa BOOLEAN NOT NULL DEFAULT true,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `ALTER TABLE fin_centros_custo ADD COLUMN IF NOT EXISTS codigo TEXT`,
+    `ALTER TABLE fin_centros_custo ADD COLUMN IF NOT EXISTS descricao TEXT`,
+    `ALTER TABLE fin_centros_custo ADD COLUMN IF NOT EXISTS criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
+    `CREATE TABLE IF NOT EXISTS cat_regras (
+      id SERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      categoria_id INTEGER NOT NULL REFERENCES categorias(id) ON DELETE CASCADE,
+      campo TEXT NOT NULL CHECK (campo IN ('descricao','fornecedor_nome','parceiro_nome','cliente_nome','forma_pagamento')),
+      operador TEXT NOT NULL DEFAULT 'contem' CHECK (operador IN ('contem','igual','comeca_com','regex')),
+      valor TEXT NOT NULL,
+      prioridade INTEGER NOT NULL DEFAULT 0,
+      ativa BOOLEAN NOT NULL DEFAULT true,
+      aplicacoes INTEGER NOT NULL DEFAULT 0,
+      ultima_aplicacao TIMESTAMPTZ,
+      criado_por INTEGER REFERENCES usuarios(id),
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_cat_regras_categoria ON cat_regras(categoria_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_cat_regras_ativa ON cat_regras(ativa)`,
+    `CREATE TABLE IF NOT EXISTS cat_historico (
+      id SERIAL PRIMARY KEY,
+      categoria_id INTEGER REFERENCES categorias(id) ON DELETE CASCADE,
+      regra_id INTEGER REFERENCES cat_regras(id) ON DELETE CASCADE,
+      usuario_id INTEGER REFERENCES usuarios(id),
+      acao TEXT NOT NULL,
+      dados_antes JSONB,
+      dados_depois JSONB,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_cat_historico_categoria ON cat_historico(categoria_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_cat_historico_criado ON cat_historico(criado_em)`,
+    `CREATE TABLE IF NOT EXISTS cat_ia_insights (
+      id SERIAL PRIMARY KEY,
+      periodo_ini DATE NOT NULL,
+      periodo_fim DATE NOT NULL,
+      insights JSONB NOT NULL,
+      gerado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_cat_ia_periodo ON cat_ia_insights(periodo_ini, periodo_fim)`,
+
+    // ── Integração Banco Cora ──
+    `CREATE TABLE IF NOT EXISTS cora_auth_cache (
+      id SERIAL PRIMARY KEY,
+      access_token TEXT NOT NULL,
+      expira_em TIMESTAMPTZ NOT NULL,
+      atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS cora_cobrancas (
+      id SERIAL PRIMARY KEY,
+      lancamento_id INTEGER REFERENCES lancamentos(id),
+      cliente_id INTEGER REFERENCES clientes(id),
+      cora_id TEXT,
+      tipo TEXT NOT NULL DEFAULT 'boleto',
+      status TEXT NOT NULL DEFAULT 'emitido',
+      valor NUMERIC(14,2) NOT NULL,
+      vencimento DATE,
+      linha_digitavel TEXT,
+      codigo_barras TEXT,
+      qr_code_pix TEXT,
+      qr_code_pix_imagem_url TEXT,
+      payload_bruto JSONB,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      pago_em TIMESTAMPTZ
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_cora_cobrancas_lancamento ON cora_cobrancas(lancamento_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_cora_cobrancas_cora_id ON cora_cobrancas(cora_id)`,
+    `CREATE TABLE IF NOT EXISTS cora_webhook_log (
+      id SERIAL PRIMARY KEY,
+      tipo_evento TEXT,
+      payload JSONB NOT NULL,
+      processado BOOLEAN NOT NULL DEFAULT false,
+      erro TEXT,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+
+    // ── Anexos do cliente (contratos, plantas, projetos etc) ──
+    `CREATE TABLE IF NOT EXISTS cliente_documentos (
+      id           SERIAL PRIMARY KEY,
+      cliente_id   INTEGER NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+      tipo         TEXT NOT NULL DEFAULT 'anexo',
+      nome         TEXT NOT NULL,
+      url          TEXT NOT NULL,
+      criado_por   INTEGER,
+      criado_em    TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_cliente_documentos_cliente ON cliente_documentos(cliente_id)`,
   ];
   for (const sql of migracoes) {
     await db.run(sql).catch(() => {});

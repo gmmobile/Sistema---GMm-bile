@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../utils/db');
 const { autenticar, autorizar } = require('../middlewares/auth');
+const categoriasRoute = require('./categorias');
 
 const router = express.Router();
 router.use(autenticar);
@@ -75,10 +76,19 @@ router.put('/:id/pagar', autorizar('gestor','financeiro'), async (req, res) => {
       parceiroId = com.pessoa_id;
     }
 
+    const descComissao = `Comissão — ${descPessoa} (Ped. ${com.pedido_id||'—'})`;
+    let categoria_id = await categoriasRoute.aplicarRegras({
+      descricao: descComissao,
+      parceiro_nome: com.tipo === 'parceiro' ? descPessoa : undefined,
+    });
+    if (!categoria_id && categoriasRoute.EXIGIR_CATEGORIA) {
+      return res.status(400).json({ erro: 'Categoria é obrigatória' });
+    }
+
     await db.run(`
-      INSERT INTO lancamentos (tipo, descricao, valor, data_vencimento, data_pagamento, status, forma_pagamento, parceiro_id, pedido_id)
-      VALUES ('despesa',$1,$2,$3,$3,'pago',$4,$5,$6)
-    `, [`Comissão — ${descPessoa} (Ped. ${com.pedido_id||'—'})`, com.valor_comissao, hoje, forma_pagamento||null, parceiroId, com.pedido_id||null]);
+      INSERT INTO lancamentos (tipo, descricao, valor, data_vencimento, data_pagamento, status, forma_pagamento, parceiro_id, pedido_id, categoria_id)
+      VALUES ('despesa',$1,$2,$3,$3,'pago',$4,$5,$6,$7)
+    `, [descComissao, com.valor_comissao, hoje, forma_pagamento||null, parceiroId, com.pedido_id||null, categoria_id || null]);
 
     if (parceiroId) {
       await db.run(

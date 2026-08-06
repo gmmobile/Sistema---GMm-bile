@@ -717,6 +717,37 @@
   </div>
 </div>
 
+<!-- ════ MODAL EMITIR BOLETO/PIX (Cora) ════ -->
+<div class="modal-overlay" id="modalCora">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h2>Emitir Cobrança (Cora)</h2>
+      <button class="modal-close" onclick="fecharModalCora()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="coraEscolha">
+        <p style="font-size:12.5px;color:var(--text-dim);margin-bottom:14px">Escolha como emitir a cobrança para este lançamento:</p>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-ghost" style="flex:1" onclick="emitirCobrancaCora('boletos')">
+            <i data-lucide="file-text"></i> Boleto
+          </button>
+          <button class="btn btn-ghost" style="flex:1" onclick="emitirCobrancaCora('pix')">
+            <i data-lucide="qr-code"></i> PIX
+          </button>
+        </div>
+      </div>
+      <div id="coraCarregando" style="display:none;text-align:center;padding:20px 0;color:var(--text-dim);font-size:12.5px">
+        Emitindo cobrança no Cora...
+      </div>
+      <div id="coraResultado" style="display:none"></div>
+      <input type="hidden" id="coraLancId">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModalCora()">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════ MODAL TRANSFERÊNCIA ════ -->
 <div class="modal-overlay" id="modalTransf">
   <div class="modal" style="max-width:400px">
@@ -1100,6 +1131,10 @@ function renderTabelaLanc(elId, dados, fullCols) {
           <button class="acao-btn ok" onclick="abrirPagar(${l.id},'${escapeHtml(l.descricao||'').replace(/'/g,"\\'")}',${l.valor})" title="Marcar como pago">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           </button>`:''}
+        ${l.status==='pendente' && l.tipo==='receita' && l.cliente_id?`
+          <button class="acao-btn" onclick="abrirEmitirCobranca(${l.id})" title="Emitir boleto/PIX (Cora)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M7 15h2"/></svg>
+          </button>`:''}
         <button class="acao-btn" onclick="editarLanc(${l.id})" title="Editar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
         </button>
@@ -1465,6 +1500,44 @@ function abrirPagar(id, desc, valor) {
 }
 function fecharModalPagar() { document.getElementById('modalPagar').classList.remove('open'); }
 
+function abrirEmitirCobranca(lancId) {
+  document.getElementById('coraLancId').value = lancId;
+  document.getElementById('coraEscolha').style.display = '';
+  document.getElementById('coraCarregando').style.display = 'none';
+  document.getElementById('coraResultado').style.display = 'none';
+  document.getElementById('coraResultado').innerHTML = '';
+  document.getElementById('modalCora').classList.add('open');
+}
+function fecharModalCora() { document.getElementById('modalCora').classList.remove('open'); }
+
+async function emitirCobrancaCora(tipo) {
+  const lancId = document.getElementById('coraLancId').value;
+  document.getElementById('coraEscolha').style.display = 'none';
+  document.getElementById('coraCarregando').style.display = '';
+  try {
+    const r = await Api.post(`/cora/${tipo}`, { lancamento_id: lancId });
+    document.getElementById('coraCarregando').style.display = 'none';
+    const resultDiv = document.getElementById('coraResultado');
+    resultDiv.style.display = '';
+    if (tipo === 'boletos') {
+      resultDiv.innerHTML = `
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">Linha digitável</div>
+        <div style="font-size:13px;font-family:monospace;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;word-break:break-all;margin-bottom:10px">${escapeHtml(r.linha_digitavel || '—')}</div>
+        ${r.boleto_url ? `<a class="btn btn-primary" href="${r.boleto_url}" target="_blank" style="width:100%;justify-content:center">Abrir boleto (PDF)</a>` : ''}`;
+    } else {
+      resultDiv.innerHTML = `
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">Copia e cola (PIX)</div>
+        <div style="font-size:12px;font-family:monospace;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;word-break:break-all">${escapeHtml(r.qr_code_pix || '—')}</div>`;
+    }
+    toast('Cobrança emitida', 'success');
+    carregarReceber();
+  } catch (e) {
+    document.getElementById('coraCarregando').style.display = 'none';
+    document.getElementById('coraEscolha').style.display = '';
+    toast(e.message, 'error');
+  }
+}
+
 async function confirmarPagar() {
   const id   = document.getElementById('pId').value;
   const data = document.getElementById('pData').value;
@@ -1573,7 +1646,7 @@ async function salvarConta() {
 /* ════════════════════════════════════════════════════════════════
    FECHAR MODAIS AO CLICAR FORA
    ════════════════════════════════════════════════════════════════ */
-['modalLanc','modalPagar','modalTransf','modalConta'].forEach(id => {
+['modalLanc','modalPagar','modalTransf','modalConta','modalCora'].forEach(id => {
   document.getElementById(id)?.addEventListener('click', function(e) {
     if (e.target === this) this.classList.remove('open');
   });
@@ -1587,7 +1660,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'n' || e.key === 'N') abrirModal('receita');
   if (e.key === 'd' || e.key === 'D') abrirModal('despesa');
   if (e.key === 'Escape') {
-    ['modalLanc','modalPagar','modalTransf','modalConta'].forEach(id =>
+    ['modalLanc','modalPagar','modalTransf','modalConta','modalCora'].forEach(id =>
       document.getElementById(id)?.classList.remove('open')
     );
   }

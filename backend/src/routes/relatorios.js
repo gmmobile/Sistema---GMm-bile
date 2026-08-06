@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../utils/db');
 const { autenticar } = require('../middlewares/auth');
+const categoriasQuery = require('../services/categoriasQuery');
 const router = express.Router();
 router.use(autenticar);
 
@@ -120,11 +121,11 @@ router.get('/financeiro', async (req, res) => {
     const { ini, fim } = getPeriodo(req);
     const d12 = d12ago();
 
-    const [rec12m, desp12m, catDesp, catRec, inadim, venc30, fluxo6m, saldoRow] = await Promise.all([
+    const [rec12m, desp12m, catDespFull, catRecFull, inadim, venc30, fluxo6m, saldoRow] = await Promise.all([
       db.all(`SELECT LEFT(data_pagamento,7) AS mes, COALESCE(SUM(valor),0) AS v FROM lancamentos WHERE tipo='receita' AND status='pago' AND data_pagamento>='${d12}' GROUP BY mes ORDER BY mes`),
       db.all(`SELECT LEFT(data_pagamento,7) AS mes, COALESCE(SUM(valor),0) AS v FROM lancamentos WHERE tipo='despesa' AND status='pago' AND data_pagamento>='${d12}' GROUP BY mes ORDER BY mes`),
-      db.all(`SELECT COALESCE(cat.nome,'Sem Categoria') AS categoria, COALESCE(cat.cor,'#6366f1') AS cor, COALESCE(SUM(l.valor),0) AS total FROM lancamentos l LEFT JOIN categorias cat ON cat.id=l.categoria_id WHERE l.tipo='despesa' AND l.status='pago' AND l.data_pagamento BETWEEN '${ini}' AND '${fim}' GROUP BY cat.nome,cat.cor ORDER BY total DESC LIMIT 10`),
-      db.all(`SELECT COALESCE(cat.nome,'Sem Categoria') AS categoria, COALESCE(cat.cor,'#22c55e') AS cor, COALESCE(SUM(l.valor),0) AS total FROM lancamentos l LEFT JOIN categorias cat ON cat.id=l.categoria_id WHERE l.tipo='receita' AND l.status='pago' AND l.data_pagamento BETWEEN '${ini}' AND '${fim}' GROUP BY cat.nome,cat.cor ORDER BY total DESC LIMIT 10`),
+      categoriasQuery.porCategoria('despesa', ini, fim, '#6366f1'),
+      categoriasQuery.porCategoria('receita', ini, fim, '#22c55e'),
       db.all(`SELECT LEFT(data_vencimento,7) AS mes, COUNT(*) AS qtd, COALESCE(SUM(valor),0) AS total FROM lancamentos WHERE tipo='receita' AND status='pendente' AND data_vencimento < CURRENT_DATE::text GROUP BY mes ORDER BY mes DESC LIMIT 6`),
       db.all(`SELECT data_vencimento, tipo, descricao, valor FROM lancamentos WHERE status='pendente' AND data_vencimento BETWEEN CURRENT_DATE::text AND (CURRENT_DATE+INTERVAL '30 days')::text ORDER BY data_vencimento ASC LIMIT 20`),
       db.all(`
@@ -134,6 +135,8 @@ router.get('/financeiro', async (req, res) => {
       `),
       db.get(`SELECT COALESCE(SUM(cc.saldo_inicial),0) + COALESCE((SELECT SUM(l.valor) FROM lancamentos l WHERE l.tipo='receita' AND l.status='pago'),0) - COALESCE((SELECT SUM(l.valor) FROM lancamentos l WHERE l.tipo='despesa' AND l.status='pago'),0) AS v FROM contas_correntes cc WHERE ativa=1`),
     ]);
+    const catDesp = catDespFull.slice(0, 10);
+    const catRec = catRecFull.slice(0, 10);
 
     res.json({ rec12m, desp12m, catDesp, catRec, inadim, venc30, fluxo6m, saldo: n(saldoRow.v) });
   } catch (err) {
@@ -150,12 +153,7 @@ router.get('/dre', async (req, res) => {
     const [recBruta, recPago, catsDespesas, impostosNF, comissoesVal, recMeses] = await Promise.all([
       db.get(`SELECT COALESCE(SUM(valor_final),0) AS v FROM pedidos WHERE status NOT IN ('cancelado') AND criado_em::date BETWEEN '${ini}' AND '${fim}'`),
       db.get(`SELECT COALESCE(SUM(valor),0) AS v FROM lancamentos WHERE tipo='receita' AND status='pago' AND data_pagamento BETWEEN '${ini}' AND '${fim}'`),
-      db.all(`
-        SELECT COALESCE(cat.nome,'Sem Categoria') AS categoria, COALESCE(SUM(l.valor),0) AS total
-        FROM lancamentos l LEFT JOIN categorias cat ON cat.id=l.categoria_id
-        WHERE l.tipo='despesa' AND l.status='pago' AND l.data_pagamento BETWEEN '${ini}' AND '${fim}'
-        GROUP BY cat.nome ORDER BY total DESC
-      `),
+      categoriasQuery.porCategoria('despesa', ini, fim),
       db.get(`SELECT COALESCE(SUM(valor_icms+valor_ipi+valor_pis+valor_cofins+valor_iss),0) AS v FROM notas_fiscais WHERE status='autorizada' AND data_emissao BETWEEN '${ini}' AND '${fim}'`).catch(() => ({ v: 0 })),
       db.get(`SELECT COALESCE(SUM(valor_comissao),0) AS v FROM comissoes WHERE status IN ('pendente','pago') AND data_geracao::date BETWEEN '${ini}' AND '${fim}'`),
       db.all(`SELECT LEFT(data_pagamento,7) AS mes, COALESCE(SUM(valor),0) AS receita FROM lancamentos WHERE tipo='receita' AND status='pago' AND data_pagamento BETWEEN '${ini}' AND '${fim}' GROUP BY mes ORDER BY mes`),

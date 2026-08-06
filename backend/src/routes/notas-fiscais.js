@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../utils/db');
 const { autenticar } = require('../middlewares/auth');
+const categoriasRoute = require('./categorias');
 
 const router = express.Router();
 router.use(autenticar);
@@ -434,12 +435,20 @@ router.post('/:id/emitir', async (req, res) => {
 
     // Criar lançamento financeiro automaticamente
     if (nota.cliente_id && nota.valor_total > 0) {
+      const descNf = `NF #${nota.numero} — ${req.body.cliente_nome||''}`;
+      const categoria_id = await categoriasRoute.aplicarRegras({
+        descricao: descNf,
+        cliente_nome: req.body.cliente_nome || '',
+      });
+      if (!categoria_id && categoriasRoute.EXIGIR_CATEGORIA) {
+        return res.status(400).json({ erro: 'Categoria é obrigatória' });
+      }
       const lancId = await db.insert(`
         INSERT INTO lancamentos
-          (tipo, descricao, valor, data_vencimento, status, cliente_id, pedido_id, origem)
-        VALUES ('receita',$1,$2,$3,'pendente',$4,$5,'nf')
-      `, [`NF #${nota.numero} — ${req.body.cliente_nome||''}`,
-          nota.valor_total, hoje(), nota.cliente_id, nota.pedido_id||null]);
+          (tipo, descricao, valor, data_vencimento, status, cliente_id, pedido_id, origem, categoria_id)
+        VALUES ('receita',$1,$2,$3,'pendente',$4,$5,'nf',$6)
+      `, [descNf,
+          nota.valor_total, hoje(), nota.cliente_id, nota.pedido_id||null, categoria_id || null]);
       await db.run('UPDATE notas_fiscais SET lancamento_id=$1 WHERE id=$2', [lancId, req.params.id]);
     }
 

@@ -1,6 +1,8 @@
 const express = require('express');
 const db = require('../utils/db');
 const { autenticar } = require('../middlewares/auth');
+const categoriasRoute = require('./categorias');
+const coraService = require('../services/coraService');
 
 const router = express.Router();
 router.use(autenticar);
@@ -377,6 +379,64 @@ router.post('/importar', async (req, res) => {
   }
 });
 
+/* ════════════════════════════════════════════════════════════════
+   SINCRONIZAÇÃO AUTOMÁTICA COM O BANCO CORA
+   Busca o extrato via API do Cora e insere em extrato_bancario com
+   o mesmo formato/dedup (por fitid) usado no import manual de OFX/CSV.
+   sincronizarExtratoCora() é exportada pra ser chamada tanto pela
+   rota autenticada abaixo (botão manual) quanto pela rota de cron em
+   cora.js (que não tem JWT de usuário, só um segredo compartilhado).
+   ════════════════════════════════════════════════════════════════ */
+async function sincronizarExtratoCora(contaId, dias) {
+  const hoje = new Date();
+  const inicio = new Date(hoje); inicio.setDate(inicio.getDate() - (parseInt(dias) || 7));
+  const dataIni = inicio.toISOString().split('T')[0];
+  const dataFim = hoje.toISOString().split('T')[0];
+
+  const extrato = await coraService.consultarExtrato(dataIni, dataFim);
+  const entradas = extrato?.entries || [];
+
+  const client = await db.pool.connect();
+  let count = 0, pulados = 0;
+  try {
+    await client.query('BEGIN');
+    for (const e of entradas) {
+      const fitid = e.transaction?.id || e.id;
+      const data = String(e.createdAt || '').slice(0, 10);
+      const valor = Math.abs((e.amount || 0) / 100); // Cora retorna centavos
+      const tipo = e.type === 'CREDIT' ? 'credito' : 'debito';
+      const descricao = e.transaction?.description || e.transaction?.counterParty?.name || 'Transação Cora';
+      if (!data || !valor) { pulados++; continue; }
+      if (fitid) {
+        const dup = await client.query('SELECT id FROM extrato_bancario WHERE conta_id=$1 AND fitid=$2', [contaId, fitid]);
+        if (dup.rows.length > 0) { pulados++; continue; }
+      }
+      await client.query(
+        `INSERT INTO extrato_bancario (conta_id, data, descricao, valor, tipo, fitid, origem, status, conciliado)
+         VALUES ($1,$2,$3,$4,$5,$6,'cora','nao_analisado',0)`,
+        [contaId, data, descricao, valor, tipo, fitid || null]
+      );
+      count++;
+    }
+    await client.query('COMMIT');
+  } catch (e) { await client.query('ROLLBACK'); throw e; }
+  finally { client.release(); }
+
+  return { importados: count, pulados, total: entradas.length };
+}
+
+router.post('/sincronizar-cora', async (req, res) => {
+  try {
+    const { conta_id, dias } = req.body;
+    if (!conta_id) return res.status(400).json({ erro: 'conta_id obrigatório' });
+    const resultado = await sincronizarExtratoCora(conta_id, dias);
+    res.json(resultado);
+  } catch (err) {
+    console.error('[conciliacao/sincronizar-cora]', err.message);
+    res.status(500).json({ erro: 'Erro ao sincronizar com o Cora: ' + err.message });
+  }
+});
+
 /* POST /auto-conciliar */
 router.post('/auto-conciliar', async (req, res) => {
   try {
@@ -545,12 +605,28 @@ router.patch('/:id/desconciliar', async (req, res) => {
 /* POST /criar-lancamento/:id */
 router.post('/criar-lancamento/:id', async (req, res) => {
   try {
-    const { descricao, categoria_id, conta_id, centro_custo_id, cliente_id, fornecedor_id } = req.body;
+    const { descricao, conta_id, centro_custo_id, cliente_id, fornecedor_id } = req.body;
+    let { categoria_id } = req.body;
     const extrato = await db.get('SELECT * FROM extrato_bancario WHERE id=$1', [req.params.id]);
     if (!extrato) return res.status(404).json({ erro: 'Extrato não encontrado' });
 
     const tipo = extrato.tipo === 'credito' ? 'receita' : 'despesa';
     const hoje = new Date().toISOString().split('T')[0];
+
+    if (!categoria_id) {
+      const [clienteRow, fornecedorRow] = await Promise.all([
+        cliente_id ? db.get(`SELECT nome FROM clientes WHERE id=$1`, [cliente_id]) : null,
+        fornecedor_id ? db.get(`SELECT nome FROM fornecedores WHERE id=$1`, [fornecedor_id]) : null,
+      ]);
+      categoria_id = await categoriasRoute.aplicarRegras({
+        descricao: descricao || extrato.descricao,
+        cliente_nome: clienteRow?.nome,
+        fornecedor_nome: fornecedorRow?.nome,
+      });
+    }
+    if (!categoria_id && categoriasRoute.EXIGIR_CATEGORIA) {
+      return res.status(400).json({ erro: 'Categoria é obrigatória' });
+    }
 
     const lancId = await db.insert(
       `INSERT INTO lancamentos
@@ -588,3 +664,4 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
+router.sincronizarExtratoCora = sincronizarExtratoCora;

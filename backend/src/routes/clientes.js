@@ -6,11 +6,13 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const db = require('../utils/db');
 const { autenticar } = require('../middlewares/auth');
 const { criarUpload, deletarArquivo } = require('../utils/cloudinary');
+const categoriasRoute = require('./categorias');
 
 const router = express.Router();
 router.use(autenticar);
 
 const uploadFoto = criarUpload({ folder: 'clientes', allowedFormats: ['jpg', 'jpeg', 'png', 'webp'] });
+const uploadDocumento = criarUpload({ folder: 'clientes/documentos', allowedFormats: ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'dwg', 'zip'], resourceType: 'auto' });
 const uploadPlanilha = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -225,14 +227,20 @@ ${abas.map(a => `### ${a.nome}\n${JSON.stringify(a.amostra)}`).join('\n\n')}`;
     try {
       estruturaPorAba = JSON.parse(result.response.text());
     } catch (e) {
+      console.error('[clientes importar-ia] resposta da IA não é JSON válido:', result.response.text().slice(0, 2000));
       return res.status(502).json({ erro: 'A IA não conseguiu interpretar a planilha. Tente novamente.' });
     }
+    console.log('[clientes importar-ia] estrutura detectada pela IA:', JSON.stringify(estruturaPorAba).slice(0, 4000));
 
     const clientes = [];
     const resumoAbas = [];
     for (const aba of abas) {
       const est = estruturaPorAba[aba.nome];
-      if (!est || est.linha_cabecalho === undefined || !est.colunas) { resumoAbas.push({ nome: aba.nome, erro: true }); continue; }
+      if (!est || est.linha_cabecalho === undefined || !est.colunas) {
+        console.log(`[clientes importar-ia] aba "${aba.nome}": IA não retornou estrutura válida`, JSON.stringify(est));
+        resumoAbas.push({ nome: aba.nome, erro: true, motivo: 'A IA não conseguiu identificar a estrutura desta aba' });
+        continue;
+      }
 
       const linhaCab = aba.grade[est.linha_cabecalho] || [];
       const idxPorCampo = {};
@@ -260,7 +268,11 @@ ${abas.map(a => `### ${a.nome}\n${JSON.stringify(a.amostra)}`).join('\n\n')}`;
       }
 
       const nomeCliente = (est.cliente || aba.nome).trim();
-      if (!nomeCliente || !parcelas.length) { resumoAbas.push({ nome: aba.nome, erro: true }); continue; }
+      if (!nomeCliente || !parcelas.length) {
+        console.log(`[clientes importar-ia] aba "${aba.nome}": estrutura=${JSON.stringify(est)} | linhaCab=${JSON.stringify(linhaCab)} | idxPorCampo=${JSON.stringify(idxPorCampo)} | parcelas extraídas=${parcelas.length}`);
+        resumoAbas.push({ nome: aba.nome, erro: true, motivo: !nomeCliente ? 'Nome do cliente não identificado' : 'Nenhuma linha de parcela foi reconhecida (confira colunas de data/valor)' });
+        continue;
+      }
 
       clientes.push({ nome: nomeCliente, imovel: est.imovel ? String(est.imovel).trim() : null, origem: 'importacao_ia', parcelas });
       resumoAbas.push({
@@ -270,7 +282,10 @@ ${abas.map(a => `### ${a.nome}\n${JSON.stringify(a.amostra)}`).join('\n\n')}`;
       });
     }
 
-    if (!clientes.length) return res.status(422).json({ erro: 'Nenhum carnê válido foi identificado na planilha. Confira se cada aba tem uma tabela de parcelas com data e valor.' });
+    if (!clientes.length) {
+      const motivos = resumoAbas.map(a => `"${a.nome}": ${a.motivo || 'erro desconhecido'}`).join(' | ');
+      return res.status(422).json({ erro: `Nenhum carnê válido foi identificado na planilha. Detalhes: ${motivos}` });
+    }
 
     res.json({ abas: resumoAbas, clientes });
   } catch (err) {
@@ -302,15 +317,22 @@ router.post('/importar-ia/confirmar', async (req, res) => {
 
       const grupoId = crypto.randomUUID();
       const total = c.parcelas.length;
+
+      const categoria_id = await categoriasRoute.aplicarRegras({ cliente_nome: c.nome });
+      if (!categoria_id && categoriasRoute.EXIGIR_CATEGORIA) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ erro: 'Categoria é obrigatória' });
+      }
+
       for (const p of c.parcelas) {
         if (!p.data_vencimento) continue;
         await client.query(
           `INSERT INTO lancamentos (tipo, descricao, valor, data_vencimento, data_pagamento, status,
-             cliente_id, origem, parcela_num, parcela_total, grupo_parcela_id)
-           VALUES ('receita',$1,$2,$3,$4,$5,$6,'importacao_ia',$7,$8,$9)`,
+             cliente_id, origem, parcela_num, parcela_total, grupo_parcela_id, categoria_id)
+           VALUES ('receita',$1,$2,$3,$4,$5,$6,'importacao_ia',$7,$8,$9,$10)`,
           [`${c.nome} — Parcela ${p.parcela_num}/${total}`, p.valor, p.data_vencimento,
            p.pago ? p.data_vencimento : null, p.pago ? 'pago' : 'pendente',
-           clienteId, p.parcela_num, total, grupoId]
+           clienteId, p.parcela_num, total, grupoId, categoria_id || null]
         );
         parcelasImportadas++;
       }
@@ -352,6 +374,45 @@ router.delete('/:id', async (req, res) => {
     res.json({ mensagem: 'Cliente removido' });
   } catch (err) {
     res.status(500).json({ erro: 'Erro ao remover cliente' });
+  }
+});
+
+/* ════════════════════════════════════════════════════════════════
+   ANEXOS DO CLIENTE (contratos, plantas, projetos, etc)
+   ════════════════════════════════════════════════════════════════ */
+router.get('/:id/documentos', async (req, res) => {
+  try {
+    res.json(await db.all(`SELECT * FROM cliente_documentos WHERE cliente_id=$1 ORDER BY criado_em DESC`, [req.params.id]));
+  } catch (err) {
+    console.error('[clientes documentos GET]', err.message);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+router.post('/:id/documentos', uploadDocumento.single('arquivo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ erro: 'Arquivo é obrigatório' });
+    const { tipo, nome } = req.body;
+    const id = await db.insert(
+      `INSERT INTO cliente_documentos (cliente_id, tipo, nome, url, criado_por) VALUES ($1,$2,$3,$4,$5)`,
+      [req.params.id, tipo || 'anexo', nome || req.file.originalname, req.file.path, req.usuario?.id || null]
+    );
+    res.status(201).json({ id, url: req.file.path });
+  } catch (err) {
+    console.error('[clientes documentos POST]', err.message);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+router.delete('/documentos/:id', async (req, res) => {
+  try {
+    const doc = await db.get(`SELECT url FROM cliente_documentos WHERE id=$1`, [req.params.id]);
+    await db.run(`DELETE FROM cliente_documentos WHERE id=$1`, [req.params.id]);
+    if (doc) deletarArquivo(doc.url).catch(() => {});
+    res.json({ mensagem: 'Documento removido' });
+  } catch (err) {
+    console.error('[clientes documentos DELETE]', err.message);
+    res.status(500).json({ erro: err.message });
   }
 });
 

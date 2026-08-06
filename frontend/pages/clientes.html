@@ -1012,6 +1012,9 @@ function renderTabela(clientes) {
           <button class="acao-btn" onclick="verParcelas(${c.id},'${escapeHtml(c.nome).replace(/'/g,"\\'")}') " title="Carnê de parcelas" style="color:#d4af37">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
           </button>
+          <button class="acao-btn" onclick="verDocumentos(${c.id},'${escapeHtml(c.nome).replace(/'/g,"\\'")}') " title="Anexos (contratos, plantas, projetos)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05 12.25 20.24a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95L9.94 18.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </button>
           <button class="acao-btn" onclick="editarCliente(${c.id})" title="Ver/Editar">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
           </button>
@@ -1460,6 +1463,43 @@ carregarClientes();
   </div>
 </div>
 
+<!-- ════ MODAL ANEXOS DO CLIENTE ════ -->
+<div class="modal-overlay" id="modalDocumentos">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-header">
+      <h2 id="mDocTitulo">Anexos do Cliente</h2>
+      <button class="modal-close" onclick="fecharDocumentos()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end">
+        <div class="form-group" style="flex:1;min-width:140px;margin:0">
+          <label>Tipo</label>
+          <select id="docTipo">
+            <option value="contrato">Contrato</option>
+            <option value="planta">Planta</option>
+            <option value="projeto">Projeto</option>
+            <option value="anexo">Outro</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:2;min-width:160px;margin:0">
+          <label>Nome (opcional)</label>
+          <input type="text" id="docNome" placeholder="Ex: Contrato assinado">
+        </div>
+        <div>
+          <input type="file" id="docArquivo" style="display:none" onchange="enviarDocumento()">
+          <button class="btn btn-primary" onclick="document.getElementById('docArquivo').click()" id="btnDocUpload">
+            <i data-lucide="upload"></i> Enviar
+          </button>
+        </div>
+      </div>
+      <div id="docLista"><div style="text-align:center;padding:30px;color:var(--text-dim)">Carregando...</div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharDocumentos()">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════ MODAL RECEBER PARCELA ════ -->
 <div class="modal-overlay" id="modalReceberParc" style="z-index:1100">
   <div class="modal" style="max-width:360px">
@@ -1494,6 +1534,81 @@ carregarClientes();
 </div>
 
 <script>
+/* ════ ANEXOS DO CLIENTE (contratos, plantas, projetos) ════ */
+let _docClienteId = null;
+const TIPO_DOC_LABEL = { contrato: 'Contrato', planta: 'Planta', projeto: 'Projeto', anexo: 'Outro' };
+
+function fecharDocumentos(){ document.getElementById('modalDocumentos').classList.remove('open'); }
+
+async function verDocumentos(id, nome){
+  _docClienteId = id;
+  document.getElementById('mDocTitulo').textContent = 'Anexos — ' + nome;
+  document.getElementById('docNome').value = '';
+  document.getElementById('docArquivo').value = '';
+  document.getElementById('docLista').innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim)">Carregando...</div>';
+  document.getElementById('modalDocumentos').classList.add('open');
+  lucide.createIcons({nodes:[document.getElementById('modalDocumentos')]});
+  await carregarDocumentos();
+}
+
+async function carregarDocumentos(){
+  try{
+    const docs = await Api.get(`/clientes/${_docClienteId}/documentos`);
+    if (!docs.length){
+      document.getElementById('docLista').innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim)">Nenhum anexo enviado ainda</div>';
+      return;
+    }
+    document.getElementById('docLista').innerHTML = docs.map(d => `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <span class="cli-status" style="background:rgba(196,162,74,.12);color:#d4af37;white-space:nowrap">${TIPO_DOC_LABEL[d.tipo]||'Outro'}</span>
+        <a href="${d.url}" target="_blank" rel="noopener" style="flex:1;color:var(--text);text-decoration:none;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.nome)}</a>
+        <span style="font-size:11px;color:var(--text-dim);white-space:nowrap">${_pData(d.criado_em)}</span>
+        <button class="acao-btn danger" onclick="excluirDocumento(${d.id})" title="Excluir">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+        </button>
+      </div>`).join('');
+  } catch(e){
+    document.getElementById('docLista').innerHTML = '<div style="text-align:center;padding:20px;color:#f87171">Erro ao carregar anexos</div>';
+  }
+}
+
+async function enviarDocumento(){
+  const input = document.getElementById('docArquivo');
+  const file = input.files[0];
+  if (!file) return;
+  const btn = document.getElementById('btnDocUpload');
+  btn.disabled = true; btn.style.opacity = '0.6';
+  const fd = new FormData();
+  fd.append('arquivo', file);
+  fd.append('tipo', document.getElementById('docTipo').value);
+  fd.append('nome', document.getElementById('docNome').value || file.name);
+  try{
+    const tk = localStorage.getItem('token');
+    const r = await fetch(`/api/clientes/${_docClienteId}/documentos`, { method:'POST', headers:{ Authorization:'Bearer '+tk }, body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.erro || 'Erro ao enviar anexo');
+    toast('Anexo enviado!', 'success');
+    document.getElementById('docNome').value = '';
+    input.value = '';
+    await carregarDocumentos();
+  } catch(e){
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.style.opacity = '';
+  }
+}
+
+async function excluirDocumento(id){
+  if (!confirm('Excluir este anexo?')) return;
+  try{
+    await Api.delete(`/clientes/documentos/${id}`);
+    toast('Anexo removido', 'success');
+    await carregarDocumentos();
+  } catch(e){
+    toast(e.message, 'error');
+  }
+}
+
 /* ════ CARNÊ DE PARCELAS DO CLIENTE ════ */
 let _parcClienteId = null, _parcClienteNome = '', _parcContas = [];
 
@@ -1595,7 +1710,7 @@ async function confirmarReceberParc(){
   }catch(e){ toast(e.message,'error'); }
 }
 
-['modalParcelas','modalReceberParc','modalImportIA'].forEach(id=>{
+['modalParcelas','modalReceberParc','modalImportIA','modalDocumentos'].forEach(id=>{
   document.getElementById(id).addEventListener('click', function(e){ if(e.target===this) this.classList.remove('open'); });
 });
 </script>

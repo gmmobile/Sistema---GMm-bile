@@ -16,5 +16,11 @@
     { "src": "/uploads/(.*)", "dest": "backend/server.js" },
     { "src": "/", "dest": "frontend/index.html" },
     { "src": "/(.*)", "dest": "frontend/$1" }
+  ],
+  "crons": [
+    {
+      "path": "/api/cora/cron/sincronizar-extrato",
+      "schedule": "0 6 * * *"
+    }
   ]
 }

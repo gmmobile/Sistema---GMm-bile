@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const db = require('../utils/db');
 const { autenticar } = require('../middlewares/auth');
+const categoriasRoute = require('./categorias');
 
 const router = express.Router();
 router.use(autenticar);
@@ -286,16 +287,25 @@ router.patch('/:id/status', async (req, res) => {
             const cli = orc.cliente_id
               ? await db.get('SELECT nome FROM clientes WHERE id=$1', [orc.cliente_id])
               : null;
+            const descReceitaPrevista = `Receita prevista — ${cli?.nome || 'Cliente'} (Orc. #${orc.id})`;
+            const categoria_id = await categoriasRoute.aplicarRegras({
+              descricao: descReceitaPrevista,
+              cliente_nome: cli?.nome,
+            });
+            if (!categoria_id && categoriasRoute.EXIGIR_CATEGORIA) {
+              return res.status(400).json({ erro: 'Categoria é obrigatória' });
+            }
             await db.run(
               `INSERT INTO lancamentos
-                (tipo, descricao, valor, data_vencimento, status, orcamento_id, cliente_id, origem)
-               VALUES ('receita',$1,$2,$3,'pendente',$4,$5,'orcamento')`,
+                (tipo, descricao, valor, data_vencimento, status, orcamento_id, cliente_id, origem, categoria_id)
+               VALUES ('receita',$1,$2,$3,'pendente',$4,$5,'orcamento',$6)`,
               [
-                `Receita prevista — ${cli?.nome || 'Cliente'} (Orc. #${orc.id})`,
+                descReceitaPrevista,
                 orc.valor_final || orc.valor_total,
                 new Date().toISOString().split('T')[0],
                 orc.id,
                 orc.cliente_id || null,
+                categoria_id || null,
               ]
             );
           }
@@ -377,15 +387,23 @@ async function criarPedidoDeOrcamento(orc, opcoes = {}) {
         : null;
       const nomeCliente = cli?.nome || 'Cliente';
 
+      const categoria_id = await categoriasRoute.aplicarRegras({
+        descricao: `Entrada — ${nomeCliente} (Ped. ${num})`,
+        cliente_nome: cli?.nome || nomeCliente,
+      });
+      if (!categoria_id && categoriasRoute.EXIGIR_CATEGORIA) {
+        throw new Error('Categoria é obrigatória');
+      }
+
       // Lançamento de entrada
       if (entrada > 0) {
         await db.run(
           `INSERT INTO lancamentos
             (tipo, descricao, valor, data_vencimento, status, pedido_id, orcamento_id,
-             cliente_id, origem, parcela_num, parcela_total, grupo_parcela_id)
-           VALUES ('receita',$1,$2,$3,'pendente',$4,$5,$6,'pedido',0,$7,$8)`,
+             cliente_id, origem, parcela_num, parcela_total, grupo_parcela_id, categoria_id)
+           VALUES ('receita',$1,$2,$3,'pendente',$4,$5,$6,'pedido',0,$7,$8,$9)`,
           [`Entrada — ${nomeCliente} (Ped. ${num})`, entrada, hoje,
-           pedidoId, orc.id, orc.cliente_id || null, nParcelas + 1, grupoId]
+           pedidoId, orc.id, orc.cliente_id || null, nParcelas + 1, grupoId, categoria_id || null]
         );
       }
 
@@ -399,11 +417,11 @@ async function criarPedidoDeOrcamento(orc, opcoes = {}) {
         await db.run(
           `INSERT INTO lancamentos
             (tipo, descricao, valor, data_vencimento, status, pedido_id, orcamento_id,
-             cliente_id, origem, parcela_num, parcela_total, grupo_parcela_id)
-           VALUES ('receita',$1,$2,$3,'pendente',$4,$5,$6,'pedido',$7,$8,$9)`,
+             cliente_id, origem, parcela_num, parcela_total, grupo_parcela_id, categoria_id)
+           VALUES ('receita',$1,$2,$3,'pendente',$4,$5,$6,'pedido',$7,$8,$9,$10)`,
           [`${nomeCliente} — Parcela ${i+1}/${nParcelas} (Ped. ${num})`,
            valorParcela, venc, pedidoId, orc.id, orc.cliente_id || null,
-           i + 1, nParcelas, grupoId]
+           i + 1, nParcelas, grupoId, categoria_id || null]
         );
       }
     } catch (e) { console.error('[fin-parcelas]', e.message); }

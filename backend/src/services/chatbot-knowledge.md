@@ -39,6 +39,7 @@
 - **Importar CSV (botão "Importar CSV"):** importação simples e literal por cabeçalho fixo (nome,email,telefone,whatsapp,cpf_cnpj,cidade,estado) — sem IA, para planilhas já no formato exato
 - **Ver histórico:** clique no cliente → abas: **Dados | Orçamentos | Pedidos | Assistências | Renders**
 - **Carnê de parcelas:** ícone de carnê (dourado) na coluna Ações → abre o carnê completo do cliente com resumo (total do contrato, pago, em aberto, vencido) e parcelas agrupadas em **Vencidas / Próximas / Quitadas**; cada parcela pendente tem botão **"Receber"** que pede data, forma de pagamento e **conta de destino (obrigatória)** — o valor entra automaticamente na Central de Tesouraria, fluxo de caixa e dashboard
+- **Anexos do cliente:** ícone de clipe na coluna Ações → abre um modal onde dá pra enviar arquivos vinculados ao cliente (contrato, planta, projeto ou outro tipo), com nome opcional; cada anexo fica listado com link direto pra abrir/baixar e botão de excluir
 - **Editar:** botão de lápis no card ou dentro do cadastro
 - **Inativar:** botão de três pontos → "Inativar cliente"
 - **Importante:** ao marcar qualquer parcela/lançamento como pago (aqui ou no Financeiro), a **conta é obrigatória** — é ela que faz o valor aparecer em Contas Correntes
@@ -80,6 +81,19 @@
 - **DRE:** aba "DRE" → selecione período → receitas vs despesas por categoria
 - **Contas correntes:** aba "Contas" → "+ Nova Conta" → nome, banco, saldo inicial
 - **Conciliação:** aba "Conciliação" → importe extrato OFX/CSV → sistema sugere match automático por valor/data → confirme ou ignore cada item
+
+### Categorias (Central de Classificação Financeira)
+- Acesso: sidebar → **Categorias**
+- KPIs no topo: total, por tipo (receita/despesa/custo/imposto/comissão), ativas, inativas, lançamentos sem categoria, mais utilizada, valor movimentado
+- Abas: **Todas | Receitas | Despesas | Custos | Impostos | Comissões | Centros de Custo | Subcategorias | Inativas**
+- **Nova categoria:** botão **"+ Nova Categoria"** → nome, tipo, cor, ícone, categoria pai (opcional, para virar subcategoria), centro de custo, conta contábil, observações → Salvar (código é gerado automaticamente, ex: DESP-001)
+- **Subcategorias:** aba "Subcategorias" mostra a árvore hierárquica (ex: Despesas → Materiais → MDF/Ferragens/Vidros); arraste e solte um item para reorganizar a hierarquia
+- **Regras automáticas:** botão **"Gerenciar Regras"** → crie regras do tipo "se [descrição/fornecedor/parceiro/cliente/forma de pagamento] contém/é igual a/começa com [texto] → categoria [X]" → use "Testar regra" para ver quantos lançamentos já bateriam antes de salvar. Regras ativas classificam automaticamente novos lançamentos criados no Financeiro, Compras, Comissões, Conciliação, Comercial, Clientes, Notas Fiscais e Orçamentos
+- **Alertas:** painel lateral mostra categorias duplicadas, sem uso, lançamentos sem categoria, categoria inativa em uso, muito genérica ou sem centro de custo
+- **Insights de IA:** painel lateral gera automaticamente frases como "Compra de Materiais representa 42% das despesas" com base no período selecionado
+- **Drawer de detalhes:** clique numa categoria para ver histórico de uso, gráfico mensal/anual, subcategorias, regras vinculadas e últimos lançamentos
+- **Exportar:** botão "Exportar" → escolha o tipo de relatório (por período, receitas, despesas, mais utilizadas, sem utilização, centro de custo, comparativo) → PDF ou CSV
+- Toda categoria criada aqui fica disponível imediatamente ao lançar receitas/despesas no Financeiro, Compras, Comissões, Conciliação e DRE — não precisa cadastrar de novo em cada módulo
 
 ### Comissões
 - Acesso: ícone de porcentagem na sidebar (ou menu Financeiro → Comissões)

@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const db = require('../utils/db');
 const { autenticar } = require('../middlewares/auth');
+const categoriasRoute = require('./categorias');
 
 const router = express.Router();
 router.use(autenticar);
@@ -166,15 +167,24 @@ router.post('/orcamentos/:id/converter-pedido', async (req, res) => {
 
     await db.run('UPDATE orcamentos SET status=$1, atualizado_em=NOW() WHERE id=$2', ['aprovado', orc.id]);
 
+    const clienteRow = orc.cliente_id ? await db.get(`SELECT nome FROM clientes WHERE id=$1`, [orc.cliente_id]) : null;
+    let categoria_id = await categoriasRoute.aplicarRegras({
+      descricao: `Pagamento – ${num}`,
+      cliente_nome: clienteRow?.nome,
+    });
+    if (!categoria_id && categoriasRoute.EXIGIR_CATEGORIA) {
+      return res.status(400).json({ erro: 'Categoria é obrigatória' });
+    }
+
     for (let i = 0; i < parcelas.length; i++) {
       const p = parcelas[i];
       const desc = parcelas.length === 1
         ? `Pagamento – ${num}`
         : `Parcela ${i+1}/${parcelas.length} – ${num}`;
       await db.run(`
-        INSERT INTO lancamentos (descricao, tipo, valor, status, data_vencimento, pedido_id)
-        VALUES ($1,'receita',$2,'pendente',$3,$4)
-      `, [desc, p.valor, p.data_vencimento, pedidoId]);
+        INSERT INTO lancamentos (descricao, tipo, valor, status, data_vencimento, pedido_id, categoria_id)
+        VALUES ($1,'receita',$2,'pendente',$3,$4,$5)
+      `, [desc, p.valor, p.data_vencimento, pedidoId, categoria_id || null]);
     }
 
     await db.run(

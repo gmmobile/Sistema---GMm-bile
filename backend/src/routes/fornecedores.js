@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const db = require('../utils/db');
 const { autenticar } = require('../middlewares/auth');
 const { criarUpload, deletarArquivo } = require('../utils/cloudinary');
+const categoriasRoute = require('./categorias');
 
 const router = express.Router();
 router.use(autenticar);
@@ -458,11 +459,23 @@ router.get('/:id/compras', async (req, res) => {
 router.post('/:id/compras', async (req, res) => {
   try {
     const fornecedorId = req.params.id;
-    const { itens, data_pedido, data_entrega_prevista, forma_pagamento, num_parcelas, categoria_id, conta_id, observacoes } = req.body;
+    const { itens, data_pedido, data_entrega_prevista, forma_pagamento, num_parcelas, conta_id, observacoes } = req.body;
+    let { categoria_id } = req.body;
     if (!Array.isArray(itens) || !itens.length) return res.status(400).json({ erro: 'Informe ao menos um item' });
 
     const forn = await db.get(`SELECT nome FROM fornecedores WHERE id=$1`, [fornecedorId]);
     if (!forn) return res.status(404).json({ erro: 'Fornecedor não encontrado' });
+
+    if (!categoria_id) {
+      categoria_id = await categoriasRoute.aplicarRegras({
+        descricao: `Compra — ${forn.nome}`,
+        fornecedor_nome: forn.nome,
+        forma_pagamento,
+      });
+    }
+    if (!categoria_id && categoriasRoute.EXIGIR_CATEGORIA) {
+      return res.status(400).json({ erro: 'Categoria é obrigatória' });
+    }
 
     // Anexa o preço anterior de cada produto (para cálculo de economia) e
     // atualiza o catálogo de produtos do fornecedor.
@@ -540,10 +553,22 @@ router.put('/compras/:id', async (req, res) => {
     if (await verificarParcelasPagas(compra.grupo_parcela_id)) {
       return res.status(400).json({ erro: 'Não é possível editar uma compra com parcelas já pagas' });
     }
-    const { itens, data_entrega_prevista, forma_pagamento, num_parcelas, categoria_id, conta_id, observacoes } = req.body;
+    const { itens, data_entrega_prevista, forma_pagamento, num_parcelas, conta_id, observacoes } = req.body;
+    let { categoria_id } = req.body;
     if (!Array.isArray(itens) || !itens.length) return res.status(400).json({ erro: 'Informe ao menos um item' });
 
     const forn = await db.get(`SELECT nome FROM fornecedores WHERE id=$1`, [compra.fornecedor_id]);
+
+    if (!categoria_id) {
+      categoria_id = await categoriasRoute.aplicarRegras({
+        descricao: `Compra — ${forn.nome}`,
+        fornecedor_nome: forn.nome,
+        forma_pagamento,
+      });
+    }
+    if (!categoria_id && categoriasRoute.EXIGIR_CATEGORIA) {
+      return res.status(400).json({ erro: 'Categoria é obrigatória' });
+    }
 
     const itensProcessados = [];
     for (const it of itens) {
