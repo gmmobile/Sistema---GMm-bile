@@ -437,6 +437,7 @@ router.post('/lancamentos', async (req, res) => {
       recorrencia = 'unica',
       parcelas = 1,
       valor_entrada = 0,
+      parcela_inicial = 1,
     } = req.body;
     let { categoria_id } = req.body;
 
@@ -445,9 +446,10 @@ router.post('/lancamentos', async (req, res) => {
     if (!['receita','despesa'].includes(tipo))
       return res.status(400).json({ erro: 'Tipo inválido' });
 
-    const valorNum    = parseFloat(valor);
-    const entradaNum  = parseFloat(valor_entrada) || 0;
-    const numParcelas = Math.max(1, parseInt(parcelas) || 1);
+    const valorNum      = parseFloat(valor);
+    const entradaNum    = parseFloat(valor_entrada) || 0;
+    const numParcelas   = Math.max(1, parseInt(parcelas) || 1);
+    const parcelaInicial = Math.min(numParcelas, Math.max(1, parseInt(parcela_inicial) || 1));
 
     if (isNaN(valorNum) || valorNum <= 0)
       return res.status(400).json({ erro: 'Valor inválido' });
@@ -509,16 +511,19 @@ router.post('/lancamentos', async (req, res) => {
       await inserir(montarValores(`${descricao} (Entrada)`, entradaNum, data_vencimento, 0, numParcelas + 1));
     }
 
+    // parcela_inicial permite cadastrar um contrato já em andamento (ex: parcelas
+    // 1-3 já pagas fora do sistema) começando a gerar a partir da parcela informada
+    // — o vencimento digitado é o da PRIMEIRA parcela que está sendo criada agora.
     const valorRest = valorNum - entradaNum;
     const valorParc = +(valorRest / numParcelas).toFixed(2);
     const dataBase  = new Date(data_vencimento + 'T12:00:00');
 
-    for (let i = 0; i < numParcelas; i++) {
+    for (let parcelaNum = parcelaInicial; parcelaNum <= numParcelas; parcelaNum++) {
       const dataVenc = new Date(dataBase);
-      dataVenc.setMonth(dataVenc.getMonth() + i);
+      dataVenc.setMonth(dataVenc.getMonth() + (parcelaNum - parcelaInicial));
       const vencStr = dataVenc.toISOString().split('T')[0];
-      const descParcela = numParcelas > 1 ? `${descricao} (${i+1}/${numParcelas})` : descricao;
-      await inserir(montarValores(descParcela, valorParc, vencStr, i+1, numParcelas));
+      const descParcela = numParcelas > 1 ? `${descricao} (${parcelaNum}/${numParcelas})` : descricao;
+      await inserir(montarValores(descParcela, valorParc, vencStr, parcelaNum, numParcelas));
     }
 
     res.status(201).json({ grupo_parcela_id: grupoId, parcelas: numParcelas });

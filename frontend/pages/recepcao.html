@@ -83,6 +83,24 @@
       color: var(--text-dim);
     }
     .rec-empty svg { width: 40px; height: 40px; opacity: .3; margin-bottom: 10px; }
+    .rec-card-acoes { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+    @media (max-width: 640px) {
+      .rec-form-card { padding: 16px; }
+      .rec-card {
+        flex-wrap: wrap;
+        padding: 14px;
+      }
+      .rec-card-info { flex-basis: 100%; }
+      .rec-interesse-badge { order: 1; }
+      .rec-card-acoes {
+        order: 2;
+        width: 100%;
+        margin-top: 6px;
+      }
+      .rec-card-acoes .btn-ghost { flex-shrink: 0; }
+      .rec-card-acoes .btn-primary { flex: 1; justify-content: center; }
+    }
   </style>
 </head>
 <body>
@@ -197,12 +215,14 @@ function renderRecepcao(){
         </div>
       </div>
       ${l.produto_interesse ? `<span class="rec-interesse-badge">${escapeHtml(l.produto_interesse)}</span>` : ''}
-      <button class="btn btn-ghost" onclick="excluirVisitante(${l.id})" title="Remover">
-        <i data-lucide="trash-2"></i>
-      </button>
-      <button class="btn btn-primary" onclick="converterVisitante(${l.id})">
-        <i data-lucide="user-check"></i> Fechou! Virar cliente
-      </button>
+      <div class="rec-card-acoes">
+        <button class="btn btn-ghost" onclick="excluirVisitante(${l.id})" title="Remover">
+          <i data-lucide="trash-2"></i>
+        </button>
+        <button class="btn btn-primary" onclick="converterVisitante(${l.id})">
+          <i data-lucide="user-check"></i> Fechou! Virar cliente
+        </button>
+      </div>
     </div>
   `).join('');
   lucide.createIcons({ nodes: [lista] });
