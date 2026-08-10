@@ -350,6 +350,24 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
                 Transferência
               </button>
+              <select class="fin-sel" id="dashPeriodo" onchange="mudarPeriodoDashboard()" style="min-width:120px">
+                <option value="1">1 mês</option>
+                <option value="3">3 meses</option>
+                <option value="6">6 meses</option>
+                <option value="12">1 ano</option>
+                <option value="36">3 anos</option>
+                <option value="custom">Personalizado</option>
+              </select>
+              <div class="fin-date-pair" id="dashDatasCustom" style="display:none">
+                <div class="fin-date-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <input type="date" id="dashInicio" onchange="carregarDashboard()">
+                </div>
+                <div class="fin-date-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <input type="date" id="dashFim" onchange="carregarDashboard()">
+                </div>
+              </div>
               <div style="margin-left:auto;display:flex;gap:8px">
                 <button class="btn btn-ghost" onclick="carregarDashboard()" title="Atualizar">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
@@ -954,9 +972,40 @@ async function init() {
 /* ════════════════════════════════════════════════════════════════
    DASHBOARD
    ════════════════════════════════════════════════════════════════ */
+/* ── Período dos cards do Dashboard (1 mês/3 meses/.../personalizado) ── */
+function mudarPeriodoDashboard() {
+  const val = document.getElementById('dashPeriodo').value;
+  const customWrap = document.getElementById('dashDatasCustom');
+  if (val === 'custom') {
+    customWrap.style.display = '';
+    if (!document.getElementById('dashInicio').value) {
+      document.getElementById('dashInicio').value = inicioMes;
+      document.getElementById('dashFim').value    = fimMes;
+    }
+  } else {
+    customWrap.style.display = 'none';
+  }
+  carregarDashboard();
+}
+
+function periodoDashboardAtual() {
+  const val = document.getElementById('dashPeriodo')?.value || '1';
+  if (val === 'custom') {
+    const inicio = document.getElementById('dashInicio')?.value;
+    const fim    = document.getElementById('dashFim')?.value;
+    return (inicio && fim) ? { inicio, fim } : null;
+  }
+  const meses = parseInt(val) || 1;
+  const ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const fim = new Date(hoje.getFullYear(), hoje.getMonth() + meses, 0);
+  return { inicio: ini.toISOString().split('T')[0], fim: fim.toISOString().split('T')[0] };
+}
+
 async function carregarDashboard() {
   try {
-    const d = await Api.get('/financeiro/dashboard');
+    const periodo = periodoDashboardAtual();
+    const qs = periodo ? `?inicio=${periodo.inicio}&fim=${periodo.fim}` : '';
+    const d = await Api.get(`/financeiro/dashboard${qs}`);
 
     // KPI cards
     const _ico = {
@@ -969,15 +1018,17 @@ async function carregarDashboard() {
       alert:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
       calendar:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
     };
+    const periodoSel = document.getElementById('dashPeriodo')?.value || '1';
+    const periodoLbl = { '1':'no Mês', '3':'em 3 Meses', '6':'em 6 Meses', '12':'em 1 Ano', '36':'em 3 Anos', custom:'no Período' }[periodoSel] || 'no Período';
     const kpis = [
-      { label:'Saldo em Caixa',     val:d.saldo_caixa,         icon:_ico.wallet,   bg:'rgba(99,102,241,.12)', cor:'#818cf8', aba:null },
-      { label:'A Receber',          val:d.a_receber,           icon:_ico.arrowDown,bg:'rgba(34,197,94,.12)',  cor:'#4ade80', aba:'receber', varPct: d.variacao?.recebido_mes },
-      { label:'A Pagar',            val:d.a_pagar,             icon:_ico.arrowUp,  bg:'rgba(239,68,68,.12)',  cor:'#f87171', aba:'pagar',   varPct: d.variacao?.pago_mes },
-      { label:'Recebido / Mês',     val:d.recebido_mes,        icon:_ico.check,    bg:'rgba(99,102,241,.12)', cor:'#818cf8', aba:'receber', varPct: d.variacao?.recebido_mes },
-      { label:'Pago / Mês',         val:d.pago_mes,            icon:_ico.card,     bg:'rgba(245,158,11,.12)', cor:'#fbbf24', aba:'pagar',   varPct: d.variacao?.pago_mes },
-      { label:'Lucro do Mês',       val:d.lucro_mes,           icon:_ico.trending, bg:'rgba(34,197,94,.12)',  cor:'#4ade80', aba:null,      varPct: d.variacao?.lucro_mes },
-      { label:'Vencidos',           val:d.vencidos_valor,      icon:_ico.alert,    bg:'rgba(239,68,68,.12)',  cor:'#f87171', aba:'receber', sub:`${d.vencidos_qtd} título(s)` },
-      { label:'Receitas Previstas', val:d.receitas_previstas,  icon:_ico.calendar, bg:'rgba(99,102,241,.08)', cor:'#818cf8', aba:null },
+      { label:'Saldo em Caixa',           val:d.saldo_caixa,         icon:_ico.wallet,   bg:'rgba(99,102,241,.12)', cor:'#818cf8', aba:null },
+      { label:`A Receber (${periodoLbl})`,val:d.a_receber,           icon:_ico.arrowDown,bg:'rgba(34,197,94,.12)',  cor:'#4ade80', aba:'receber', varPct: d.variacao?.recebido_mes },
+      { label:`A Pagar (${periodoLbl})`,  val:d.a_pagar,             icon:_ico.arrowUp,  bg:'rgba(239,68,68,.12)',  cor:'#f87171', aba:'pagar',   varPct: d.variacao?.pago_mes },
+      { label:`Recebido ${periodoLbl}`,   val:d.recebido_mes,        icon:_ico.check,    bg:'rgba(99,102,241,.12)', cor:'#818cf8', aba:'receber', varPct: d.variacao?.recebido_mes },
+      { label:`Pago ${periodoLbl}`,       val:d.pago_mes,            icon:_ico.card,     bg:'rgba(245,158,11,.12)', cor:'#fbbf24', aba:'pagar',   varPct: d.variacao?.pago_mes },
+      { label:`Lucro ${periodoLbl}`,      val:d.lucro_mes,           icon:_ico.trending, bg:'rgba(34,197,94,.12)',  cor:'#4ade80', aba:null,      varPct: d.variacao?.lucro_mes },
+      { label:'Vencidos',                 val:d.vencidos_valor,      icon:_ico.alert,    bg:'rgba(239,68,68,.12)',  cor:'#f87171', aba:'receber', sub:`${d.vencidos_qtd} título(s)` },
+      { label:'Receitas Previstas',       val:d.receitas_previstas,  icon:_ico.calendar, bg:'rgba(99,102,241,.08)', cor:'#818cf8', aba:null },
     ];
 
     const grid = document.getElementById('kpiGrid');

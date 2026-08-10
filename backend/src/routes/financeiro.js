@@ -17,42 +17,59 @@ router.use(autenticar);
 router.get('/dashboard', async (req, res) => {
   try {
     const hoje    = new Date();
-    const mes     = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
-    const mesAnt  = (() => {
-      const d = new Date(hoje.getFullYear(), hoje.getMonth()-1, 1);
-      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    })();
     const hojeStr  = hoje.toISOString().split('T')[0];
     const amanhStr = new Date(hoje.getTime() + 86400000).toISOString().split('T')[0];
     const depoisAm = new Date(hoje.getTime() + 2*86400000).toISOString().split('T')[0];
 
-    // Datas interpoladas diretamente — geradas por código, formato fixo YYYY-MM-DD, sem risco de injection
+    // Período: por padrão o mês atual; aceita ?inicio=YYYY-MM-DD&fim=YYYY-MM-DD
+    // pra filtrar os cards do Dashboard Financeiro (1 mês/3 meses/.../personalizado).
+    // Datas vêm de req.query mas são validadas contra o formato YYYY-MM-DD antes de
+    // entrar na query — nunca interpoladas cruas.
+    const validaData = v => /^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : null;
+    let inicio = validaData(req.query.inicio);
+    let fim    = validaData(req.query.fim);
+    if (!inicio || !fim) {
+      inicio = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-01`;
+      fim    = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0).toISOString().split('T')[0];
+    }
+    // Período anterior de mesma duração, pra calcular variação %
+    const diasPeriodo = Math.max(1, Math.round((new Date(fim) - new Date(inicio)) / 86400000) + 1);
+    const fimAntD = new Date(inicio + 'T12:00:00'); fimAntD.setDate(fimAntD.getDate() - 1);
+    const inicioAntD = new Date(fimAntD); inicioAntD.setDate(inicioAntD.getDate() - diasPeriodo + 1);
+    const inicioAnt = inicioAntD.toISOString().split('T')[0];
+    const fimAnt    = fimAntD.toISOString().split('T')[0];
+    // Receitas/despesas previstas só contam daqui pra frente (não duplica com "vencidos")
+    const inicioFuturo = inicio > hojeStr ? inicio : hojeStr;
+
+    // Datas interpoladas diretamente — já validadas com regex acima, sem risco de injection
     const atual = await db.get(`
       SELECT
-        COALESCE(SUM(CASE WHEN tipo='receita' AND status='pendente' THEN valor END),0)             AS a_receber,
-        COALESCE(SUM(CASE WHEN tipo='despesa' AND status='pendente' THEN valor END),0)             AS a_pagar,
+        COALESCE(SUM(CASE WHEN tipo='receita' AND status='pendente'
+          AND data_vencimento BETWEEN '${inicio}' AND '${fim}' THEN valor END),0)                  AS a_receber,
+        COALESCE(SUM(CASE WHEN tipo='despesa' AND status='pendente'
+          AND data_vencimento BETWEEN '${inicio}' AND '${fim}' THEN valor END),0)                  AS a_pagar,
         COALESCE(SUM(CASE WHEN tipo='receita' AND status='pago'
-          AND LEFT(COALESCE(data_pagamento,''),7)='${mes}' THEN valor END),0)                      AS recebido_mes,
+          AND COALESCE(data_pagamento,'') BETWEEN '${inicio}' AND '${fim}' THEN valor END),0)       AS recebido_mes,
         COALESCE(SUM(CASE WHEN tipo='despesa' AND status='pago'
-          AND LEFT(COALESCE(data_pagamento,''),7)='${mes}' THEN valor END),0)                      AS pago_mes,
-        COALESCE(SUM(CASE WHEN status='pago' AND LEFT(data_vencimento,7)='${mes}'
+          AND COALESCE(data_pagamento,'') BETWEEN '${inicio}' AND '${fim}' THEN valor END),0)       AS pago_mes,
+        COALESCE(SUM(CASE WHEN status='pago' AND data_vencimento BETWEEN '${inicio}' AND '${fim}'
           THEN CASE WHEN tipo='receita' THEN valor ELSE -valor END END),0)                         AS lucro_mes,
         COUNT(CASE WHEN status='pendente' AND data_vencimento < '${hojeStr}' THEN 1 END)           AS vencidos_qtd,
         COALESCE(SUM(CASE WHEN status='pendente' AND data_vencimento < '${hojeStr}' THEN valor END),0) AS vencidos_valor,
         COALESCE(SUM(CASE WHEN tipo='receita' AND status='pendente'
-          AND data_vencimento >= '${hojeStr}' THEN valor END),0)                                   AS receitas_previstas,
+          AND data_vencimento BETWEEN '${inicioFuturo}' AND '${fim}' THEN valor END),0)            AS receitas_previstas,
         COALESCE(SUM(CASE WHEN tipo='despesa' AND status='pendente'
-          AND data_vencimento >= '${hojeStr}' THEN valor END),0)                                   AS despesas_previstas
+          AND data_vencimento BETWEEN '${inicioFuturo}' AND '${fim}' THEN valor END),0)            AS despesas_previstas
       FROM lancamentos WHERE status != 'cancelado'
     `);
 
     const anterior = await db.get(`
       SELECT
         COALESCE(SUM(CASE WHEN tipo='receita' AND status='pago'
-          AND LEFT(COALESCE(data_pagamento,''),7)='${mesAnt}' THEN valor END),0) AS recebido_mes,
+          AND COALESCE(data_pagamento,'') BETWEEN '${inicioAnt}' AND '${fimAnt}' THEN valor END),0) AS recebido_mes,
         COALESCE(SUM(CASE WHEN tipo='despesa' AND status='pago'
-          AND LEFT(COALESCE(data_pagamento,''),7)='${mesAnt}' THEN valor END),0) AS pago_mes,
-        COALESCE(SUM(CASE WHEN status='pago' AND LEFT(data_vencimento,7)='${mesAnt}'
+          AND COALESCE(data_pagamento,'') BETWEEN '${inicioAnt}' AND '${fimAnt}' THEN valor END),0) AS pago_mes,
+        COALESCE(SUM(CASE WHEN status='pago' AND data_vencimento BETWEEN '${inicioAnt}' AND '${fimAnt}'
           THEN CASE WHEN tipo='receita' THEN valor ELSE -valor END END),0) AS lucro_mes
       FROM lancamentos WHERE status != 'cancelado'
     `);
@@ -77,6 +94,7 @@ router.get('/dashboard', async (req, res) => {
     const vencidos = alertasVenc.filter(l => l.data_vencimento < hojeStr);
 
     res.json({
+      periodo:             { inicio, fim },
       saldo_caixa:        +saldo.saldo,
       a_receber:          +atual.a_receber,
       a_pagar:            +atual.a_pagar,
