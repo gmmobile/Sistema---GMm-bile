@@ -21,7 +21,9 @@
 - **Cadastrar visitante:** formulário no topo → nome, telefone/WhatsApp, interesse (texto livre, ex: "Cozinha completa") → botão "Cadastrar". Só nome e telefone são obrigatórios
 - Cada visitante cadastrado vira automaticamente um lead com origem "Loja Física" (mesma origem já usada no CRM/Leads) — não é um cadastro separado, é o mesmo sistema por trás
 - **Lista "Aguardando retorno":** mostra todos os visitantes que ainda não fecharam negócio — ficam salvos indefinidamente ali, disponíveis pra uma contraoferta futura (nada é apagado automaticamente)
-- **"Fechou! Virar cliente":** converte o visitante num cadastro completo em Clientes, aproveitando nome/telefone/interesse já preenchidos, e abre direto a tela de edição do cliente pra completar o resto das informações (CPF, endereço, etc)
+- **"Virar cliente":** converte o visitante num cadastro completo em Clientes, aproveitando nome/telefone/interesse já preenchidos, e abre direto a tela de edição do cliente pra completar o resto das informações (CPF, endereço, etc)
+- **WhatsApp:** ícone de balão de conversa no card abre o WhatsApp direto com o número do visitante
+- **Editar:** ícone de lápis permite corrigir nome/telefone/interesse e adicionar observações (ex: motivo de não ter fechado, tipo "achou o preço alto, vai comparar com outro orçamento") — aparece como uma notinha em itálico embaixo dos dados do visitante
 - **Remover:** ícone de lixeira tira o visitante da lista (uso só pra corrigir cadastro feito por engano)
 - Como usa a mesma base do CRM/Leads, esses visitantes também aparecem no Kanban (coluna "Novo Lead", origem "Loja Física") pra quem quiser acompanhar por lá também
 
@@ -86,8 +88,11 @@
 - Acesso: ícone de cifrão na sidebar
 - Abas: **Lançamentos | Contas | DRE | Conciliação**
 - **Novo lançamento:** botão **"+ Novo Lançamento"** → tipo (receita/despesa) → categoria → valor → data vencimento → conta → Salvar
+- **Parcelamento:** de 1x (à vista) até **60x**, um a um no seletor, mais campo de **Entrada** opcional
+- **Contrato já em andamento:** campo **"Começar a partir da parcela nº"** — pra cadastrar um contrato que já tinha parcelas pagas fora do sistema (ex: já pagaram 1, 2 e 3 por fora, e agora quer lançar a partir da 4/8); o sistema não recria as parcelas anteriores, só gera a partir da informada, com o valor calculado sobre o total do contrato
 - **Marcar como pago:** na lista, clique no lançamento → botão **"Marcar como Pago"** → data pagamento + conta
 - **Lançamento recorrente:** ao criar, marque "Recorrente" → defina frequência e nº de repetições
+- **Contas a Receber / Contas a Pagar:** por padrão mostram TODO o saldo pendente (não só o mês atual) — como parcelamentos longos (ex: 60x) vão bem além do mês corrente, o filtro de data começa no mês atual mas vai até 3 anos à frente, senão a lista apareceria vazia mesmo com dinheiro pendente. Pode ajustar o período manualmente nos campos de data
 - **DRE:** aba "DRE" → selecione período → receitas vs despesas por categoria
 - **Contas correntes:** aba "Contas" → "+ Nova Conta" → nome, banco, saldo inicial
 - **Conciliação:** aba "Conciliação" → importe extrato OFX/CSV → sistema sugere match automático por valor/data → confirme ou ignore cada item
@@ -227,11 +232,12 @@
 - Acesso: ícone de calendário na sidebar
 - Calendário mensal com eventos automáticos: **Entregas de pedidos** (azul), **Assistências técnicas** (vermelho) e **Visitas de leads** (verde)
 - Navegação: setas ‹ › para trocar de mês, ícone de calendário para voltar a hoje
+- **Agendar visita:** botão **"Agendar Visita"** (topo direito) → escolhe o lead, data e hora → a visita aparece no calendário e o lead avança pra etapa "Visita Agendada" no CRM automaticamente (se ainda não tiver passado dessa fase); também dá pra agendar direto de um dia específico, clicando nele e usando o botão "Agendar visita neste dia" no painel lateral
 - **Ver eventos do dia:** clique no dia → lista no painel lateral direito
 - **Expandir evento (clicar no evento no painel):** abre os detalhes inline —
   - Pedido: cliente, valor, etapa de produção, prioridade, entrega prevista (com chip Atrasado/Hoje/Em X dias), vendedor, projetista, endereço, itens, barra de progresso + botões **WhatsApp** do cliente e **Abrir no Kanban**
   - Assistência: atalho para o módulo Assistência Técnica
-  - Lead: atalho para o CRM
+  - Visita/Lead: horário da visita, telefone, interesse + botões **WhatsApp** e **Abrir no CRM**
 - Clicar em outro evento fecha o anterior (acordeão)
 
 ### Radar de Prazos
@@ -293,12 +299,6 @@
 ---
 
 ## MÓDULOS PLANEJADOS (em desenvolvimento)
-
-### Agenda / Calendário
-- Agendamento de visitas, medições e instalações
-- Integração com pedidos e leads
-- Alertas e lembretes automáticos
-- Previsão: próxima fase de desenvolvimento
 
 ### Portal do Cliente
 - Acesso externo para o cliente ver status do pedido

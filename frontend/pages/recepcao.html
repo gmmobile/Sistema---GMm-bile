@@ -77,13 +77,51 @@
       white-space: nowrap;
     }
     .rec-card-data { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+    .rec-card-obs {
+      font-size: 11.5px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      font-style: italic;
+    }
     .rec-empty {
       text-align: center;
       padding: 50px 20px;
       color: var(--text-dim);
     }
     .rec-empty svg { width: 40px; height: 40px; opacity: .3; margin-bottom: 10px; }
-    .rec-card-acoes { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .rec-card-acoes { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .rec-acao-btn {
+      width: 30px; height: 30px;
+      padding: 0 !important;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: .15s;
+      flex-shrink: 0;
+    }
+    .rec-acao-btn svg { width: 14px; height: 14px; }
+    .rec-acao-btn:hover { background: rgba(255,255,255,.06); color: var(--text); }
+    .rec-acao-btn.wa:hover { background: rgba(34,197,94,.1); color: #4ade80; border-color: rgba(34,197,94,.3); }
+    .rec-acao-btn.danger:hover { background: rgba(239,68,68,.1); color: #f87171; border-color: rgba(239,68,68,.3); }
+    .rec-btn-converter {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 7px;
+      border: none;
+      background: var(--primary);
+      color: #1a1400;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: .15s;
+      flex-shrink: 0;
+    }
+    .rec-btn-converter:hover { filter: brightness(1.08); }
+    .rec-btn-converter svg { width: 13px; height: 13px; }
 
     @media (max-width: 640px) {
       .rec-form-card { padding: 16px; }
@@ -96,10 +134,10 @@
       .rec-card-acoes {
         order: 2;
         width: 100%;
-        margin-top: 6px;
+        margin-top: 8px;
+        justify-content: flex-end;
       }
-      .rec-card-acoes .btn-ghost { flex-shrink: 0; }
-      .rec-card-acoes .btn-primary { flex: 1; justify-content: center; }
+      .rec-btn-converter { flex: 1; justify-content: center; }
     }
   </style>
 </head>
@@ -167,9 +205,46 @@
   </div>
 </div>
 
+<!-- ════ MODAL EDITAR VISITANTE ════ -->
+<div class="modal-overlay" id="modalEditarVisitante">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2><i data-lucide="pencil"></i> Editar Visitante</h2>
+      <button class="modal-close" onclick="fecharEdicaoVisitante()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="evId">
+      <div class="form-group">
+        <label>Nome *</label>
+        <input type="text" id="evNome">
+      </div>
+      <div class="form-group">
+        <label>Telefone / WhatsApp</label>
+        <input type="text" id="evTelefone">
+      </div>
+      <div class="form-group">
+        <label>Interesse</label>
+        <input type="text" id="evInteresse">
+      </div>
+      <div class="form-group">
+        <label>Observações <span style="color:var(--text-dim);font-weight:400">(ex: motivo de não ter fechado)</span></label>
+        <textarea id="evObservacoes" rows="3" placeholder="Ex: achou o preço alto, vai comparar com outro orçamento..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharEdicaoVisitante()">Cancelar</button>
+      <button class="btn btn-primary" id="btnSalvarEdicaoVisitante" onclick="salvarEdicaoVisitante()">
+        <i data-lucide="save"></i> Salvar
+      </button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/js/api.js"></script>
 <script src="../assets/js/layout.js"></script>
 <script>
+document.getElementById('modalEditarVisitante').addEventListener('click', function(e){ if(e.target===this) this.classList.remove('open'); });
+
 let _recLista = [];
 
 function _rcData(d){
@@ -205,7 +280,9 @@ function renderRecepcao(){
     return;
   }
 
-  lista.innerHTML = _recLista.map(l => `
+  lista.innerHTML = _recLista.map(l => {
+    const waNum = (l.whatsapp || l.telefone || '').replace(/\D/g,'');
+    return `
     <div class="rec-card">
       <div class="rec-card-info">
         <strong>${escapeHtml(l.nome)}</strong>
@@ -213,19 +290,65 @@ function renderRecepcao(){
           <span><i data-lucide="phone" style="width:12px;height:12px"></i>${escapeHtml(l.telefone||'—')}</span>
           <span class="rec-card-data">Cadastrado em ${_rcData(l.criado_em)}</span>
         </div>
+        ${l.observacoes ? `<div class="rec-card-obs">${escapeHtml(l.observacoes)}</div>` : ''}
       </div>
       ${l.produto_interesse ? `<span class="rec-interesse-badge">${escapeHtml(l.produto_interesse)}</span>` : ''}
       <div class="rec-card-acoes">
-        <button class="btn btn-ghost" onclick="excluirVisitante(${l.id})" title="Remover">
+        ${waNum ? `<a class="rec-acao-btn wa" href="https://wa.me/55${waNum}" target="_blank" title="WhatsApp"><i data-lucide="message-circle"></i></a>` : ''}
+        <button class="rec-acao-btn" onclick="abrirEdicaoVisitante(${l.id})" title="Editar">
+          <i data-lucide="pencil"></i>
+        </button>
+        <button class="rec-acao-btn danger" onclick="excluirVisitante(${l.id})" title="Remover">
           <i data-lucide="trash-2"></i>
         </button>
-        <button class="btn btn-primary" onclick="converterVisitante(${l.id})">
-          <i data-lucide="user-check"></i> Fechou! Virar cliente
+        <button class="rec-btn-converter" onclick="converterVisitante(${l.id})">
+          <i data-lucide="user-check"></i> Virar cliente
         </button>
       </div>
     </div>
-  `).join('');
+  `;}).join('');
   lucide.createIcons({ nodes: [lista] });
+}
+
+/* ── Editar visitante ── */
+function abrirEdicaoVisitante(id){
+  const l = _recLista.find(x => x.id === id);
+  if (!l) return;
+  document.getElementById('evId').value = l.id;
+  document.getElementById('evNome').value = l.nome || '';
+  document.getElementById('evTelefone').value = l.telefone || '';
+  document.getElementById('evInteresse').value = l.produto_interesse || '';
+  document.getElementById('evObservacoes').value = l.observacoes || '';
+  document.getElementById('modalEditarVisitante').classList.add('open');
+  lucide.createIcons({ nodes: [document.getElementById('modalEditarVisitante')] });
+}
+
+function fecharEdicaoVisitante(){ document.getElementById('modalEditarVisitante').classList.remove('open'); }
+
+async function salvarEdicaoVisitante(){
+  const id = document.getElementById('evId').value;
+  const nome = document.getElementById('evNome').value.trim();
+  const telefone = document.getElementById('evTelefone').value.trim();
+  if (!nome){ toast('Informe o nome', 'warning'); return; }
+
+  const btn = document.getElementById('btnSalvarEdicaoVisitante');
+  btn.disabled = true; btn.style.opacity = '0.6';
+  try{
+    const original = _recLista.find(x => x.id == id) || {};
+    await Api.put(`/leads/${id}`, {
+      ...original,
+      nome, telefone, whatsapp: telefone,
+      produto_interesse: document.getElementById('evInteresse').value.trim() || null,
+      observacoes: document.getElementById('evObservacoes').value.trim() || null,
+    });
+    toast('Visitante atualizado!', 'success');
+    fecharEdicaoVisitante();
+    await carregarRecepcao();
+  } catch(e){
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.style.opacity = '';
+  }
 }
 
 async function cadastrarVisitante(){

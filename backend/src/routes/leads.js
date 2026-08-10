@@ -165,6 +165,39 @@ router.put('/:id/etapa', async (req, res) => {
   }
 });
 
+// PUT /api/leads/:id/agendar-visita
+router.put('/:id/agendar-visita', async (req, res) => {
+  try {
+    const { data_visita } = req.body;
+    if (!data_visita) return res.status(400).json({ erro: 'Data/hora da visita é obrigatória' });
+
+    const lead = await db.get('SELECT etapa FROM leads WHERE id=$1', [req.params.id]);
+    if (!lead) return res.status(404).json({ erro: 'Lead não encontrado' });
+
+    // Avança a etapa pra "Visita Agendada" só se o lead ainda não passou dessa fase
+    // (nunca reabre um lead já perdido ou mais adiantado no funil)
+    const idxAtual  = ETAPAS_VALIDAS.indexOf(lead.etapa);
+    const idxVisita = ETAPAS_VALIDAS.indexOf('visita_agendada');
+    const novaEtapa = (idxAtual >= 0 && idxAtual < idxVisita) ? 'visita_agendada' : lead.etapa;
+
+    await db.run(
+      `UPDATE leads SET data_visita=$1, etapa=$2, atualizado_em=NOW() WHERE id=$3`,
+      [data_visita, novaEtapa, req.params.id]
+    );
+
+    const dataFormatada = new Date(data_visita).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+    await db.run(`
+      INSERT INTO lead_interacoes (lead_id, tipo, descricao, usuario_id)
+      VALUES ($1,'visita_marcada',$2,$3)
+    `, [req.params.id, `Visita agendada para ${dataFormatada}`, req.usuario.id]);
+
+    res.json({ mensagem: 'Visita agendada' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ erro: 'Erro ao agendar visita' });
+  }
+});
+
 // POST /api/leads/:id/interacoes
 router.post('/:id/interacoes', async (req, res) => {
   try {

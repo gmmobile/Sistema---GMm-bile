@@ -619,11 +619,6 @@
           <label>Parcelas</label>
           <select id="lParcelas" onchange="atualizarPreviewParcelas()">
             <option value="1">À vista</option>
-            <option value="2">2x</option><option value="3">3x</option>
-            <option value="4">4x</option><option value="5">5x</option>
-            <option value="6">6x</option><option value="8">8x</option>
-            <option value="10">10x</option><option value="12">12x</option>
-            <option value="18">18x</option><option value="24">24x</option>
           </select>
         </div>
         <div class="form-group">
@@ -849,6 +844,10 @@ const hojeStr  = hoje.toISOString().split('T')[0];
 const mesStr   = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
 const inicioMes = `${mesStr}-01`;
 const fimMes    = `${mesStr}-31`;
+// Contas a Receber/Pagar precisam mostrar TODO o saldo pendente por padrão
+// (parcelas futuras de contratos longos), não só o mês atual — senão o valor
+// que aparece no card "A Receber" do dashboard nunca bate com a lista.
+const fimFuturo = (() => { const d = new Date(hoje); d.setFullYear(d.getFullYear()+3); return d.toISOString().split('T')[0]; })();
 
 /* ── Debounce helper ── */
 function debounce(fn, ms) {
@@ -915,8 +914,9 @@ async function init() {
     ['recInicio','pagInicio','fluxoInicio'].forEach(id => {
       const el = document.getElementById(id); if (el) el.value = inicioMes;
     });
-    ['recFim','pagFim','fluxoFim'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.value = fimMes;
+    document.getElementById('fluxoFim') && (document.getElementById('fluxoFim').value = fimMes);
+    ['recFim','pagFim'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = fimFuturo;
     });
     document.getElementById('lVencimento').value = hojeStr;
     document.getElementById('tData').value = hojeStr;
@@ -1088,7 +1088,7 @@ function renderAlertas(elId, lista, cor) {
    ════════════════════════════════════════════════════════════════ */
 async function carregarReceber() {
   const inicio = document.getElementById('recInicio')?.value || inicioMes;
-  const fim    = document.getElementById('recFim')?.value    || fimMes;
+  const fim    = document.getElementById('recFim')?.value    || fimFuturo;
   const status = document.getElementById('recStatus')?.value || '';
   const busca  = document.getElementById('recBusca')?.value  || '';
   try {
@@ -1104,7 +1104,7 @@ async function carregarReceber() {
    ════════════════════════════════════════════════════════════════ */
 async function carregarPagar() {
   const inicio = document.getElementById('pagInicio')?.value || inicioMes;
-  const fim    = document.getElementById('pagFim')?.value    || fimMes;
+  const fim    = document.getElementById('pagFim')?.value    || fimFuturo;
   const status = document.getElementById('pagStatus')?.value || '';
   const busca  = document.getElementById('pagBusca')?.value  || '';
   try {
@@ -1678,6 +1678,17 @@ document.addEventListener('keydown', e => {
     );
   }
 });
+
+/* ── Preenche o select de parcelas de 2x até 60x, uma por uma ── */
+(function preencherParcelas(){
+  const sel = document.getElementById('lParcelas');
+  for (let n = 2; n <= 60; n++) {
+    const opt = document.createElement('option');
+    opt.value = n;
+    opt.textContent = n + 'x';
+    sel.appendChild(opt);
+  }
+})();
 
 /* ── Inicializa ── */
 init();

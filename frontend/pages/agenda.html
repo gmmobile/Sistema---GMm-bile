@@ -116,6 +116,9 @@
     <main class="page-content">
       <div class="page-header">
         <div class="page-title"><h1>Agenda</h1><p>Calendário de entregas, instalações e assistências</p></div>
+        <button class="btn btn-primary" onclick="abrirModalVisita()">
+          <i data-lucide="calendar-plus"></i> Agendar Visita
+        </button>
       </div>
 
       <div class="cal-layout">
@@ -149,12 +152,47 @@
   </div>
 </div>
 
+<!-- ════ MODAL AGENDAR VISITA ════ -->
+<div class="modal-overlay" id="modalVisita">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2><i data-lucide="calendar-plus"></i> Agendar Visita</h2>
+      <button class="modal-close" onclick="fecharModalVisita()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Lead *</label>
+        <select id="vLead"><option value="">Selecione...</option></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data *</label>
+          <input type="date" id="vData">
+        </div>
+        <div class="form-group">
+          <label>Hora *</label>
+          <input type="time" id="vHora" value="14:00">
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text-dim)">A visita aparece no calendário e o lead avança automaticamente para a etapa "Visita Agendada" no CRM (se ainda não tiver passado dessa fase).</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModalVisita()">Cancelar</button>
+      <button class="btn btn-primary" id="btnSalvarVisita" onclick="salvarVisita()">
+        <i data-lucide="check"></i> Agendar
+      </button>
+    </div>
+  </div>
+</div>
+
 <div id="toast-container"></div>
 <script src="../assets/js/api.js"></script>
 <script src="../assets/js/layout.js"></script>
 <script>
 lucide.createIcons();
 checkAuth();
+
+document.getElementById('modalVisita').addEventListener('click', function(e){ if(e.target===this) this.classList.remove('open'); });
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -164,6 +202,7 @@ let ano = hoje.getFullYear();
 let mes = hoje.getMonth();
 let eventos = {};
 let diaSelecionado = null;
+let leadsCache = [];
 
 async function carregarEventos() {
   eventos = {};
@@ -173,6 +212,7 @@ async function carregarEventos() {
       Api.get(`/assistencia`),
       Api.get(`/leads`),
     ]);
+    leadsCache = leads;
 
     const addEvento = (data, tipo, titulo, subtitulo, id) => {
       if (!data) return;
@@ -192,6 +232,43 @@ async function carregarEventos() {
     });
   } catch(e) {}
   renderCalendario();
+}
+
+/* ── Agendar visita ── */
+function abrirModalVisita(dataPrefill) {
+  const sel = document.getElementById('vLead');
+  const leadsAbertos = leadsCache.filter(l => l.etapa !== 'perdido');
+  sel.innerHTML = '<option value="">Selecione...</option>' + leadsAbertos.map(l =>
+    `<option value="${l.id}">${escapeHtml(l.nome)}${l.telefone ? ' — '+escapeHtml(l.telefone) : ''}</option>`
+  ).join('');
+  document.getElementById('vData').value = dataPrefill || new Date().toISOString().split('T')[0];
+  document.getElementById('vHora').value = '14:00';
+  document.getElementById('modalVisita').classList.add('open');
+  lucide.createIcons({ nodes: [document.getElementById('modalVisita')] });
+}
+
+function fecharModalVisita() { document.getElementById('modalVisita').classList.remove('open'); }
+
+async function salvarVisita() {
+  const leadId = document.getElementById('vLead').value;
+  const data   = document.getElementById('vData').value;
+  const hora   = document.getElementById('vHora').value;
+  if (!leadId) { toast('Selecione o lead', 'warning'); return; }
+  if (!data || !hora) { toast('Preencha data e hora', 'warning'); return; }
+
+  const btn = document.getElementById('btnSalvarVisita');
+  btn.disabled = true; btn.style.opacity = '0.6';
+  try {
+    await Api.put(`/leads/${leadId}/agendar-visita`, { data_visita: `${data}T${hora}:00` });
+    toast('Visita agendada!', 'success');
+    fecharModalVisita();
+    await carregarEventos();
+    if (diaSelecionado) selecionarDia(diaSelecionado);
+  } catch (e) {
+    toast(e.message || 'Erro ao agendar visita', 'error');
+  } finally {
+    btn.disabled = false; btn.style.opacity = '';
+  }
 }
 
 function renderCalendario() {
@@ -253,13 +330,15 @@ function selecionarDia(d) {
   document.getElementById('panelTitulo').textContent = `${parseInt(day)} de ${MESES[parseInt(m2)-1]} de ${y}`;
   const evts = eventos[d] || [];
   const panel = document.getElementById('panelBody');
+  const btnAgendar = `<button class="btn btn-ghost" style="width:100%;margin-bottom:10px;font-size:12px" onclick="abrirModalVisita('${d}')"><i data-lucide="calendar-plus"></i> Agendar visita neste dia</button>`;
   if (!evts.length) {
-    panel.innerHTML = '<p style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px 0">Nenhum evento neste dia</p>';
+    panel.innerHTML = btnAgendar + '<p style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px 0">Nenhum evento neste dia</p>';
+    lucide.createIcons({ nodes: [panel] });
     return;
   }
   const cores = { pedido:'#818cf8', assistencia:'#f87171', lead:'#4ade80' };
   const labels = { pedido:'Entrega', assistencia:'Assistência', lead:'Visita' };
-  panel.innerHTML = evts.map((e, idx) => `
+  panel.innerHTML = btnAgendar + evts.map((e, idx) => `
     <div class="event-item" id="evItem-${idx}">
       <div class="event-head" onclick="toggleEvento(${idx}, '${e.tipo}', ${e.id})">
         <div class="event-type-dot" style="background:${cores[e.tipo]||'var(--primary)'}"></div>
@@ -273,6 +352,7 @@ function selecionarDia(d) {
       <div class="event-detail" id="evDet-${idx}"></div>
     </div>
   `).join('');
+  lucide.createIcons({ nodes: [panel] });
 }
 
 /* ── Expandir evento com detalhes ── */
@@ -341,9 +421,17 @@ async function toggleEvento(idx, tipo, id) {
       <div class="ev-actions"><a class="ev-btn gold" href="assistencia.html" onclick="event.stopPropagation()">Abrir em Assistência Técnica</a></div>`;
     det.dataset.carregado = '1';
   } else {
+    const lead = leadsCache.find(l => l.id === id);
+    const waNum = (lead?.whatsapp || lead?.telefone || '').replace(/\D/g,'');
+    const horaVisita = lead?.data_visita ? new Date(lead.data_visita).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—';
     det.innerHTML = `
-      <div class="ev-row"><span>Tipo</span><span>Visita agendada com lead</span></div>
-      <div class="ev-actions"><a class="ev-btn gold" href="crm.html" onclick="event.stopPropagation()">Abrir no CRM</a></div>`;
+      <div class="ev-row"><span>Horário</span><span>${horaVisita}</span></div>
+      <div class="ev-row"><span>Telefone</span><span>${lead?.telefone||'—'}</span></div>
+      <div class="ev-row"><span>Interesse</span><span>${lead?.produto_interesse||'—'}</span></div>
+      <div class="ev-actions">
+        ${waNum?`<a class="ev-btn wa" href="https://wa.me/55${waNum}" target="_blank" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>WhatsApp</a>`:''}
+        <a class="ev-btn gold" href="crm.html" onclick="event.stopPropagation()">Abrir no CRM</a>
+      </div>`;
     det.dataset.carregado = '1';
   }
 }

@@ -727,6 +727,10 @@ async function inicializar() {
       criado_em    TIMESTAMPTZ DEFAULT NOW()
     )`,
     `CREATE INDEX IF NOT EXISTS idx_cliente_documentos_cliente ON cliente_documentos(cliente_id)`,
+
+    // ── Agendamento de visita (CRM/Leads) ──
+    `ALTER TABLE leads ADD COLUMN IF NOT EXISTS data_visita TIMESTAMPTZ`,
+    `CREATE INDEX IF NOT EXISTS idx_leads_data_visita ON leads(data_visita)`,
   ];
   for (const sql of migracoes) {
     await db.run(sql).catch(() => {});
