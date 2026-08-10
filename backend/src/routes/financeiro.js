@@ -478,12 +478,6 @@ router.post('/lancamentos', async (req, res) => {
       vals
     );
 
-    const base = [tipo, descricao, 0, data_vencimento,
-                  forma_pagamento||null, conta_id||null, categoria_id||null,
-                  observacoes||null, cliente_id||null, fornecedor_id||null,
-                  orcamento_id||null, pedido_id||null, centro_custo_id||null,
-                  num_documento||null, origem, recorrencia];
-
     if (numParcelas <= 1 && entradaNum === 0) {
       await db.run(
         `INSERT INTO lancamentos
@@ -502,8 +496,17 @@ router.post('/lancamentos', async (req, res) => {
 
     const grupoId = uuid();
 
+    const montarValores = (descricaoTxt, valorVal, dataVenc, parcelaNum, parcelaTotal) => [
+      tipo, descricaoTxt, valorVal, dataVenc,
+      forma_pagamento||null, conta_id||null, categoria_id||null,
+      observacoes||null, cliente_id||null, fornecedor_id||null,
+      orcamento_id||null, pedido_id||null, centro_custo_id||null,
+      num_documento||null, origem, recorrencia,
+      parcelaNum, parcelaTotal, grupoId,
+    ];
+
     if (entradaNum > 0) {
-      await inserir([...base, entradaNum, 0, numParcelas + 1, grupoId]);
+      await inserir(montarValores(`${descricao} (Entrada)`, entradaNum, data_vencimento, 0, numParcelas + 1));
     }
 
     const valorRest = valorNum - entradaNum;
@@ -515,12 +518,7 @@ router.post('/lancamentos', async (req, res) => {
       dataVenc.setMonth(dataVenc.getMonth() + i);
       const vencStr = dataVenc.toISOString().split('T')[0];
       const descParcela = numParcelas > 1 ? `${descricao} (${i+1}/${numParcelas})` : descricao;
-      await inserir([tipo, descParcela, valorParc, vencStr,
-                     forma_pagamento||null, conta_id||null, categoria_id||null,
-                     observacoes||null, cliente_id||null, fornecedor_id||null,
-                     orcamento_id||null, pedido_id||null, centro_custo_id||null,
-                     num_documento||null, origem, recorrencia,
-                     i+1, numParcelas, grupoId]);
+      await inserir(montarValores(descParcela, valorParc, vencStr, i+1, numParcelas));
     }
 
     res.status(201).json({ grupo_parcela_id: grupoId, parcelas: numParcelas });
