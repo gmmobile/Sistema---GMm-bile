@@ -195,12 +195,14 @@ router.post('/:id/converter', async (req, res) => {
       return res.status(400).json({ erro: 'Lead já foi convertido em cliente', cliente_id: lead.cliente_id });
 
     // Cria o cliente propagando origem e lead_id para rastreabilidade completa
+    // (clientes não tem coluna "endereco" única — o endereço livre do lead vai para "rua")
     const cliente_id = await db.insert(`
-      INSERT INTO clientes (nome, email, telefone, whatsapp, cpf_cnpj, origem, vendedor_id, cidade, endereco, lead_id)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      INSERT INTO clientes (nome, email, telefone, whatsapp, cpf_cnpj, origem, vendedor_id, cidade, rua, lead_id, observacoes)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
     `, [lead.nome, lead.email||null, lead.telefone||null, lead.whatsapp||null,
         lead.cpf||null, lead.origem||null, lead.vendedor_id||null,
-        lead.cidade||null, lead.endereco||null, lead.id]);
+        lead.cidade||null, lead.endereco||null, lead.id,
+        lead.produto_interesse ? `Interesse: ${lead.produto_interesse}` : null]);
 
     await db.run(`
       UPDATE leads SET etapa='pedido_confirmado', cliente_id=$1, atualizado_em=NOW() WHERE id=$2

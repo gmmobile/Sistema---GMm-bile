@@ -1388,6 +1388,13 @@ async function confirmarImportIA() {
 }
 
 carregarClientes();
+
+// Se veio da Recepção com "?editar=<id>" (visitante que virou cliente), abre o
+// cadastro já preenchido pra completar as informações que faltam.
+(function abrirEdicaoViaQueryParam(){
+  const idParaEditar = new URLSearchParams(window.location.search).get('editar');
+  if (idParaEditar) editarCliente(idParaEditar);
+})();
 </script>
 
 <!-- Modal importar CSV -->

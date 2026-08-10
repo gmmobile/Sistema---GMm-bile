@@ -15,6 +15,16 @@
 - Exibe: KPIs do mês (faturamento, pedidos ativos, leads, orçamentos pendentes, alertas de estoque e assistência técnica), gráfico de evolução mensal e próximas entregas
 - Filtro de período: seletor no topo direito
 
+### Recepção
+- Acesso: ícone de porta na sidebar (seção Vendas, antes de Clientes)
+- Tela pensada pra quem atende presencialmente na loja fazer um cadastro rápido, sem precisar entender o CRM completo
+- **Cadastrar visitante:** formulário no topo → nome, telefone/WhatsApp, interesse (texto livre, ex: "Cozinha completa") → botão "Cadastrar". Só nome e telefone são obrigatórios
+- Cada visitante cadastrado vira automaticamente um lead com origem "Loja Física" (mesma origem já usada no CRM/Leads) — não é um cadastro separado, é o mesmo sistema por trás
+- **Lista "Aguardando retorno":** mostra todos os visitantes que ainda não fecharam negócio — ficam salvos indefinidamente ali, disponíveis pra uma contraoferta futura (nada é apagado automaticamente)
+- **"Fechou! Virar cliente":** converte o visitante num cadastro completo em Clientes, aproveitando nome/telefone/interesse já preenchidos, e abre direto a tela de edição do cliente pra completar o resto das informações (CPF, endereço, etc)
+- **Remover:** ícone de lixeira tira o visitante da lista (uso só pra corrigir cadastro feito por engano)
+- Como usa a mesma base do CRM/Leads, esses visitantes também aparecem no Kanban (coluna "Novo Lead", origem "Loja Física") pra quem quiser acompanhar por lá também
+
 ### CRM / Leads (v2 — redesenhado)
 - Acesso: ícone de funil na sidebar
 - Visualização: **Kanban com 13 etapas** — Novo Lead | Primeiro Contato | Qualificação | Visita Agendada | Em Projeto | Orçamento Enviado | Negociação | Contrato | Pedido Confirmado | Em Produção | Entrega | Pós-venda | Perdido

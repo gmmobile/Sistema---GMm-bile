@@ -16,6 +16,7 @@ const MODULO_MAP = {
   'relatorios.html':   'relatorios',
   'clientes.html':     'clientes',
   'crm.html':          'crm',
+  'recepcao.html':     'crm',
   'comercial.html':    'comercial',
   'renders.html':      'renders',
   'radar.html':        'radar',
@@ -50,6 +51,7 @@ const NAV = [
   {
     secao: 'Vendas',
     itens: [
+      { label: 'Recepção',    icon: 'door-open',  href: 'recepcao.html' },
       { label: 'Clientes',    icon: 'users',      href: 'clientes.html' },
       { label: 'CRM / Leads', icon: 'funnel',     href: 'crm.html' },
       { label: 'Orçamentos',  icon: 'file-check', href: 'orcamentos.html' },
