@@ -122,6 +122,12 @@
       border:1px solid var(--border); border-radius:9px; color:var(--text); font-size:13px;
       outline:none; transition:.2s; cursor:pointer; width:100%; box-sizing:border-box; }
     .fin-date-wrap input[type=date]:focus { border-color:var(--primary); }
+    .fin-periodo-pills { display:flex; gap:6px; }
+    .fin-periodo-btn { padding:7px 12px; background:var(--bg-card2); border:1px solid var(--border);
+      border-radius:9px; color:var(--text-muted); font-size:12px; font-weight:600; cursor:pointer;
+      transition:.15s; white-space:nowrap; }
+    .fin-periodo-btn:hover { color:var(--text); border-color:var(--text-dim); }
+    .fin-periodo-btn.ativo { background:rgba(196,162,74,.14); border-color:var(--primary); color:var(--primary); }
     .fin-sel { padding:8px 30px 8px 12px; background:var(--bg-card2); border:1px solid var(--border);
                border-radius:9px; color:var(--text); font-size:13px; cursor:pointer; outline:none;
                appearance:none; min-width:130px; transition:.15s;
@@ -391,14 +397,21 @@
           <!-- ════ ABA A RECEBER ════ -->
           <div id="aba-receber" style="display:none">
             <div class="fin-filters">
+              <div class="fin-periodo-pills" id="recPeriodoBtns">
+                <button class="fin-periodo-btn" onclick="aplicarPeriodo('rec',1,this)">1 mês</button>
+                <button class="fin-periodo-btn" onclick="aplicarPeriodo('rec',3,this)">3 meses</button>
+                <button class="fin-periodo-btn" onclick="aplicarPeriodo('rec',6,this)">6 meses</button>
+                <button class="fin-periodo-btn" onclick="aplicarPeriodo('rec',12,this)">1 ano</button>
+                <button class="fin-periodo-btn ativo" onclick="aplicarPeriodo('rec',null,this)">Personalizado</button>
+              </div>
               <div class="fin-date-pair">
                 <div class="fin-date-wrap">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  <input type="date" id="recInicio" onchange="carregarReceber()">
+                  <input type="date" id="recInicio" onchange="marcarPeriodoPersonalizado('rec');carregarReceber()">
                 </div>
                 <div class="fin-date-wrap">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  <input type="date" id="recFim" onchange="carregarReceber()">
+                  <input type="date" id="recFim" onchange="marcarPeriodoPersonalizado('rec');carregarReceber()">
                 </div>
               </div>
               <select class="fin-sel" id="recStatus" onchange="carregarReceber()">
@@ -428,14 +441,21 @@
           <!-- ════ ABA A PAGAR ════ -->
           <div id="aba-pagar" style="display:none">
             <div class="fin-filters">
+              <div class="fin-periodo-pills" id="pagPeriodoBtns">
+                <button class="fin-periodo-btn" onclick="aplicarPeriodo('pag',1,this)">1 mês</button>
+                <button class="fin-periodo-btn" onclick="aplicarPeriodo('pag',3,this)">3 meses</button>
+                <button class="fin-periodo-btn" onclick="aplicarPeriodo('pag',6,this)">6 meses</button>
+                <button class="fin-periodo-btn" onclick="aplicarPeriodo('pag',12,this)">1 ano</button>
+                <button class="fin-periodo-btn ativo" onclick="aplicarPeriodo('pag',null,this)">Personalizado</button>
+              </div>
               <div class="fin-date-pair">
                 <div class="fin-date-wrap">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  <input type="date" id="pagInicio" onchange="carregarPagar()">
+                  <input type="date" id="pagInicio" onchange="marcarPeriodoPersonalizado('pag');carregarPagar()">
                 </div>
                 <div class="fin-date-wrap">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  <input type="date" id="pagFim" onchange="carregarPagar()">
+                  <input type="date" id="pagFim" onchange="marcarPeriodoPersonalizado('pag');carregarPagar()">
                 </div>
               </div>
               <select class="fin-sel" id="pagStatus" onchange="carregarPagar()">
@@ -1081,6 +1101,30 @@ function renderAlertas(elId, lista, cor) {
       </div>
       <span class="alerta-val" style="color:${l.tipo==='receita'?'#4ade80':'#f87171'}">${moeda(l.valor)}</span>
     </div>`).join('');
+}
+
+/* ── Filtros rápidos de período (Contas a Receber/Pagar) ── */
+function aplicarPeriodo(tipo, meses, btnEl) {
+  const idIni  = tipo === 'rec' ? 'recInicio' : 'pagInicio';
+  const idFim  = tipo === 'rec' ? 'recFim'    : 'pagFim';
+  const btnsId = tipo === 'rec' ? 'recPeriodoBtns' : 'pagPeriodoBtns';
+
+  document.querySelectorAll(`#${btnsId} .fin-periodo-btn`).forEach(b => b.classList.remove('ativo'));
+  btnEl.classList.add('ativo');
+
+  if (meses) {
+    const ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const fim = new Date(hoje.getFullYear(), hoje.getMonth() + meses, 0);
+    document.getElementById(idIni).value = ini.toISOString().split('T')[0];
+    document.getElementById(idFim).value = fim.toISOString().split('T')[0];
+  }
+  if (tipo === 'rec') carregarReceber(); else carregarPagar();
+}
+
+function marcarPeriodoPersonalizado(tipo) {
+  const btnsId = tipo === 'rec' ? 'recPeriodoBtns' : 'pagPeriodoBtns';
+  document.querySelectorAll(`#${btnsId} .fin-periodo-btn`).forEach(b => b.classList.remove('ativo'));
+  document.querySelector(`#${btnsId} .fin-periodo-btn:last-child`).classList.add('ativo');
 }
 
 /* ════════════════════════════════════════════════════════════════

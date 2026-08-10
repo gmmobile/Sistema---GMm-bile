@@ -92,7 +92,7 @@
 - **Contrato já em andamento:** campo **"Começar a partir da parcela nº"** — pra cadastrar um contrato que já tinha parcelas pagas fora do sistema (ex: já pagaram 1, 2 e 3 por fora, e agora quer lançar a partir da 4/8); o sistema não recria as parcelas anteriores, só gera a partir da informada, com o valor calculado sobre o total do contrato
 - **Marcar como pago:** na lista, clique no lançamento → botão **"Marcar como Pago"** → data pagamento + conta
 - **Lançamento recorrente:** ao criar, marque "Recorrente" → defina frequência e nº de repetições
-- **Contas a Receber / Contas a Pagar:** por padrão mostram TODO o saldo pendente (não só o mês atual) — como parcelamentos longos (ex: 60x) vão bem além do mês corrente, o filtro de data começa no mês atual mas vai até 3 anos à frente, senão a lista apareceria vazia mesmo com dinheiro pendente. Pode ajustar o período manualmente nos campos de data
+- **Contas a Receber / Contas a Pagar:** por padrão mostram TODO o saldo pendente (não só o mês atual) — como parcelamentos longos (ex: 60x) vão bem além do mês corrente, o filtro de data começa no mês atual mas vai até 3 anos à frente, senão a lista apareceria vazia mesmo com dinheiro pendente. Tem botões rápidos **1 mês | 3 meses | 6 meses | 1 ano | Personalizado** pra estreitar o período — editar as datas manualmente muda automaticamente pra "Personalizado"
 - **DRE:** aba "DRE" → selecione período → receitas vs despesas por categoria
 - **Contas correntes:** aba "Contas" → "+ Nova Conta" → nome, banco, saldo inicial
 - **Conciliação:** aba "Conciliação" → importe extrato OFX/CSV → sistema sugere match automático por valor/data → confirme ou ignore cada item
