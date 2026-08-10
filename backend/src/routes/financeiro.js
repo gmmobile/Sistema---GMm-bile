@@ -26,11 +26,18 @@ router.get('/dashboard', async (req, res) => {
     // Datas vêm de req.query mas são validadas contra o formato YYYY-MM-DD antes de
     // entrar na query — nunca interpoladas cruas.
     const validaData = v => /^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : null;
-    let inicio = validaData(req.query.inicio);
-    let fim    = validaData(req.query.fim);
-    if (!inicio || !fim) {
-      inicio = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-01`;
-      fim    = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0).toISOString().split('T')[0];
+    let inicio, fim;
+    if (req.query.tudo === '1') {
+      // "Tudo" — sem limite de data nenhum (mesmo intervalo cobre tudo que já existe/existirá)
+      inicio = '2000-01-01';
+      fim    = '2099-12-31';
+    } else {
+      inicio = validaData(req.query.inicio);
+      fim    = validaData(req.query.fim);
+      if (!inicio || !fim) {
+        inicio = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-01`;
+        fim    = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0).toISOString().split('T')[0];
+      }
     }
     // Período anterior de mesma duração, pra calcular variação %
     const diasPeriodo = Math.max(1, Math.round((new Date(fim) - new Date(inicio)) / 86400000) + 1);
