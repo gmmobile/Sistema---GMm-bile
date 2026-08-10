@@ -641,6 +641,8 @@ router.get('/resumo', async (req, res) => {
       SELECT
         COALESCE(SUM(CASE WHEN tipo='receita' AND status='pago'
           AND LEFT(COALESCE(data_pagamento,''),7)='${mes}' THEN valor END),0) AS receita_realizada,
+        COALESCE(SUM(CASE WHEN tipo='despesa' AND status='pago'
+          AND LEFT(COALESCE(data_pagamento,''),7)='${mes}' THEN valor END),0) AS despesa_realizada,
         COALESCE(SUM(CASE WHEN tipo='receita' AND status='pendente' THEN valor END),0) AS a_receber,
         COALESCE(SUM(CASE WHEN tipo='despesa' AND status='pendente' THEN valor END),0) AS a_pagar,
         COUNT(CASE WHEN status='pendente' AND data_vencimento < '${hoje}' THEN 1 END)  AS atrasados
