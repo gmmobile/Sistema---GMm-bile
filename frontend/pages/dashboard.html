@@ -174,7 +174,7 @@
     /* ── Funil CRM ───────────────────────────────────────────────────── */
     .funil-item { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid rgba(51,65,85,.25); }
     .funil-item:last-child { border-bottom:none; }
-    .funil-label { font-size:11px; color:var(--text-muted); width:90px; flex-shrink:0; }
+    .funil-label { font-size:11px; color:var(--text-muted); width:90px; flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .funil-bar-bg { flex:1; height:6px; background:rgba(51,65,85,.4); border-radius:99px; overflow:hidden; }
     .funil-bar-fill { height:100%; border-radius:99px; }
     .funil-count { font-size:11px; font-weight:700; width:24px; text-align:right; flex-shrink:0; }
@@ -1082,19 +1082,23 @@ function renderCRM(d) {
   document.getElementById('badgeConversao').textContent = `Conv: ${d.conversao}%`;
 
   const ETAPA_COLOR = {
-    novo:'#60a5fa', contato:'#818cf8', visita:'#a78bfa',
-    proposta:'#fbbf24', negociacao:'#fb923c', fechado:'#22c55e', perdido:'#f87171',
+    novo_lead:'#94a3b8', primeiro_contato:'#60a5fa', qualificacao:'#a78bfa',
+    visita_agendada:'#34d399', projeto:'#22d3ee', orcamento_enviado:'#f59e0b',
+    negociacao:'#fb923c', contrato:'#d97706', pedido_confirmado:'#4ade80',
+    producao:'#2dd4bf', entrega:'#86efac', pos_venda:'#D4AF37', perdido:'#f87171',
   };
   const ETAPA_LABEL = {
-    novo:'Novo', contato:'Contato', visita:'Visita',
-    proposta:'Proposta', negociacao:'Negociação', fechado:'Fechado', perdido:'Perdido',
+    novo_lead:'Novo Lead', primeiro_contato:'1º Contato', qualificacao:'Qualificação',
+    visita_agendada:'Visita', projeto:'Em Projeto', orcamento_enviado:'Orçamento',
+    negociacao:'Negociação', contrato:'Contrato', pedido_confirmado:'Confirmado',
+    producao:'Em Produção', entrega:'Entrega', pos_venda:'Pós-venda', perdido:'Perdido',
   };
 
   const funil = d.funil || [];
   const max = Math.max(...funil.map(f => parseInt(f.qtd)||0), 1);
   document.getElementById('funilCRM').innerHTML = funil.map(f => `
     <div class="funil-item">
-      <span class="funil-label">${ETAPA_LABEL[f.etapa]||f.etapa}</span>
+      <span class="funil-label" title="${ETAPA_LABEL[f.etapa]||f.etapa}">${ETAPA_LABEL[f.etapa]||f.etapa}</span>
       <div class="funil-bar-bg">
         <div class="funil-bar-fill" style="width:${(parseInt(f.qtd)/max*100).toFixed(0)}%;background:${ETAPA_COLOR[f.etapa]||'#64748b'}"></div>
       </div>
