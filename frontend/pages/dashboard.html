@@ -117,7 +117,16 @@
     .var-up   { color:#4ade80; }
     .var-down { color:#f87171; }
     .var-neu  { color:#64748b; }
-    .kpi-sub  { color:var(--text-dim); }
+    .kpi-sub  { color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+    .kpi-periodo-sel {
+      flex-shrink:0; box-sizing:border-box; width:52px;
+      margin-left:auto; padding:2px 14px 2px 5px; background:var(--bg-card2);
+      border:1px solid var(--border); border-radius:6px; color:var(--text-dim);
+      font-size:10px; cursor:pointer; outline:none; appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='3'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat:no-repeat; background-position:right 4px center; background-size:9px;
+    }
+    .kpi-periodo-sel:hover { color:var(--text); border-color:var(--text-dim); }
 
     /* ── Sections ────────────────────────────────────────────────────── */
     .dash-section { padding:0 20px 14px; }
@@ -464,6 +473,13 @@
             <div class="kpi-valor" id="kARec" style="color:var(--primary)">R$ –</div>
             <div class="kpi-bottom">
               <span class="kpi-sub" id="kARecSub">0 orc. pendentes</span>
+              <select class="kpi-periodo-sel" id="kARecPeriodo" onclick="event.stopPropagation()" onchange="event.stopPropagation();atualizarAReceberPeriodo()">
+                <option value="0">Tudo</option>
+                <option value="1">1m</option>
+                <option value="3">3m</option>
+                <option value="6">6m</option>
+                <option value="12">1a</option>
+              </select>
             </div>
           </div>
 
@@ -930,6 +946,21 @@ function renderKPIs(k, sp) {
 
   // Meta badge
   document.getElementById('badgeTicket').textContent = `Ticket: ${moeda(k.ticketMedio)}`;
+}
+
+// ── A Receber: filtro de período no próprio card ──────────────────────
+async function atualizarAReceberPeriodo() {
+  const meses = document.getElementById('kARecPeriodo').value;
+  const el = document.getElementById('kARec');
+  el.style.opacity = '0.5';
+  try {
+    const r = await Api.get(`/dashboard/a-receber?meses=${meses}`);
+    el.textContent = moeda(r.total);
+  } catch (e) {
+    toast('Erro ao atualizar A Receber', 'error');
+  } finally {
+    el.style.opacity = '';
+  }
 }
 
 // ── Gráfico Vendas ────────────────────────────────────────────────────

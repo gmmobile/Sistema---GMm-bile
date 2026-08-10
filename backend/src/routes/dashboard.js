@@ -107,6 +107,31 @@ router.get('/kpis', async (req, res) => {
   }
 });
 
+// ─── A Receber com período opcional (card do Dashboard) ─────────────────────
+// meses=0 (ou ausente) = total geral, sem filtro de data (mesmo valor do /kpis)
+router.get('/a-receber', async (req, res) => {
+  try {
+    const meses = parseInt(req.query.meses) || 0;
+    let row;
+    if (meses > 0) {
+      const hj = new Date();
+      const ini = new Date(hj.getFullYear(), hj.getMonth(), 1);
+      const fim = new Date(hj.getFullYear(), hj.getMonth() + meses, 0);
+      row = await db.get(
+        `SELECT COALESCE(SUM(valor),0) AS v FROM lancamentos
+         WHERE tipo='receita' AND status='pendente' AND data_vencimento BETWEEN $1 AND $2`,
+        [ini.toISOString().split('T')[0], fim.toISOString().split('T')[0]]
+      );
+    } else {
+      row = await db.get(`SELECT COALESCE(SUM(valor),0) AS v FROM lancamentos WHERE tipo='receita' AND status='pendente'`);
+    }
+    res.json({ total: n(row.v) });
+  } catch (err) {
+    console.error('[dashboard/a-receber]', err.message);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
 // ─── Sparklines (6 meses) ────────────────────────────────────────────────────
 router.get('/sparklines', async (req, res) => {
   try {
