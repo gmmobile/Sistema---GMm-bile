@@ -211,6 +211,8 @@
     .parcela-row { display:flex; justify-content:space-between; font-size:12px; padding:4px 0;
                    border-bottom:1px solid rgba(255,255,255,.04); color:var(--text-muted); }
     .parcela-row:last-child { border-bottom:none; }
+    .parcela-row input[type=date] { background:var(--bg-card2); border:1px solid var(--border); border-radius:6px;
+                   color:var(--text); font-size:11px; padding:3px 5px; width:120px; }
 
     /* ── Responsive ── */
     @media(max-width:1200px) { .fin-right { display:none; } }
@@ -646,42 +648,63 @@
         <div class="form-group">
           <label>Valor Total (R$) *</label>
           <input type="text" id="lValor" inputmode="numeric" placeholder="0,00"
-                 oninput="mascaraMoedaSimples(this)" onfocus="if(this.value==='0,00')this.value=''">
+                 oninput="mascaraMoedaSimples(this);atualizarPreviewParcelas();renderEtapasPlano()" onfocus="if(this.value==='0,00')this.value=''">
         </div>
         <div class="form-group">
           <label>Vencimento *</label>
-          <input type="date" id="lVencimento">
+          <input type="date" id="lVencimento" onchange="renderEtapasPlano()">
         </div>
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>Parcelas</label>
-          <select id="lParcelas" onchange="atualizarPreviewParcelas()">
-            <option value="1">À vista</option>
-          </select>
+      <div class="form-group">
+        <label>Plano de Pagamento</label>
+        <select id="lPlano" onchange="mudarPlanoPagamento()">
+          <option value="">Parcelas iguais (padrão)</option>
+          <option value="planoA">Plano A — Entrada 30% + Aprovação do Projeto 20% + Medição 15% + Entrega do Material 15% + Montagem 10% + No Término 10%</option>
+          <option value="planoB">Plano B — Entrada 30% + Aprovação do Projeto 20% + Medição Final 15% + Entrega do Material 10% + Montagem 15% + Término 10%</option>
+        </select>
+      </div>
+
+      <div id="lParcelasPadrao">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Parcelas</label>
+            <select id="lParcelas" onchange="atualizarPreviewParcelas()">
+              <option value="1">À vista</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Entrada (R$)</label>
+            <input type="text" id="lEntrada" inputmode="numeric" placeholder="0,00"
+                   oninput="mascaraMoedaSimples(this);atualizarPreviewParcelas()"
+                   onfocus="if(this.value==='0,00')this.value=''">
+          </div>
         </div>
-        <div class="form-group">
-          <label>Entrada (R$)</label>
-          <input type="text" id="lEntrada" inputmode="numeric" placeholder="0,00"
-                 oninput="mascaraMoedaSimples(this);atualizarPreviewParcelas()"
-                 onfocus="if(this.value==='0,00')this.value=''">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Começar a partir da parcela nº</label>
+            <input type="number" id="lParcelaInicial" min="1" value="1" oninput="atualizarPreviewParcelas()">
+          </div>
+          <div class="form-group" style="display:flex;align-items:center">
+            <div style="font-size:11px;color:var(--text-dim)">Use isso para cadastrar um contrato já em andamento — as parcelas anteriores (já pagas fora do sistema) não são criadas. Se o contrato já está 100% quitado, coloque o número de parcelas + 1 (ex: 9 num contrato de 8x) e a entrada + todas as parcelas ficam de fora</div>
+          </div>
+        </div>
+
+        <!-- Preview de parcelas -->
+        <div id="parcelasPreview" style="display:none">
+          <div class="parcelas-preview" id="parcelasLista"></div>
         </div>
       </div>
 
-      <div class="form-row">
+      <!-- Plano por etapas (% do valor do projeto) -->
+      <div id="lPlanoEtapas" style="display:none">
         <div class="form-group">
-          <label>Começar a partir da parcela nº</label>
-          <input type="number" id="lParcelaInicial" min="1" value="1" oninput="atualizarPreviewParcelas()">
+          <label>Já pago até a etapa</label>
+          <select id="lEtapaInicial" onchange="renderEtapasPlano()"></select>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Use isso pra cadastrar um contrato já em andamento — as etapas já pagas fora do sistema não são lançadas</div>
         </div>
-        <div class="form-group" style="display:flex;align-items:center">
-          <div style="font-size:11px;color:var(--text-dim)">Use isso para cadastrar um contrato já em andamento — as parcelas anteriores (já pagas fora do sistema) não são criadas</div>
-        </div>
-      </div>
-
-      <!-- Preview de parcelas -->
-      <div id="parcelasPreview" style="display:none">
-        <div class="parcelas-preview" id="parcelasLista"></div>
+        <div class="parcelas-preview" id="lEtapasLista" style="margin-top:8px"></div>
       </div>
 
       <div class="form-row">
@@ -1486,6 +1509,8 @@ function abrirModal(tipo='receita', lanc=null) {
   document.getElementById('lConta').value = '';
   document.getElementById('lVencimento').value = hojeStr;
   document.getElementById('parcelasPreview').style.display = 'none';
+  document.getElementById('lPlano').value = '';
+  mudarPlanoPagamento();
 
   setTipo(tipo);
 
@@ -1500,8 +1525,10 @@ function abrirModal(tipo='receita', lanc=null) {
     document.getElementById('lObs').value = lanc.observacoes || '';
     document.getElementById('lDocumento').value = lanc.num_documento || '';
     document.getElementById('mLancTitulo').textContent = 'Editar Lançamento';
+    document.getElementById('lPlano').closest('.form-group').style.display = 'none';
   } else {
     document.getElementById('mLancTitulo').textContent = tipo === 'receita' ? 'Nova Receita' : 'Nova Despesa';
+    document.getElementById('lPlano').closest('.form-group').style.display = '';
   }
 
   filtrarCategorias();
@@ -1529,13 +1556,125 @@ function filtrarCategorias() {
   );
 }
 
+/* ── Planos de pagamento por etapa (% sobre o valor do projeto) ── */
+const PLANOS_PAGAMENTO = {
+  planoA: {
+    nome: 'Plano A',
+    etapas: [
+      { label: 'Entrada',                     pct: 30 },
+      { label: 'Aprovação do Projeto no Grupo', pct: 20 },
+      { label: 'Medição',                     pct: 15 },
+      { label: 'Entrega do Material',         pct: 15 },
+      { label: 'Montagem',                    pct: 10 },
+      { label: 'No Término',                  pct: 10 },
+    ],
+  },
+  planoB: {
+    nome: 'Plano B',
+    etapas: [
+      { label: 'Entrada',                     pct: 30 },
+      { label: 'Aprovação do Projeto no Grupo', pct: 20 },
+      { label: 'Medição Final',               pct: 15 },
+      { label: 'Entrega do Material',         pct: 10 },
+      { label: 'Montagem',                    pct: 15 },
+      { label: 'Término',                     pct: 10 },
+    ],
+  },
+};
+
+function mudarPlanoPagamento() {
+  const chave = document.getElementById('lPlano').value;
+  document.getElementById('lParcelasPadrao').style.display = chave ? 'none' : '';
+  document.getElementById('lPlanoEtapas').style.display    = chave ? '' : 'none';
+  document.getElementById('parcelasPreview').style.display = 'none';
+
+  const selEtapa = document.getElementById('lEtapaInicial');
+  selEtapa.innerHTML = '';
+  if (chave) {
+    const etapas = PLANOS_PAGAMENTO[chave].etapas;
+    etapas.forEach((e, i) => {
+      selEtapa.innerHTML += `<option value="${i + 1}">A partir de "${e.label}" (${e.pct}%)</option>`;
+    });
+    selEtapa.innerHTML += `<option value="${etapas.length + 1}">Nenhuma — contrato já 100% quitado</option>`;
+    selEtapa.value = '1';
+  }
+  renderEtapasPlano();
+}
+
+function renderEtapasPlano() {
+  const chave = document.getElementById('lPlano').value;
+  const box = document.getElementById('lEtapasLista');
+  if (!chave) { box.innerHTML = ''; return; }
+
+  const etapas  = PLANOS_PAGAMENTO[chave].etapas;
+  const total   = getMoeda('lValor');
+  const inicial = parseInt(document.getElementById('lEtapaInicial').value) || 1;
+  const venc    = document.getElementById('lVencimento').value || hojeStr;
+
+  if (inicial > etapas.length) {
+    box.innerHTML = `<div class="parcela-row" style="color:#4ade80"><span>Contrato já 100% quitado — nenhuma etapa pendente será criada</span></div>`;
+    return;
+  }
+
+  let somaAnteriores = 0;
+  let html = '';
+  etapas.forEach((e, i) => {
+    const num = i + 1;
+    const valorEtapa = num === etapas.length
+      ? +(total - somaAnteriores).toFixed(2) // última etapa absorve arredondamento
+      : +(total * e.pct / 100).toFixed(2);
+    somaAnteriores += valorEtapa;
+    if (num < inicial) return; // já paga fora do sistema — não exibe nem lança
+    html += `<div class="parcela-row" data-etapa="${num}">
+      <span>${escapeHtml(e.label)} (${e.pct}%)</span>
+      <span>${moeda(valorEtapa)}</span>
+      <input type="date" class="lEtapaData" data-num="${num}" value="${venc}">
+    </div>`;
+  });
+  box.innerHTML = html;
+}
+
+function coletarEtapasPlano() {
+  const chave = document.getElementById('lPlano').value;
+  if (!chave) return null;
+  const etapas  = PLANOS_PAGAMENTO[chave].etapas;
+  const total   = getMoeda('lValor');
+  const inicial = parseInt(document.getElementById('lEtapaInicial').value) || 1;
+
+  let somaAnteriores = 0;
+  const valores = etapas.map((e, i) => {
+    const num = i + 1;
+    const v = num === etapas.length ? +(total - somaAnteriores).toFixed(2) : +(total * e.pct / 100).toFixed(2);
+    somaAnteriores += v;
+    return v;
+  });
+
+  const datas = {};
+  document.querySelectorAll('#lEtapasLista .lEtapaData').forEach(inp => { datas[inp.dataset.num] = inp.value; });
+
+  const desc = document.getElementById('lDescricao').value.trim();
+  const itens = [];
+  etapas.forEach((e, i) => {
+    const num = i + 1;
+    if (num < inicial) return;
+    itens.push({
+      descricao: `${desc} — ${e.label} (${e.pct}%)`,
+      valor: valores[i],
+      data_vencimento: datas[num],
+      parcela_num: num,
+      parcela_total: etapas.length,
+    });
+  });
+  return itens;
+}
+
 function atualizarPreviewParcelas() {
   const n     = parseInt(document.getElementById('lParcelas').value) || 1;
   const total = getMoeda('lValor');
   const entr  = getMoeda('lEntrada');
   const prev  = document.getElementById('parcelasPreview');
   const lista = document.getElementById('parcelasLista');
-  const inicial = Math.min(n, Math.max(1, parseInt(document.getElementById('lParcelaInicial').value) || 1));
+  const inicial = Math.min(n + 1, Math.max(1, parseInt(document.getElementById('lParcelaInicial').value) || 1));
 
   if (n <= 1 && entr === 0) { prev.style.display='none'; return; }
 
@@ -1544,12 +1683,15 @@ function atualizarPreviewParcelas() {
   const dataBase   = new Date((document.getElementById('lVencimento').value||hojeStr)+'T12:00:00');
 
   let html = '';
-  if (entr > 0) {
+  if (entr > 0 && inicial <= 1) {
     html += `<div class="parcela-row"><span>Entrada</span><span>${moeda(entr)}</span><span>${formatarData(hojeStr)}</span></div>`;
   }
   for (let p=inicial; p<=n; p++) {
     const d = new Date(dataBase); d.setMonth(d.getMonth()+(p-inicial));
     html += `<div class="parcela-row"><span>${p}/${n}</span><span>${moeda(valParc)}</span><span>${d.toLocaleDateString('pt-BR')}</span></div>`;
+  }
+  if (!html) {
+    html = `<div class="parcela-row" style="color:#4ade80"><span>Contrato já 100% quitado — nenhuma parcela pendente será criada</span></div>`;
   }
 
   lista.innerHTML = html;
@@ -1578,9 +1720,18 @@ async function salvarLanc() {
     parcela_inicial:    parseInt(document.getElementById('lParcelaInicial').value)||1,
   };
 
+  if (!id && document.getElementById('lPlano').value) {
+    const itens = coletarEtapasPlano();
+    if (itens.some(it => !it.data_vencimento)) { toast('Preencha o vencimento de todas as etapas','warning'); return; }
+    body.parcelas_custom = itens;
+  }
+
   try {
     if (id) { await Api.put(`/financeiro/lancamentos/${id}`, body); toast('Atualizado!','success'); }
-    else    { await Api.post('/financeiro/lancamentos', body);       toast('Criado!','success'); }
+    else {
+      const r = await Api.post('/financeiro/lancamentos', body);
+      toast(r?.quitado ? 'Contrato já quitado — nenhuma parcela pendente criada' : 'Criado!', 'success');
+    }
     fecharModal();
     // Recarrega aba ativa
     const abaAtiva = document.querySelector('.fin-tab.ativo');

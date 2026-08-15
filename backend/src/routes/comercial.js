@@ -178,9 +178,11 @@ router.post('/orcamentos/:id/converter-pedido', async (req, res) => {
 
     for (let i = 0; i < parcelas.length; i++) {
       const p = parcelas[i];
-      const desc = parcelas.length === 1
-        ? `Pagamento – ${num}`
-        : `Parcela ${i+1}/${parcelas.length} – ${num}`;
+      const desc = p.descricao_etapa
+        ? `${String(p.descricao_etapa).slice(0, 120)} – ${num}`
+        : parcelas.length === 1
+          ? `Pagamento – ${num}`
+          : `Parcela ${i+1}/${parcelas.length} – ${num}`;
       await db.run(`
         INSERT INTO lancamentos (descricao, tipo, valor, status, data_vencimento, pedido_id, categoria_id)
         VALUES ($1,'receita',$2,'pendente',$3,$4,$5)

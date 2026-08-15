@@ -64,6 +64,8 @@
 - **Aprovar:** botão **"Aprovar"** → pergunta se deseja gerar pedido automaticamente
 - **Recusar:** botão **"Recusar"** → registra motivo
 - **Gerar pedido:** botão **"Gerar Pedido"** (visível quando status = aprovado)
+- **Converter em pedido (ícone de pacote, orçamentos ainda não aprovados):** abre modal com data de entrega e as parcelas de pagamento — escolha manualmente a quantidade (1x-60x, divide igualmente) OU um **Plano de Pagamento pronto** (Plano A: Entrada 30% + Aprovação do Projeto no Grupo 20% + Medição 15% + Entrega do Material 15% + Montagem 10% + No Término 10%; Plano B: mesma base, mas Medição Final 15% + Entrega 10% + Montagem 15% + Término 10%) — os % incidem sobre o valor total do pedido e cada etapa vira automaticamente um lançamento em Contas a Receber já com a data e a descrição da etapa (ex: "Medição (15%) – PED-123456")
+- **Cond. Pagamento (campo de texto no orçamento/pedido):** tem um seletor de plano pronto ao lado que só preenche o texto descritivo (não gera lançamento sozinho — quem gera é a conversão em pedido acima)
 - **Duplicar orçamento:** botão de três pontos → "Duplicar"
 - **Imprimir/PDF:** botão de impressora no orçamento aberto
 
@@ -89,7 +91,8 @@
 - Abas: **Lançamentos | Contas | DRE | Conciliação**
 - **Novo lançamento:** botão **"+ Novo Lançamento"** → tipo (receita/despesa) → categoria → valor → data vencimento → conta → Salvar
 - **Parcelamento:** de 1x (à vista) até **60x**, um a um no seletor, mais campo de **Entrada** opcional
-- **Contrato já em andamento:** campo **"Começar a partir da parcela nº"** — pra cadastrar um contrato que já tinha parcelas pagas fora do sistema (ex: já pagaram 1, 2 e 3 por fora, e agora quer lançar a partir da 4/8); o sistema não recria as parcelas anteriores, só gera a partir da informada, com o valor calculado sobre o total do contrato
+- **Contrato já em andamento:** campo **"Começar a partir da parcela nº"** — pra cadastrar um contrato que já tinha parcelas pagas fora do sistema (ex: já pagaram 1, 2 e 3 por fora, e agora quer lançar a partir da 4/8); o sistema não recria as parcelas anteriores, só gera a partir da informada, com o valor calculado sobre o total do contrato. Se o contrato já está **100% quitado**, coloque o número de parcelas + 1 (ex: 9 num contrato de 8x) — nem a entrada nem nenhuma parcela são criadas, evitando aparecer como pendente algo que já foi pago
+- **Plano de Pagamento por etapas:** ao criar um lançamento, o campo **"Plano de Pagamento"** oferece **Plano A** (Entrada 30% + Aprovação do Projeto no Grupo 20% + Medição 15% + Entrega do Material 15% + Montagem 10% + No Término 10%) e **Plano B** (mesma base, mas Medição Final 15% + Entrega 10% + Montagem 15% + Término 10%) — os % incidem sobre o **valor total do projeto**, cada etapa vira uma parcela com data própria editável. O seletor **"Já pago até a etapa"** permite pular etapas já pagas fora do sistema (inclusive a opção "Nenhuma — contrato já 100% quitado")
 - **Marcar como pago:** na lista, clique no lançamento → botão **"Marcar como Pago"** → data pagamento + conta
 - **Lançamento recorrente:** ao criar, marque "Recorrente" → defina frequência e nº de repetições
 - **Contas a Receber / Contas a Pagar:** por padrão mostram TODO o saldo pendente (não só o mês atual) — como parcelamentos longos (ex: 60x) vão bem além do mês corrente, o filtro de data começa no mês atual mas vai até 3 anos à frente, senão a lista apareceria vazia mesmo com dinheiro pendente. Tem botões rápidos **1 mês | 3 meses | 6 meses | 1 ano | Personalizado** pra estreitar o período — editar as datas manualmente muda automaticamente pra "Personalizado"

@@ -463,6 +463,7 @@ router.post('/lancamentos', async (req, res) => {
       parcelas = 1,
       valor_entrada = 0,
       parcela_inicial = 1,
+      parcelas_custom,
     } = req.body;
     let { categoria_id } = req.body;
 
@@ -474,7 +475,9 @@ router.post('/lancamentos', async (req, res) => {
     const valorNum      = parseFloat(valor);
     const entradaNum    = parseFloat(valor_entrada) || 0;
     const numParcelas   = Math.max(1, parseInt(parcelas) || 1);
-    const parcelaInicial = Math.min(numParcelas, Math.max(1, parseInt(parcela_inicial) || 1));
+    // parcelaInicial pode ser numParcelas+1 — sentinela de "contrato já 100% quitado
+    // fora do sistema", quando nenhuma parcela (nem a entrada) deve ser criada.
+    const parcelaInicial = Math.min(numParcelas + 1, Math.max(1, parseInt(parcela_inicial) || 1));
 
     if (isNaN(valorNum) || valorNum <= 0)
       return res.status(400).json({ erro: 'Valor inválido' });
@@ -505,6 +508,34 @@ router.post('/lancamentos', async (req, res) => {
       vals
     );
 
+    // Plano de pagamento por etapas (% do valor do projeto, ex: Entrada/Medição/Entrega/
+    // Montagem/Término) — o front já resolveu os valores e datas de cada etapa; aqui só
+    // valida e insere. Etapas já pagas fora do sistema não vêm no array (front as omite).
+    if (Array.isArray(parcelas_custom)) {
+      const validaData = v => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
+      for (const it of parcelas_custom) {
+        if (!it.descricao || !(parseFloat(it.valor) > 0) || !validaData(it.data_vencimento)) {
+          return res.status(400).json({ erro: 'Etapas do plano de pagamento inválidas' });
+        }
+      }
+      if (parcelas_custom.length === 0) {
+        return res.status(201).json({ parcelas: 0, quitado: true,
+          mensagem: 'Contrato já estava 100% quitado — nenhuma parcela pendente foi criada' });
+      }
+      const grupoIdPlano = uuid();
+      for (const it of parcelas_custom) {
+        await inserir([
+          tipo, it.descricao, parseFloat(it.valor), it.data_vencimento,
+          forma_pagamento||null, conta_id||null, categoria_id||null,
+          observacoes||null, cliente_id||null, fornecedor_id||null,
+          orcamento_id||null, pedido_id||null, centro_custo_id||null,
+          num_documento||null, origem, recorrencia,
+          parseInt(it.parcela_num)||0, parseInt(it.parcela_total)||parcelas_custom.length, grupoIdPlano,
+        ]);
+      }
+      return res.status(201).json({ grupo_parcela_id: grupoIdPlano, parcelas: parcelas_custom.length });
+    }
+
     if (numParcelas <= 1 && entradaNum === 0) {
       await db.run(
         `INSERT INTO lancamentos
@@ -532,13 +563,20 @@ router.post('/lancamentos', async (req, res) => {
       parcelaNum, parcelaTotal, grupoId,
     ];
 
-    if (entradaNum > 0) {
+    // Entrada só é lançada como pendente se ainda não tiver acontecido (parcelaInicial<=1).
+    // Se o contrato já está em andamento (parcelaInicial>1), a entrada já foi paga fora
+    // do sistema — lançá-la aqui criaria uma pendência falsa.
+    let linhasCriadas = 0;
+    if (entradaNum > 0 && parcelaInicial <= 1) {
       await inserir(montarValores(`${descricao} (Entrada)`, entradaNum, data_vencimento, 0, numParcelas + 1));
+      linhasCriadas++;
     }
 
     // parcela_inicial permite cadastrar um contrato já em andamento (ex: parcelas
     // 1-3 já pagas fora do sistema) começando a gerar a partir da parcela informada
     // — o vencimento digitado é o da PRIMEIRA parcela que está sendo criada agora.
+    // Quando parcelaInicial === numParcelas+1, o contrato já está 100% quitado e o
+    // laço abaixo não roda — nenhuma parcela pendente é criada.
     const valorRest = valorNum - entradaNum;
     const valorParc = +(valorRest / numParcelas).toFixed(2);
     const dataBase  = new Date(data_vencimento + 'T12:00:00');
@@ -549,6 +587,12 @@ router.post('/lancamentos', async (req, res) => {
       const vencStr = dataVenc.toISOString().split('T')[0];
       const descParcela = numParcelas > 1 ? `${descricao} (${parcelaNum}/${numParcelas})` : descricao;
       await inserir(montarValores(descParcela, valorParc, vencStr, parcelaNum, numParcelas));
+      linhasCriadas++;
+    }
+
+    if (linhasCriadas === 0) {
+      return res.status(201).json({ grupo_parcela_id: grupoId, parcelas: 0, quitado: true,
+        mensagem: 'Contrato já estava 100% quitado — nenhuma parcela pendente foi criada' });
     }
 
     res.status(201).json({ grupo_parcela_id: grupoId, parcelas: numParcelas });

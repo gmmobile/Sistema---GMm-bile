@@ -126,6 +126,11 @@
         </div>
         <div class="form-group">
           <label>Cond. Pagamento</label>
+          <select id="oPlanoPagamento" onchange="aplicarPlanoPagamento('oCondicao', this.value)" style="margin-bottom:6px">
+            <option value="">Plano pronto (opcional)...</option>
+            <option value="planoA">Plano A — 30/20/15/15/10/10</option>
+            <option value="planoB">Plano B — 30/20/15/10/15/10</option>
+          </select>
           <input type="text" id="oCondicao" placeholder="Ex: 50% entrada + 50% entrega">
         </div>
       </div>
@@ -178,7 +183,7 @@
       </div>
 
       <div style="border-top:1px solid var(--border);margin:16px 0 12px;padding-top:14px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
           <span style="font-size:13px;font-weight:600">Parcelas de pagamento</span>
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:12px;color:var(--text-muted)">Qtd:</span>
@@ -186,6 +191,14 @@
               <option value="0">Sem parcelas</option>
             </select>
           </div>
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label style="font-size:11px">Plano de pagamento (opcional)</label>
+          <select id="cPlanoPagamento" onchange="gerarParcelas()">
+            <option value="">Parcelas iguais</option>
+            <option value="planoA">Plano A — Entrada 30% + Aprovação 20% + Medição 15% + Entrega 15% + Montagem 10% + Término 10%</option>
+            <option value="planoB">Plano B — Entrada 30% + Aprovação 20% + Medição Final 15% + Entrega 10% + Montagem 15% + Término 10%</option>
+          </select>
         </div>
         <div id="cParcelasWrap" style="display:none;flex-direction:column;gap:8px"></div>
         <div id="cTotalParcelas" style="display:none;font-size:12px;color:var(--text-muted);margin-top:6px;text-align:right"></div>
@@ -241,6 +254,11 @@
         </div>
         <div class="form-group">
           <label>Condição de pagamento</label>
+          <select id="ePedPlanoPagamento" onchange="aplicarPlanoPagamento('ePedCondicao', this.value)" style="margin-bottom:6px">
+            <option value="">Plano pronto (opcional)...</option>
+            <option value="planoA">Plano A — 30/20/15/15/10/10</option>
+            <option value="planoB">Plano B — 30/20/15/10/15/10</option>
+          </select>
           <input type="text" id="ePedCondicao" placeholder="Ex: 50% entrada + saldo na entrega">
         </div>
       </div>
@@ -583,6 +601,8 @@ function abrirConverter(id) {
   document.getElementById('cParcelasWrap').style.display = 'none';
   document.getElementById('cParcelasWrap').innerHTML = '';
   document.getElementById('cTotalParcelas').style.display = 'none';
+  document.getElementById('cPlanoPagamento').value = '';
+  document.getElementById('cQtdParcelas').disabled = false;
 
   // Popula opções 1x–60x dinamicamente
   const sel = document.getElementById('cQtdParcelas');
@@ -598,14 +618,75 @@ function abrirConverter(id) {
   document.getElementById('modalConverter').classList.add('open');
 }
 
+// Planos de pagamento por etapa (% sobre o valor do projeto)
+const PLANOS_PAGAMENTO = {
+  planoA: { etapas: [
+    { label: 'Entrada',                       pct: 30 },
+    { label: 'Aprovação do Projeto no Grupo', pct: 20 },
+    { label: 'Medição',                       pct: 15 },
+    { label: 'Entrega do Material',           pct: 15 },
+    { label: 'Montagem',                      pct: 10 },
+    { label: 'No Término',                    pct: 10 },
+  ]},
+  planoB: { etapas: [
+    { label: 'Entrada',                       pct: 30 },
+    { label: 'Aprovação do Projeto no Grupo', pct: 20 },
+    { label: 'Medição Final',                 pct: 15 },
+    { label: 'Entrega do Material',           pct: 10 },
+    { label: 'Montagem',                      pct: 15 },
+    { label: 'Término',                       pct: 10 },
+  ]},
+};
+
+function aplicarPlanoPagamento(inputId, chave) {
+  const input = document.getElementById(inputId);
+  if (!chave) return;
+  const etapas = PLANOS_PAGAMENTO[chave].etapas;
+  input.value = etapas.map(e => `${e.pct}% ${e.label}`).join(' + ');
+}
+
 function gerarParcelas() {
-  const qtd = parseInt(document.getElementById('cQtdParcelas').value);
   const wrap = document.getElementById('cParcelasWrap');
   const totalEl = document.getElementById('cTotalParcelas');
+  const valorTotal = parseFloat(document.getElementById('cValorTotal').value) || 0;
+  const qtdSel = document.getElementById('cQtdParcelas');
+  const planoChave = document.getElementById('cPlanoPagamento').value;
   wrap.innerHTML = '';
+
+  if (planoChave) {
+    qtdSel.disabled = true;
+    const etapas = PLANOS_PAGAMENTO[planoChave].etapas;
+    wrap.style.display = 'flex';
+    totalEl.style.display = 'block';
+    const hoje = new Date();
+    let somaAnteriores = 0;
+    etapas.forEach((e, i) => {
+      const d = new Date(hoje); d.setMonth(d.getMonth() + i + 1);
+      const dataStr = d.toISOString().split('T')[0];
+      const valorEtapa = i === etapas.length - 1
+        ? +(valorTotal - somaAnteriores).toFixed(2)
+        : +(valorTotal * e.pct / 100).toFixed(2);
+      somaAnteriores += valorEtapa;
+      const label = `${e.label} (${e.pct}%)`;
+      wrap.innerHTML += `
+        <div style="display:grid;grid-template-columns:1fr 130px 1fr;align-items:center;gap:8px">
+          <span class="parc-label" data-label="${escapeHtml(label)}" style="font-size:11.5px;font-weight:600;color:var(--text-muted)">${escapeHtml(label)}</span>
+          <input type="date" class="parc-data" value="${dataStr}" style="font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text)">
+          <div style="position:relative">
+            <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text-muted)">R$</span>
+            <input type="number" class="parc-valor" value="${valorEtapa}" step="0.01" oninput="atualizarTotalParcelas()"
+              style="font-size:12px;padding:6px 8px 6px 28px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);width:100%">
+          </div>
+        </div>`;
+    });
+    atualizarTotalParcelas();
+    return;
+  }
+  qtdSel.disabled = false;
+
+  const qtd = parseInt(qtdSel.value);
   if (!qtd) { wrap.style.display = 'none'; totalEl.style.display = 'none'; return; }
 
-  const valorTotal = parseFloat(document.getElementById('cValorTotal').value) || 0;
   const valorParcela = valorTotal ? (valorTotal / qtd).toFixed(2) : '';
   wrap.style.display = 'flex';
   totalEl.style.display = 'block';
@@ -617,7 +698,7 @@ function gerarParcelas() {
     const dataStr = d.toISOString().split('T')[0];
     wrap.innerHTML += `
       <div style="display:grid;grid-template-columns:24px 1fr 1fr;align-items:center;gap:8px">
-        <span style="font-size:12px;font-weight:600;color:var(--text-muted)">${i+1}x</span>
+        <span class="parc-label" style="font-size:12px;font-weight:600;color:var(--text-muted)">${i+1}x</span>
         <input type="date" class="parc-data" value="${dataStr}" style="font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text)">
         <div style="position:relative">
           <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text-muted)">R$</span>
@@ -644,17 +725,17 @@ async function confirmarConverter() {
   const data = document.getElementById('cDataEntrega').value;
   if (!data) { toast('Informe a data de entrega','warning'); return; }
 
-  const qtd = parseInt(document.getElementById('cQtdParcelas').value);
+  const labels  = [...document.querySelectorAll('.parc-label')];
+  const datas   = [...document.querySelectorAll('.parc-data')];
+  const valores = [...document.querySelectorAll('.parc-valor')];
   const parcelas = [];
-  if (qtd > 0) {
-    const datas  = [...document.querySelectorAll('.parc-data')];
-    const valores = [...document.querySelectorAll('.parc-valor')];
-    for (let i = 0; i < qtd; i++) {
-      const v = parseFloat(valores[i]?.value);
-      const d = datas[i]?.value;
-      if (!d || !v || v <= 0) { toast(`Preencha data e valor da parcela ${i+1}`, 'warning'); return; }
-      parcelas.push({ data_vencimento: d, valor: v });
-    }
+  for (let i = 0; i < datas.length; i++) {
+    const v = parseFloat(valores[i]?.value);
+    const d = datas[i]?.value;
+    if (!d || !v || v <= 0) { toast(`Preencha data e valor da parcela ${i+1}`, 'warning'); return; }
+    const item = { data_vencimento: d, valor: v };
+    if (labels[i]?.dataset.label) item.descricao_etapa = labels[i].dataset.label;
+    parcelas.push(item);
   }
 
   try {
