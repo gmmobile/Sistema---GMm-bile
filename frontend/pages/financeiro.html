@@ -1683,7 +1683,9 @@ async function salvarLanc() {
   const planoChave = !id ? document.getElementById('lPlano').value : '';
   const vencObrigatorio = document.getElementById('lVencimentoGrupo').style.display !== 'none';
 
-  if (!desc || !valor || (vencObrigatorio && !venc)) { toast('Preencha descrição, valor e vencimento','warning'); return; }
+  if (!desc)  { toast('Preencha a descrição','warning'); return; }
+  if (!valor) { toast('Preencha o valor','warning'); return; }
+  if (vencObrigatorio && !venc) { toast('Preencha o vencimento','warning'); return; }
 
   const body = {
     tipo, descricao: desc, valor,
