@@ -3,6 +3,7 @@ const { randomUUID: uuid } = require('crypto');
 const db = require('../utils/db');
 const { autenticar } = require('../middlewares/auth');
 const categoriasRoute = require('./categorias');
+const { PLANOS_PAGAMENTO, calcularValorFase } = require('../utils/planosPagamento');
 
 const router = express.Router();
 router.use(autenticar);
@@ -48,18 +49,21 @@ router.get('/dashboard', async (req, res) => {
     // Receitas/despesas previstas só contam daqui pra frente (não duplica com "vencidos")
     const inicioFuturo = inicio > hojeStr ? inicio : hojeStr;
 
-    // Datas interpoladas diretamente — já validadas com regex acima, sem risco de injection
+    // Datas interpoladas diretamente — já validadas com regex acima, sem risco de injection.
+    // Lançamentos de plano por fase não têm data_vencimento (ficam em aberto sem prazo) —
+    // por isso contam sempre em a_receber/a_pagar (independente do período) e, quando pagos,
+    // usam data_pagamento como fallback pra entrar no cálculo de lucro do período certo.
     const atual = await db.get(`
       SELECT
         COALESCE(SUM(CASE WHEN tipo='receita' AND status='pendente'
-          AND data_vencimento BETWEEN '${inicio}' AND '${fim}' THEN valor END),0)                  AS a_receber,
+          AND (data_vencimento BETWEEN '${inicio}' AND '${fim}' OR data_vencimento IS NULL) THEN valor END),0) AS a_receber,
         COALESCE(SUM(CASE WHEN tipo='despesa' AND status='pendente'
-          AND data_vencimento BETWEEN '${inicio}' AND '${fim}' THEN valor END),0)                  AS a_pagar,
+          AND (data_vencimento BETWEEN '${inicio}' AND '${fim}' OR data_vencimento IS NULL) THEN valor END),0) AS a_pagar,
         COALESCE(SUM(CASE WHEN tipo='receita' AND status='pago'
           AND COALESCE(data_pagamento,'') BETWEEN '${inicio}' AND '${fim}' THEN valor END),0)       AS recebido_mes,
         COALESCE(SUM(CASE WHEN tipo='despesa' AND status='pago'
           AND COALESCE(data_pagamento,'') BETWEEN '${inicio}' AND '${fim}' THEN valor END),0)       AS pago_mes,
-        COALESCE(SUM(CASE WHEN status='pago' AND data_vencimento BETWEEN '${inicio}' AND '${fim}'
+        COALESCE(SUM(CASE WHEN status='pago' AND COALESCE(data_vencimento,data_pagamento) BETWEEN '${inicio}' AND '${fim}'
           THEN CASE WHEN tipo='receita' THEN valor ELSE -valor END END),0)                         AS lucro_mes,
         COUNT(CASE WHEN status='pendente' AND data_vencimento < '${hojeStr}' THEN 1 END)           AS vencidos_qtd,
         COALESCE(SUM(CASE WHEN status='pendente' AND data_vencimento < '${hojeStr}' THEN valor END),0) AS vencidos_valor,
@@ -76,7 +80,7 @@ router.get('/dashboard', async (req, res) => {
           AND COALESCE(data_pagamento,'') BETWEEN '${inicioAnt}' AND '${fimAnt}' THEN valor END),0) AS recebido_mes,
         COALESCE(SUM(CASE WHEN tipo='despesa' AND status='pago'
           AND COALESCE(data_pagamento,'') BETWEEN '${inicioAnt}' AND '${fimAnt}' THEN valor END),0) AS pago_mes,
-        COALESCE(SUM(CASE WHEN status='pago' AND data_vencimento BETWEEN '${inicioAnt}' AND '${fimAnt}'
+        COALESCE(SUM(CASE WHEN status='pago' AND COALESCE(data_vencimento,data_pagamento) BETWEEN '${inicioAnt}' AND '${fimAnt}'
           THEN CASE WHEN tipo='receita' THEN valor ELSE -valor END END),0) AS lucro_mes
       FROM lancamentos WHERE status != 'cancelado'
     `);
@@ -428,14 +432,17 @@ router.get('/lancamentos', async (req, res) => {
     if (origem)          { sql += ` AND l.origem=$${idx++}`;          params.push(origem); }
     if (busca)           { sql += ` AND l.descricao ILIKE $${idx++}`; params.push(`%${busca}%`); }
 
-    // Datas interpoladas — sempre vêm do front no formato YYYY-MM-DD via query string
-    if (inicio) { const d = String(inicio).slice(0,10).replace(/[^0-9-]/g,''); sql += ` AND l.data_vencimento>='${d}'`; }
-    if (fim)    { const d = String(fim).slice(0,10).replace(/[^0-9-]/g,'');    sql += ` AND l.data_vencimento<='${d}'`; }
+    // Datas interpoladas — sempre vêm do front no formato YYYY-MM-DD via query string.
+    // Lançamentos de plano por fase não têm vencimento (data_vencimento IS NULL) — ficam
+    // sempre visíveis independente do período, já que representam pendências em aberto
+    // sem prazo definido (não fazem sentido "sumir" de um filtro de data).
+    if (inicio) { const d = String(inicio).slice(0,10).replace(/[^0-9-]/g,''); sql += ` AND (l.data_vencimento>='${d}' OR l.data_vencimento IS NULL)`; }
+    if (fim)    { const d = String(fim).slice(0,10).replace(/[^0-9-]/g,'');    sql += ` AND (l.data_vencimento<='${d}' OR l.data_vencimento IS NULL)`; }
 
     if (vencido === '1') {
       sql += ` AND l.status='pendente' AND l.data_vencimento<'${hoje}'`;
     } else if (status === 'a_vencer') {
-      sql += ` AND l.status='pendente' AND l.data_vencimento>='${hoje}'`;
+      sql += ` AND l.status='pendente' AND (l.data_vencimento>='${hoje}' OR l.data_vencimento IS NULL)`;
     } else if (status) {
       sql += ` AND l.status=$${idx++}`;
       params.push(status);
@@ -463,12 +470,14 @@ router.post('/lancamentos', async (req, res) => {
       parcelas = 1,
       valor_entrada = 0,
       parcela_inicial = 1,
-      parcelas_custom,
+      plano_pagamento,
     } = req.body;
     let { categoria_id } = req.body;
 
-    if (!tipo || !descricao || !valor || !data_vencimento)
-      return res.status(400).json({ erro: 'Campos obrigatórios: tipo, descrição, valor, vencimento' });
+    if (!tipo || !descricao || !valor)
+      return res.status(400).json({ erro: 'Campos obrigatórios: tipo, descrição, valor' });
+    if (!plano_pagamento?.chave && !data_vencimento)
+      return res.status(400).json({ erro: 'Campo obrigatório: vencimento' });
     if (!['receita','despesa'].includes(tipo))
       return res.status(400).json({ erro: 'Tipo inválido' });
 
@@ -508,32 +517,41 @@ router.post('/lancamentos', async (req, res) => {
       vals
     );
 
-    // Plano de pagamento por etapas (% do valor do projeto, ex: Entrada/Medição/Entrega/
-    // Montagem/Término) — o front já resolveu os valores e datas de cada etapa; aqui só
-    // valida e insere. Etapas já pagas fora do sistema não vêm no array (front as omite).
-    if (Array.isArray(parcelas_custom)) {
-      const validaData = v => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
-      for (const it of parcelas_custom) {
-        if (!it.descricao || !(parseFloat(it.valor) > 0) || !validaData(it.data_vencimento)) {
-          return res.status(400).json({ erro: 'Etapas do plano de pagamento inválidas' });
-        }
-      }
-      if (parcelas_custom.length === 0) {
+    // Plano de pagamento por fase (% do valor do projeto: Entrada/Medição/Entrega/
+    // Montagem/Término...) — não tem data de vencimento fixa. Só a fase atual é
+    // lançada, em aberto; quando o cliente paga e a obra avança, a fase seguinte é
+    // criada manualmente via POST /lancamentos/:id/avancar-fase.
+    if (plano_pagamento?.chave) {
+      const plano = PLANOS_PAGAMENTO[plano_pagamento.chave];
+      if (!plano) return res.status(400).json({ erro: 'Plano de pagamento inválido' });
+      const totalFases = plano.etapas.length;
+      const fase = Math.min(totalFases + 1, Math.max(1, parseInt(plano_pagamento.fase) || 1));
+
+      if (fase > totalFases) {
         return res.status(201).json({ parcelas: 0, quitado: true,
           mensagem: 'Contrato já estava 100% quitado — nenhuma parcela pendente foi criada' });
       }
+
+      const etapa = plano.etapas[fase - 1];
+      const valorFase = calcularValorFase(valorNum, plano.etapas, fase - 1);
       const grupoIdPlano = uuid();
-      for (const it of parcelas_custom) {
-        await inserir([
-          tipo, it.descricao, parseFloat(it.valor), it.data_vencimento,
-          forma_pagamento||null, conta_id||null, categoria_id||null,
-          observacoes||null, cliente_id||null, fornecedor_id||null,
-          orcamento_id||null, pedido_id||null, centro_custo_id||null,
-          num_documento||null, origem, recorrencia,
-          parseInt(it.parcela_num)||0, parseInt(it.parcela_total)||parcelas_custom.length, grupoIdPlano,
-        ]);
-      }
-      return res.status(201).json({ grupo_parcela_id: grupoIdPlano, parcelas: parcelas_custom.length });
+      const descFinal = `${descricao} — ${etapa.label} (${etapa.pct}%)`;
+
+      const novoId = await db.insert(
+        `INSERT INTO lancamentos
+          (tipo, descricao, descricao_base, valor, status, data_vencimento, forma_pagamento, conta_id,
+           categoria_id, observacoes, cliente_id, fornecedor_id, orcamento_id, pedido_id, centro_custo_id,
+           num_documento, origem, recorrencia, parcela_num, parcela_total, grupo_parcela_id,
+           plano_pagamento_chave, valor_projeto_total)
+         VALUES ($1,$2,$3,$4,'pendente',NULL,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
+        [tipo, descFinal, descricao, valorFase,
+         forma_pagamento||null, conta_id||null, categoria_id||null,
+         observacoes||null, cliente_id||null, fornecedor_id||null,
+         orcamento_id||null, pedido_id||null, centro_custo_id||null,
+         num_documento||null, origem, recorrencia, fase, totalFases, grupoIdPlano,
+         plano_pagamento.chave, valorNum]
+      );
+      return res.status(201).json({ id: novoId, grupo_parcela_id: grupoIdPlano, fase, total_fases: totalFases, valor: valorFase });
     }
 
     if (numParcelas <= 1 && entradaNum === 0) {
@@ -607,18 +625,65 @@ router.put('/lancamentos/:id', async (req, res) => {
     const { descricao, valor, data_vencimento, forma_pagamento, conta_id,
             categoria_id, observacoes, cliente_id, fornecedor_id, centro_custo_id, num_documento } = req.body;
     const valorNum = parseFloat(valor);
-    if (!descricao || isNaN(valorNum) || valorNum <= 0 || !data_vencimento)
+    const existente = await db.get(`SELECT plano_pagamento_chave FROM lancamentos WHERE id=$1`, [req.params.id]);
+    if (!existente) return res.status(404).json({ erro: 'Lançamento não encontrado' });
+    // Lançamentos de um plano por fase não têm vencimento fixo — só exige data se não for o caso.
+    if (!descricao || isNaN(valorNum) || valorNum <= 0 || (!existente.plano_pagamento_chave && !data_vencimento))
       return res.status(400).json({ erro: 'Campos inválidos' });
     await db.run(`UPDATE lancamentos SET descricao=$1, valor=$2, data_vencimento=$3,
                   forma_pagamento=$4, conta_id=$5, categoria_id=$6, observacoes=$7,
                   cliente_id=$8, fornecedor_id=$9, centro_custo_id=$10, num_documento=$11
                   WHERE id=$12`,
-      [descricao, valorNum, data_vencimento, forma_pagamento||null, conta_id||null,
+      [descricao, valorNum, data_vencimento || null, forma_pagamento||null, conta_id||null,
        categoria_id||null, observacoes||null, cliente_id||null, fornecedor_id||null,
        centro_custo_id||null, num_documento||null, req.params.id]);
     res.json({ mensagem: 'Lançamento atualizado' });
   } catch (err) {
     res.status(500).json({ erro: 'Erro ao atualizar lançamento' });
+  }
+});
+
+// Avança um lançamento de plano por fase para a fase seguinte — cria uma nova
+// pendência (sem vencimento fixo) com o valor calculado sobre o valor total do
+// projeto. Usado quando a obra avança (não depende da fase atual estar paga).
+router.post('/lancamentos/:id/avancar-fase', async (req, res) => {
+  try {
+    const lanc = await db.get(`SELECT * FROM lancamentos WHERE id=$1`, [req.params.id]);
+    if (!lanc) return res.status(404).json({ erro: 'Lançamento não encontrado' });
+    if (!lanc.plano_pagamento_chave)
+      return res.status(400).json({ erro: 'Este lançamento não faz parte de um plano de pagamento por fase' });
+
+    const plano = PLANOS_PAGAMENTO[lanc.plano_pagamento_chave];
+    if (!plano) return res.status(400).json({ erro: 'Plano de pagamento inválido' });
+
+    const totalFases = plano.etapas.length;
+    if (lanc.parcela_num >= totalFases)
+      return res.status(400).json({ erro: 'Este contrato já está na última fase do plano' });
+
+    const proximaFase = lanc.parcela_num + 1;
+    const etapa = plano.etapas[proximaFase - 1];
+    const valorFase = calcularValorFase(+lanc.valor_projeto_total, plano.etapas, proximaFase - 1);
+    const descBase = lanc.descricao_base || lanc.descricao;
+    const descFinal = `${descBase} — ${etapa.label} (${etapa.pct}%)`;
+
+    const novoId = await db.insert(
+      `INSERT INTO lancamentos
+        (tipo, descricao, descricao_base, valor, status, data_vencimento, forma_pagamento, conta_id,
+         categoria_id, observacoes, cliente_id, fornecedor_id, orcamento_id, pedido_id, centro_custo_id,
+         num_documento, origem, recorrencia, parcela_num, parcela_total, grupo_parcela_id,
+         plano_pagamento_chave, valor_projeto_total)
+       VALUES ($1,$2,$3,$4,'pendente',NULL,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
+      [lanc.tipo, descFinal, descBase, valorFase,
+       lanc.forma_pagamento, lanc.conta_id, lanc.categoria_id, lanc.observacoes,
+       lanc.cliente_id, lanc.fornecedor_id, lanc.orcamento_id, lanc.pedido_id, lanc.centro_custo_id,
+       lanc.num_documento, lanc.origem, lanc.recorrencia, proximaFase, totalFases,
+       lanc.grupo_parcela_id, lanc.plano_pagamento_chave, lanc.valor_projeto_total]
+    );
+
+    res.status(201).json({ id: novoId, fase: proximaFase, total_fases: totalFases, valor: valorFase, descricao: descFinal });
+  } catch (err) {
+    console.error('[lancamentos avancar-fase]', err.message);
+    res.status(500).json({ erro: 'Erro ao avançar fase' });
   }
 });
 

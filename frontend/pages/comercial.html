@@ -654,32 +654,22 @@ function gerarParcelas() {
   wrap.innerHTML = '';
 
   if (planoChave) {
+    // Plano por fase — sem data de vencimento. Só a fase 1 (Entrada) é criada agora;
+    // as demais fases são abertas depois, uma a uma, direto no Financeiro conforme a
+    // obra avança (botão "Avançar Fase").
     qtdSel.disabled = true;
+    qtdSel.value = '0';
     const etapas = PLANOS_PAGAMENTO[planoChave].etapas;
+    const e = etapas[0];
+    const valorFase = +(valorTotal * e.pct / 100).toFixed(2);
     wrap.style.display = 'flex';
-    totalEl.style.display = 'block';
-    const hoje = new Date();
-    let somaAnteriores = 0;
-    etapas.forEach((e, i) => {
-      const d = new Date(hoje); d.setMonth(d.getMonth() + i + 1);
-      const dataStr = d.toISOString().split('T')[0];
-      const valorEtapa = i === etapas.length - 1
-        ? +(valorTotal - somaAnteriores).toFixed(2)
-        : +(valorTotal * e.pct / 100).toFixed(2);
-      somaAnteriores += valorEtapa;
-      const label = `${e.label} (${e.pct}%)`;
-      wrap.innerHTML += `
-        <div style="display:grid;grid-template-columns:1fr 130px 1fr;align-items:center;gap:8px">
-          <span class="parc-label" data-label="${escapeHtml(label)}" style="font-size:11.5px;font-weight:600;color:var(--text-muted)">${escapeHtml(label)}</span>
-          <input type="date" class="parc-data" value="${dataStr}" style="font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text)">
-          <div style="position:relative">
-            <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text-muted)">R$</span>
-            <input type="number" class="parc-valor" value="${valorEtapa}" step="0.01" oninput="atualizarTotalParcelas()"
-              style="font-size:12px;padding:6px 8px 6px 28px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);width:100%">
-          </div>
-        </div>`;
-    });
-    atualizarTotalParcelas();
+    totalEl.style.display = 'none';
+    wrap.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
+        <span style="font-weight:600">Fase 1 — ${escapeHtml(e.label)} (${e.pct}%)</span>
+        <span style="font-weight:700;color:var(--primary)">${valorFase.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Fica em aberto sem vencimento — as próximas fases (${etapas.slice(1).map(x=>x.label).join(', ')}) são abertas depois no Financeiro, conforme a obra avança</div>`;
     return;
   }
   qtdSel.disabled = false;
@@ -725,21 +715,26 @@ async function confirmarConverter() {
   const data = document.getElementById('cDataEntrega').value;
   if (!data) { toast('Informe a data de entrega','warning'); return; }
 
-  const labels  = [...document.querySelectorAll('.parc-label')];
-  const datas   = [...document.querySelectorAll('.parc-data')];
-  const valores = [...document.querySelectorAll('.parc-valor')];
-  const parcelas = [];
-  for (let i = 0; i < datas.length; i++) {
-    const v = parseFloat(valores[i]?.value);
-    const d = datas[i]?.value;
-    if (!d || !v || v <= 0) { toast(`Preencha data e valor da parcela ${i+1}`, 'warning'); return; }
-    const item = { data_vencimento: d, valor: v };
-    if (labels[i]?.dataset.label) item.descricao_etapa = labels[i].dataset.label;
-    parcelas.push(item);
+  const planoChave = document.getElementById('cPlanoPagamento').value;
+  const body = { data_prevista_entrega: data };
+
+  if (planoChave) {
+    body.plano_pagamento = { chave: planoChave };
+  } else {
+    const datas   = [...document.querySelectorAll('.parc-data')];
+    const valores = [...document.querySelectorAll('.parc-valor')];
+    const parcelas = [];
+    for (let i = 0; i < datas.length; i++) {
+      const v = parseFloat(valores[i]?.value);
+      const d = datas[i]?.value;
+      if (!d || !v || v <= 0) { toast(`Preencha data e valor da parcela ${i+1}`, 'warning'); return; }
+      parcelas.push({ data_vencimento: d, valor: v });
+    }
+    body.parcelas = parcelas;
   }
 
   try {
-    const r = await Api.post(`/comercial/orcamentos/${id}/converter-pedido`, { data_prevista_entrega: data, parcelas });
+    const r = await Api.post(`/comercial/orcamentos/${id}/converter-pedido`, body);
     toast(`Pedido ${r.numero} criado!`, 'success');
     fecharModal('modalConverter');
     carregar();

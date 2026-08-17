@@ -211,8 +211,6 @@
     .parcela-row { display:flex; justify-content:space-between; font-size:12px; padding:4px 0;
                    border-bottom:1px solid rgba(255,255,255,.04); color:var(--text-muted); }
     .parcela-row:last-child { border-bottom:none; }
-    .parcela-row input[type=date] { background:var(--bg-card2); border:1px solid var(--border); border-radius:6px;
-                   color:var(--text); font-size:11px; padding:3px 5px; width:120px; }
 
     /* ── Responsive ── */
     @media(max-width:1200px) { .fin-right { display:none; } }
@@ -650,9 +648,9 @@
           <input type="text" id="lValor" inputmode="numeric" placeholder="0,00"
                  oninput="mascaraMoedaSimples(this);atualizarPreviewParcelas();renderEtapasPlano()" onfocus="if(this.value==='0,00')this.value=''">
         </div>
-        <div class="form-group">
-          <label>Vencimento *</label>
-          <input type="date" id="lVencimento" onchange="renderEtapasPlano()">
+        <div class="form-group" id="lVencimentoGrupo">
+          <label id="lVencimentoLabel">Vencimento *</label>
+          <input type="date" id="lVencimento">
         </div>
       </div>
 
@@ -697,12 +695,12 @@
         </div>
       </div>
 
-      <!-- Plano por etapas (% do valor do projeto) -->
+      <!-- Plano por fase (% do valor do projeto) — sem data de vencimento fixa -->
       <div id="lPlanoEtapas" style="display:none">
         <div class="form-group">
-          <label>Já pago até a etapa</label>
+          <label>Fase atual do projeto</label>
           <select id="lEtapaInicial" onchange="renderEtapasPlano()"></select>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Use isso pra cadastrar um contrato já em andamento — as etapas já pagas fora do sistema não são lançadas</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Só a fase escolhida é lançada, em aberto e sem vencimento — quando o cliente pagar, dê baixa normalmente; quando a obra avançar, use "Avançar Fase" na lista pra abrir a próxima pendência</div>
         </div>
         <div class="parcelas-preview" id="lEtapasLista" style="margin-top:8px"></div>
       </div>
@@ -1265,12 +1263,18 @@ function renderTabelaLanc(elId, dados, fullCols) {
     const parcelaBadge = l.parcela_total > 1
       ? `<span class="pill pill-parcela">${l.parcela_num}/${l.parcela_total}</span>` : '';
     const catDot = l.categoria_cor ? `<span class="cat-dot" style="background:${escapeHtml(l.categoria_cor)}"></span>` : '';
+    const vencCel = l.data_vencimento ? formatarData(l.data_vencimento)
+      : l.plano_pagamento_chave ? '<span style="color:var(--text-dim)">Aguardando</span>' : formatarData(l.data_vencimento);
 
     const acoesHtml = `
       <div style="display:flex;gap:4px;align-items:center">
         ${l.status==='pendente'?`
           <button class="acao-btn ok" onclick="abrirPagar(${l.id},'${escapeHtml(l.descricao||'').replace(/'/g,"\\'")}',${l.valor})" title="Marcar como pago">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>`:''}
+        ${l.plano_pagamento_chave && l.parcela_num < l.parcela_total?`
+          <button class="acao-btn" onclick="avancarFase(${l.id})" title="Avançar para a próxima fase">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
           </button>`:''}
         ${l.status==='pendente' && l.tipo==='receita' && l.cliente_id?`
           <button class="acao-btn" onclick="abrirEmitirCobranca(${l.id})" title="Emitir boleto/PIX (Cora)">
@@ -1294,7 +1298,7 @@ function renderTabelaLanc(elId, dados, fullCols) {
           ${l.cliente_nome?`<br><span style="font-size:11px;color:var(--text-dim)">${escapeHtml(l.cliente_nome)}</span>`:''}
         </td>
         <td style="font-weight:600;color:${l.tipo==='receita'?'#4ade80':'#f87171'}">${l.tipo==='receita'?'+':'−'} ${moeda(l.valor)}</td>
-        <td style="font-size:12px;color:var(--text-dim)">${formatarData(l.data_vencimento)}</td>
+        <td style="font-size:12px;color:var(--text-dim)">${vencCel}</td>
         <td><span class="pill pill-${STATUS[l.status]||'pendente'}">${STATUS_LABEL[l.status]||l.status}</span></td>
         <td>${acoesHtml}</td>
       </tr>`;
@@ -1313,7 +1317,7 @@ function renderTabelaLanc(elId, dados, fullCols) {
       <td style="font-weight:700;color:${l.tipo==='receita'?'#4ade80':'#f87171'};white-space:nowrap">
         ${l.tipo==='receita'?'+':'−'} ${moeda(l.valor)}
       </td>
-      <td style="font-size:12.5px;color:var(--text-muted);white-space:nowrap">${formatarData(l.data_vencimento)}</td>
+      <td style="font-size:12.5px;color:var(--text-muted);white-space:nowrap">${vencCel}</td>
       <td>${l.forma_pagamento?`<span style="font-size:12px;color:var(--text-dim)">${escapeHtml(l.forma_pagamento)}</span>`:'<span style="color:var(--text-dim)">—</span>'}</td>
       <td><span class="pill pill-${STATUS[l.status]||'pendente'}">${STATUS_LABEL[l.status]||l.status}</span></td>
       <td>${acoesHtml}</td>
@@ -1526,6 +1530,11 @@ function abrirModal(tipo='receita', lanc=null) {
     document.getElementById('lDocumento').value = lanc.num_documento || '';
     document.getElementById('mLancTitulo').textContent = 'Editar Lançamento';
     document.getElementById('lPlano').closest('.form-group').style.display = 'none';
+    // Lançamento de plano por fase não tem vencimento fixo — não exigir ao editar
+    if (lanc.plano_pagamento_chave) {
+      document.getElementById('lVencimentoGrupo').style.display = 'none';
+      document.getElementById('lVencimentoLabel').textContent = 'Vencimento';
+    }
   } else {
     document.getElementById('mLancTitulo').textContent = tipo === 'receita' ? 'Nova Receita' : 'Nova Despesa';
     document.getElementById('lPlano').closest('.form-group').style.display = '';
@@ -1582,18 +1591,29 @@ const PLANOS_PAGAMENTO = {
   },
 };
 
+function calcularValorFase(total, etapas, indice) {
+  let somaAnteriores = 0;
+  for (let i = 0; i < indice; i++) somaAnteriores += +(total * etapas[i].pct / 100).toFixed(2);
+  if (indice === etapas.length - 1) return +(total - somaAnteriores).toFixed(2); // última fase absorve arredondamento
+  return +(total * etapas[indice].pct / 100).toFixed(2);
+}
+
 function mudarPlanoPagamento() {
   const chave = document.getElementById('lPlano').value;
   document.getElementById('lParcelasPadrao').style.display = chave ? 'none' : '';
   document.getElementById('lPlanoEtapas').style.display    = chave ? '' : 'none';
   document.getElementById('parcelasPreview').style.display = 'none';
 
+  // Plano por fase não tem vencimento fixo — o campo Vencimento não se aplica
+  document.getElementById('lVencimentoGrupo').style.display = chave ? 'none' : '';
+  document.getElementById('lVencimentoLabel').textContent = chave ? 'Vencimento' : 'Vencimento *';
+
   const selEtapa = document.getElementById('lEtapaInicial');
   selEtapa.innerHTML = '';
   if (chave) {
     const etapas = PLANOS_PAGAMENTO[chave].etapas;
     etapas.forEach((e, i) => {
-      selEtapa.innerHTML += `<option value="${i + 1}">A partir de "${e.label}" (${e.pct}%)</option>`;
+      selEtapa.innerHTML += `<option value="${i + 1}">Fase ${i + 1} — ${e.label} (${e.pct}%)</option>`;
     });
     selEtapa.innerHTML += `<option value="${etapas.length + 1}">Nenhuma — contrato já 100% quitado</option>`;
     selEtapa.value = '1';
@@ -1606,66 +1626,22 @@ function renderEtapasPlano() {
   const box = document.getElementById('lEtapasLista');
   if (!chave) { box.innerHTML = ''; return; }
 
-  const etapas  = PLANOS_PAGAMENTO[chave].etapas;
-  const total   = getMoeda('lValor');
-  const inicial = parseInt(document.getElementById('lEtapaInicial').value) || 1;
-  const venc    = document.getElementById('lVencimento').value || hojeStr;
+  const etapas = PLANOS_PAGAMENTO[chave].etapas;
+  const total  = getMoeda('lValor');
+  const fase   = parseInt(document.getElementById('lEtapaInicial').value) || 1;
 
-  if (inicial > etapas.length) {
-    box.innerHTML = `<div class="parcela-row" style="color:#4ade80"><span>Contrato já 100% quitado — nenhuma etapa pendente será criada</span></div>`;
+  if (fase > etapas.length) {
+    box.innerHTML = `<div class="parcela-row" style="color:#4ade80"><span>Contrato já 100% quitado — nenhuma fase pendente será criada</span></div>`;
     return;
   }
 
-  let somaAnteriores = 0;
-  let html = '';
-  etapas.forEach((e, i) => {
-    const num = i + 1;
-    const valorEtapa = num === etapas.length
-      ? +(total - somaAnteriores).toFixed(2) // última etapa absorve arredondamento
-      : +(total * e.pct / 100).toFixed(2);
-    somaAnteriores += valorEtapa;
-    if (num < inicial) return; // já paga fora do sistema — não exibe nem lança
-    html += `<div class="parcela-row" data-etapa="${num}">
-      <span>${escapeHtml(e.label)} (${e.pct}%)</span>
-      <span>${moeda(valorEtapa)}</span>
-      <input type="date" class="lEtapaData" data-num="${num}" value="${venc}">
-    </div>`;
-  });
-  box.innerHTML = html;
-}
-
-function coletarEtapasPlano() {
-  const chave = document.getElementById('lPlano').value;
-  if (!chave) return null;
-  const etapas  = PLANOS_PAGAMENTO[chave].etapas;
-  const total   = getMoeda('lValor');
-  const inicial = parseInt(document.getElementById('lEtapaInicial').value) || 1;
-
-  let somaAnteriores = 0;
-  const valores = etapas.map((e, i) => {
-    const num = i + 1;
-    const v = num === etapas.length ? +(total - somaAnteriores).toFixed(2) : +(total * e.pct / 100).toFixed(2);
-    somaAnteriores += v;
-    return v;
-  });
-
-  const datas = {};
-  document.querySelectorAll('#lEtapasLista .lEtapaData').forEach(inp => { datas[inp.dataset.num] = inp.value; });
-
-  const desc = document.getElementById('lDescricao').value.trim();
-  const itens = [];
-  etapas.forEach((e, i) => {
-    const num = i + 1;
-    if (num < inicial) return;
-    itens.push({
-      descricao: `${desc} — ${e.label} (${e.pct}%)`,
-      valor: valores[i],
-      data_vencimento: datas[num],
-      parcela_num: num,
-      parcela_total: etapas.length,
-    });
-  });
-  return itens;
+  const e = etapas[fase - 1];
+  const valorFase = calcularValorFase(total, etapas, fase - 1);
+  box.innerHTML = `<div class="parcela-row">
+    <span>Fase ${fase} — ${escapeHtml(e.label)} (${e.pct}%)</span>
+    <span style="font-weight:700">${moeda(valorFase)}</span>
+  </div>
+  <div style="font-size:11px;color:var(--text-dim);margin-top:6px">Fica em aberto sem data — só some da lista de pendências quando você marcar como pago</div>`;
 }
 
 function atualizarPreviewParcelas() {
@@ -1700,16 +1676,18 @@ function atualizarPreviewParcelas() {
 
 async function salvarLanc() {
   const id    = document.getElementById('lId').value;
-  const tipo  = document.getElementById('lTipo').value;
-  const desc  = document.getElementById('lDescricao').value.trim();
-  const valor = getMoeda('lValor');
-  const venc  = document.getElementById('lVencimento').value;
+  const tipo      = document.getElementById('lTipo').value;
+  const desc      = document.getElementById('lDescricao').value.trim();
+  const valor     = getMoeda('lValor');
+  const venc      = document.getElementById('lVencimento').value;
+  const planoChave = !id ? document.getElementById('lPlano').value : '';
+  const vencObrigatorio = document.getElementById('lVencimentoGrupo').style.display !== 'none';
 
-  if (!desc || !valor || !venc) { toast('Preencha descrição, valor e vencimento','warning'); return; }
+  if (!desc || !valor || (vencObrigatorio && !venc)) { toast('Preencha descrição, valor e vencimento','warning'); return; }
 
   const body = {
     tipo, descricao: desc, valor,
-    data_vencimento:    venc,
+    data_vencimento:    venc || null,
     forma_pagamento:    document.getElementById('lForma').value    || null,
     conta_id:           document.getElementById('lConta').value    || null,
     categoria_id:       document.getElementById('lCategoria').value|| null,
@@ -1720,10 +1698,8 @@ async function salvarLanc() {
     parcela_inicial:    parseInt(document.getElementById('lParcelaInicial').value)||1,
   };
 
-  if (!id && document.getElementById('lPlano').value) {
-    const itens = coletarEtapasPlano();
-    if (itens.some(it => !it.data_vencimento)) { toast('Preencha o vencimento de todas as etapas','warning'); return; }
-    body.parcelas_custom = itens;
+  if (planoChave) {
+    body.plano_pagamento = { chave: planoChave, fase: parseInt(document.getElementById('lEtapaInicial').value) || 1 };
   }
 
   try {
@@ -1756,6 +1732,17 @@ async function cancelarLanc(id) {
     const abaAtiva = document.querySelector('.fin-tab.ativo');
     if (abaAtiva) abaAtiva.click();
   } catch(e) { toast(e.message,'error'); }
+}
+
+async function avancarFase(id) {
+  if (!confirm('Avançar este contrato para a próxima fase do plano de pagamento? Isso cria uma nova pendência em aberto.')) return;
+  try {
+    const r = await Api.post(`/financeiro/lancamentos/${id}/avancar-fase`, {});
+    toast(`Avançado: ${r.descricao}`, 'success');
+    const abaAtiva = document.querySelector('.fin-tab.ativo');
+    if (abaAtiva) abaAtiva.click();
+    carregarAlertas();
+  } catch(e) { toast(e.message||'Erro ao avançar fase','error'); }
 }
 
 /* ════════════════════════════════════════════════════════════════

@@ -731,6 +731,12 @@ async function inicializar() {
     // ── Agendamento de visita (CRM/Leads) ──
     `ALTER TABLE leads ADD COLUMN IF NOT EXISTS data_visita TIMESTAMPTZ`,
     `CREATE INDEX IF NOT EXISTS idx_leads_data_visita ON leads(data_visita)`,
+
+    // ── Plano de pagamento por fase (Financeiro/Comercial) — sem vencimento fixo ──
+    `ALTER TABLE lancamentos ALTER COLUMN data_vencimento DROP NOT NULL`,
+    `ALTER TABLE lancamentos ADD COLUMN IF NOT EXISTS descricao_base TEXT`,
+    `ALTER TABLE lancamentos ADD COLUMN IF NOT EXISTS plano_pagamento_chave TEXT`,
+    `ALTER TABLE lancamentos ADD COLUMN IF NOT EXISTS valor_projeto_total NUMERIC(12,2)`,
   ];
   for (const sql of migracoes) {
     await db.run(sql).catch(() => {});

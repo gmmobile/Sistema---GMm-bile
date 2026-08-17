@@ -118,8 +118,10 @@ router.get('/a-receber', async (req, res) => {
       const ini = new Date(hj.getFullYear(), hj.getMonth(), 1);
       const fim = new Date(hj.getFullYear(), hj.getMonth() + meses, 0);
       row = await db.get(
+        // Lançamentos de plano por fase (sem data_vencimento) sempre contam, independente
+        // do período — representam pendências reais em aberto, sem prazo definido.
         `SELECT COALESCE(SUM(valor),0) AS v FROM lancamentos
-         WHERE tipo='receita' AND status='pendente' AND data_vencimento BETWEEN $1 AND $2`,
+         WHERE tipo='receita' AND status='pendente' AND (data_vencimento BETWEEN $1 AND $2 OR data_vencimento IS NULL)`,
         [ini.toISOString().split('T')[0], fim.toISOString().split('T')[0]]
       );
     } else {

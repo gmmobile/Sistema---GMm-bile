@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const db = require('../utils/db');
 const { autenticar } = require('../middlewares/auth');
 const categoriasRoute = require('./categorias');
+const { PLANOS_PAGAMENTO, calcularValorFase } = require('../utils/planosPagamento');
 
 const router = express.Router();
 router.use(autenticar);
@@ -146,7 +147,7 @@ router.post('/orcamentos/:id/converter-pedido', async (req, res) => {
     const orc = await db.get('SELECT * FROM orcamentos WHERE id = $1', [req.params.id]);
     if (!orc) return res.status(404).json({ erro: 'Orçamento não encontrado' });
 
-    const { data_prevista_entrega, prazo_garantia_meses = 12, parcelas = [] } = req.body;
+    const { data_prevista_entrega, prazo_garantia_meses = 12, parcelas = [], plano_pagamento } = req.body;
     const num = 'PED-' + String(Date.now()).slice(-6);
     const token = crypto.randomBytes(16).toString('hex');
 
@@ -176,17 +177,38 @@ router.post('/orcamentos/:id/converter-pedido', async (req, res) => {
       return res.status(400).json({ erro: 'Categoria é obrigatória' });
     }
 
-    for (let i = 0; i < parcelas.length; i++) {
-      const p = parcelas[i];
-      const desc = p.descricao_etapa
-        ? `${String(p.descricao_etapa).slice(0, 120)} – ${num}`
-        : parcelas.length === 1
-          ? `Pagamento – ${num}`
-          : `Parcela ${i+1}/${parcelas.length} – ${num}`;
-      await db.run(`
-        INSERT INTO lancamentos (descricao, tipo, valor, status, data_vencimento, pedido_id, categoria_id)
-        VALUES ($1,'receita',$2,'pendente',$3,$4,$5)
-      `, [desc, p.valor, p.data_vencimento, pedidoId, categoria_id || null]);
+    if (plano_pagamento?.chave) {
+      // Plano de pagamento por fase — sem data de vencimento fixa. Só a fase 1 (Entrada)
+      // é lançada, em aberto; as demais fases são criadas depois, uma a uma, via
+      // POST /financeiro/lancamentos/:id/avancar-fase conforme a obra avança.
+      const plano = PLANOS_PAGAMENTO[plano_pagamento.chave];
+      if (plano) {
+        const valorProjeto = +(orc.valor_final ?? orc.valor_total);
+        const etapa = plano.etapas[0];
+        const valorFase = calcularValorFase(valorProjeto, plano.etapas, 0);
+        const descBase = `Pagamento – ${num}`;
+        const grupoIdPlano = crypto.randomUUID();
+        await db.run(`
+          INSERT INTO lancamentos
+            (descricao, descricao_base, tipo, valor, status, data_vencimento, pedido_id, categoria_id,
+             parcela_num, parcela_total, grupo_parcela_id, plano_pagamento_chave, valor_projeto_total)
+          VALUES ($1,$2,'receita',$3,'pendente',NULL,$4,$5,1,$6,$7,$8,$9)
+        `, [`${descBase} — ${etapa.label} (${etapa.pct}%)`, descBase, valorFase, pedidoId, categoria_id || null,
+            plano.etapas.length, grupoIdPlano, plano_pagamento.chave, valorProjeto]);
+      }
+    } else {
+      for (let i = 0; i < parcelas.length; i++) {
+        const p = parcelas[i];
+        const desc = p.descricao_etapa
+          ? `${String(p.descricao_etapa).slice(0, 120)} – ${num}`
+          : parcelas.length === 1
+            ? `Pagamento – ${num}`
+            : `Parcela ${i+1}/${parcelas.length} – ${num}`;
+        await db.run(`
+          INSERT INTO lancamentos (descricao, tipo, valor, status, data_vencimento, pedido_id, categoria_id)
+          VALUES ($1,'receita',$2,'pendente',$3,$4,$5)
+        `, [desc, p.valor, p.data_vencimento, pedidoId, categoria_id || null]);
+      }
     }
 
     await db.run(
