@@ -1034,10 +1034,20 @@ function periodoDashboardAtual() {
 }
 
 async function carregarDashboard() {
+  const tabelaRecenteEl = document.getElementById('tabelaRecente');
+  if (tabelaRecenteEl) tabelaRecenteEl.innerHTML = LOADING_HTML;
   try {
     const periodo = periodoDashboardAtual();
     const qs = periodo?.tudo ? '?tudo=1' : periodo ? `?inicio=${periodo.inicio}&fim=${periodo.fim}` : '';
-    const d = await Api.get(`/financeiro/dashboard${qs}`);
+
+    // KPIs, gráficos e lançamentos recentes são independentes entre si — antes eram
+    // carregados um atrás do outro (até 8 requisições sequenciais ao banco somando os
+    // 6 meses do gráfico + DRE + dashboard + recentes), agora em paralelo.
+    const [d, , recentes] = await Promise.all([
+      Api.get(`/financeiro/dashboard${qs}`),
+      carregarGraficos(),
+      Api.get(`/financeiro/lancamentos?limite=10&inicio=${inicioMes}&fim=${fimMes}`),
+    ]);
 
     // KPI cards
     const _ico = {
@@ -1098,11 +1108,6 @@ async function carregarDashboard() {
     lucroEl.textContent    = moeda(d.lucro_mes);
     lucroEl.style.color    = d.lucro_mes >= 0 ? '#4ade80' : '#f87171';
 
-    // Gráficos
-    await carregarGraficos();
-
-    // Lançamentos recentes
-    const recentes = await Api.get(`/financeiro/lancamentos?limite=10&inicio=${inicioMes}&fim=${fimMes}`);
     renderTabelaLanc('tabelaRecente', recentes, false);
 
   } catch(e) { console.error('[dashboard]', e); toast('Erro ao carregar dashboard','error'); }
@@ -1110,16 +1115,20 @@ async function carregarDashboard() {
 
 async function carregarGraficos() {
   try {
-    // Últimos 6 meses
-    const labels = [], datasets_rec = [], datasets_des = [];
+    // Últimos 6 meses — os 6 meses + o DRE não dependem uns dos outros, então
+    // disparamos tudo em paralelo em vez de 7 requisições uma atrás da outra
+    const meses = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
-      const m = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-      labels.push(d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}));
-      const r = await Api.get(`/financeiro/resumo?mes=${m}`);
-      datasets_rec.push(+(r.receita_realizada)||0);
-      datasets_des.push(+(r.despesa_realizada)||0);
+      meses.push({ mes: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`, label: d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}) });
     }
+    const [resumos, dre] = await Promise.all([
+      Promise.all(meses.map(x => Api.get(`/financeiro/resumo?mes=${x.mes}`))),
+      Api.get(`/financeiro/dre`),
+    ]);
+    const labels = meses.map(x => x.label);
+    const datasets_rec = resumos.map(r => +(r.receita_realizada)||0);
+    const datasets_des = resumos.map(r => +(r.despesa_realizada)||0);
 
     if (_chartRec) _chartRec.destroy();
     const ctx1 = document.getElementById('chartRecDesp').getContext('2d');
@@ -1143,7 +1152,6 @@ async function carregarGraficos() {
     });
 
     // Donut distribuição mês
-    const dre = await Api.get(`/financeiro/dre`);
     const donutLabels = dre.despesas.slice(0,5).map(d=>d.categoria||'Outros');
     const donutData   = dre.despesas.slice(0,5).map(d=>+d.total);
     const CORES = ['#818cf8','#f87171','#fbbf24','#4ade80','#2dd4bf'];
