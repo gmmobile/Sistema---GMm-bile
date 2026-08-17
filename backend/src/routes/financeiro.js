@@ -430,7 +430,14 @@ router.get('/lancamentos', async (req, res) => {
     if (centro_custo_id) { sql += ` AND l.centro_custo_id=$${idx++}`; params.push(centro_custo_id); }
     if (forma_pagamento) { sql += ` AND l.forma_pagamento=$${idx++}`; params.push(forma_pagamento); }
     if (origem)          { sql += ` AND l.origem=$${idx++}`;          params.push(origem); }
-    if (busca)           { sql += ` AND l.descricao ILIKE $${idx++}`; params.push(`%${busca}%`); }
+    if (busca) {
+      // Busca por descrição OU nome do cliente/fornecedor — o placeholder "Buscar
+      // cliente, descrição..." promete os dois, mas antes só filtrava a descrição,
+      // então buscar por um cliente cujo nome não aparece no texto da descrição
+      // fazia a lista inteira sumir mesmo com lançamentos existindo.
+      sql += ` AND (l.descricao ILIKE $${idx} OR cli.nome ILIKE $${idx} OR forn.nome ILIKE $${idx})`;
+      params.push(`%${busca}%`); idx++;
+    }
 
     // Datas interpoladas — sempre vêm do front no formato YYYY-MM-DD via query string.
     // Lançamentos de plano por fase não têm vencimento (data_vencimento IS NULL) — ficam

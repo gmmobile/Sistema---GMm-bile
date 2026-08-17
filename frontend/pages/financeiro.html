@@ -211,6 +211,9 @@
     .parcela-row { display:flex; justify-content:space-between; font-size:12px; padding:4px 0;
                    border-bottom:1px solid rgba(255,255,255,.04); color:var(--text-muted); }
     .parcela-row:last-child { border-bottom:none; }
+    .spinner { display:inline-block; width:22px; height:22px; border:2px solid rgba(196,162,74,.25);
+               border-top-color:var(--primary); border-radius:50%; animation:spin .7s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
 
     /* ── Responsive ── */
     @media(max-width:1200px) { .fin-right { display:none; } }
@@ -442,7 +445,7 @@
               </select>
               <div class="fin-search">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                <input type="text" id="recBusca" placeholder="Buscar cliente, descrição..." oninput="debounce(carregarReceber,350)()">
+                <input type="text" id="recBusca" placeholder="Buscar cliente, descrição..." oninput="carregarReceberDebounced()">
               </div>
               <button class="btn btn-primary" onclick="abrirModal('receita')">+ Nova Receita</button>
             </div>
@@ -486,7 +489,7 @@
               </select>
               <div class="fin-search">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                <input type="text" id="pagBusca" placeholder="Buscar fornecedor, descrição..." oninput="debounce(carregarPagar,350)()">
+                <input type="text" id="pagBusca" placeholder="Buscar fornecedor, descrição..." oninput="carregarPagarDebounced()">
               </div>
               <button class="btn btn-ghost" onclick="abrirModal('despesa')" style="color:#f87171;white-space:nowrap">+ Nova Despesa</button>
             </div>
@@ -916,6 +919,12 @@ function debounce(fn, ms) {
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
+// Instâncias únicas — se recriadas a cada tecla digitada (como era antes,
+// chamando debounce(fn,ms)() direto no oninput), o debounce não funciona:
+// cada tecla ganha seu próprio timer isolado e todas disparam igual.
+const carregarReceberDebounced = debounce(carregarReceber, 350);
+const carregarPagarDebounced   = debounce(carregarPagar, 350);
+
 /* ── Máscara monetária simples ── */
 function mascaraMoedaSimples(el) {
   let v = el.value.replace(/\D/g,'');
@@ -1215,33 +1224,49 @@ function marcarPeriodoPersonalizado(tipo) {
 /* ════════════════════════════════════════════════════════════════
    CONTAS A RECEBER
    ════════════════════════════════════════════════════════════════ */
+const LOADING_HTML = `<div class="empty-state" style="padding:40px">
+  <div class="spinner" style="margin:0 auto 10px"></div>
+  <h3>Carregando...</h3></div>`;
+
+// Cada carregamento tem um id sequencial — se uma resposta mais lenta chegar
+// depois de outra mais recente (ex: usuário trocou o filtro de período rápido,
+// enquanto a consulta anterior ainda não tinha voltado do banco), ela é
+// descartada em vez de sobrescrever a lista com dados de um filtro antigo.
+let _recReqId = 0;
 async function carregarReceber() {
+  const meuId = ++_recReqId;
   const inicio = document.getElementById('recInicio')?.value || inicioMes;
   const fim    = document.getElementById('recFim')?.value    || fimFuturo;
   const status = document.getElementById('recStatus')?.value || '';
   const busca  = document.getElementById('recBusca')?.value  || '';
+  document.getElementById('tabelaReceber').innerHTML = LOADING_HTML;
   try {
     const dados = await Api.get(`/financeiro/lancamentos?tipo=receita&inicio=${inicio}&fim=${fim}&status=${encodeURIComponent(status)}&busca=${encodeURIComponent(busca)}`);
+    if (meuId !== _recReqId) return; // resposta desatualizada, um filtro mais novo já foi aplicado
     const totalValor = dados.reduce((s,l)=>s+(+l.valor||0), 0);
     document.getElementById('totalReceber').textContent = `${dados.length} lançamento(s) · ${moeda(totalValor)}`;
     renderTabelaLanc('tabelaReceber', dados, true);
-  } catch(e) { toast('Erro ao carregar recebimentos','error'); }
+  } catch(e) { if (meuId === _recReqId) toast('Erro ao carregar recebimentos','error'); }
 }
 
 /* ════════════════════════════════════════════════════════════════
    CONTAS A PAGAR
    ════════════════════════════════════════════════════════════════ */
+let _pagReqId = 0;
 async function carregarPagar() {
+  const meuId = ++_pagReqId;
   const inicio = document.getElementById('pagInicio')?.value || inicioMes;
   const fim    = document.getElementById('pagFim')?.value    || fimFuturo;
   const status = document.getElementById('pagStatus')?.value || '';
   const busca  = document.getElementById('pagBusca')?.value  || '';
+  document.getElementById('tabelaPagar').innerHTML = LOADING_HTML;
   try {
     const dados = await Api.get(`/financeiro/lancamentos?tipo=despesa&inicio=${inicio}&fim=${fim}&status=${encodeURIComponent(status)}&busca=${encodeURIComponent(busca)}`);
+    if (meuId !== _pagReqId) return;
     const totalValor = dados.reduce((s,l)=>s+(+l.valor||0), 0);
     document.getElementById('totalPagar').textContent = `${dados.length} lançamento(s) · ${moeda(totalValor)}`;
     renderTabelaLanc('tabelaPagar', dados, true);
-  } catch(e) { toast('Erro ao carregar despesas','error'); }
+  } catch(e) { if (meuId === _pagReqId) toast('Erro ao carregar despesas','error'); }
 }
 
 /* ════════════════════════════════════════════════════════════════
