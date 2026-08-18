@@ -701,6 +701,11 @@
       <!-- Plano por fase (% do valor do projeto) — sem data de vencimento fixa -->
       <div id="lPlanoEtapas" style="display:none">
         <div class="form-group">
+          <label>Cliente *</label>
+          <select id="lClientePlano"><option value="">Selecione...</option></select>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Necessário pra essas fases aparecerem no perfil do cliente (Carnê de Parcelas)</div>
+        </div>
+        <div class="form-group">
           <label>Fase atual do projeto</label>
           <select id="lEtapaInicial" onchange="renderEtapasPlano()"></select>
           <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Só a fase escolhida é lançada, em aberto e sem vencimento — quando o cliente pagar, dê baixa normalmente; quando a obra avançar, use "Avançar Fase" na lista pra abrir a próxima pendência</div>
@@ -901,7 +906,7 @@ lucide.createIcons();
 /* ════════════════════════════════════════════════════════════════
    ESTADO GLOBAL
    ════════════════════════════════════════════════════════════════ */
-let _categorias = [], _contas = [];
+let _categorias = [], _contas = [], _clientes = [];
 let _chartRec, _chartDonut;
 const hoje = new Date();
 const hojeStr  = hoje.toISOString().split('T')[0];
@@ -969,9 +974,10 @@ function trocarAba(aba, el) {
    ════════════════════════════════════════════════════════════════ */
 async function init() {
   try {
-    [_categorias, _contas] = await Promise.all([
+    [_categorias, _contas, _clientes] = await Promise.all([
       Api.get('/financeiro/categorias').catch(()=>[]),
       Api.get('/financeiro/contas').catch(()=>[]),
+      Api.get('/clientes').catch(()=>[]),
     ]);
 
     // Preenche selects de contas nos modais
@@ -979,6 +985,10 @@ async function init() {
       const sel = document.getElementById(id); if (!sel) return;
       _contas.forEach(c => sel.innerHTML += `<option value="${c.id}">${c.nome} — ${moeda(c.saldo_atual)}</option>`);
     });
+
+    // Preenche select de cliente do plano de pagamento por fase
+    const selCliente = document.getElementById('lClientePlano');
+    if (selCliente) _clientes.forEach(c => selCliente.innerHTML += `<option value="${c.id}">${escapeHtml(c.nome)}</option>`);
 
     // Datas padrão
     ['recInicio','pagInicio','fluxoInicio'].forEach(id => {
@@ -1547,6 +1557,7 @@ function abrirModal(tipo='receita', lanc=null) {
   document.getElementById('lVencimento').value = hojeStr;
   document.getElementById('parcelasPreview').style.display = 'none';
   document.getElementById('lPlano').value = '';
+  document.getElementById('lClientePlano').value = '';
   mudarPlanoPagamento();
 
   setTipo(tipo);
@@ -1719,6 +1730,8 @@ async function salvarLanc() {
   if (!desc)  { toast('Preencha a descrição','warning'); return; }
   if (!valor) { toast('Preencha o valor','warning'); return; }
   if (vencObrigatorio && !venc) { toast('Preencha o vencimento','warning'); return; }
+  const clientePlano = planoChave ? document.getElementById('lClientePlano').value : '';
+  if (planoChave && !clientePlano) { toast('Selecione o cliente — sem isso a fase não aparece no perfil dele','warning'); return; }
 
   const body = {
     tipo, descricao: desc, valor,
@@ -1735,6 +1748,7 @@ async function salvarLanc() {
 
   if (planoChave) {
     body.plano_pagamento = { chave: planoChave, fase: parseInt(document.getElementById('lEtapaInicial').value) || 1 };
+    body.cliente_id = clientePlano;
   }
 
   try {
