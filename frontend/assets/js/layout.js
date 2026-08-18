@@ -97,11 +97,15 @@ const NAV = [
 ];
 
 async function carregarPermissoes() {
-  if (sessionStorage.getItem('permissoes')) return;
   if (usuario?.perfil === 'gestor') {
     sessionStorage.setItem('permissoes', JSON.stringify({ _all: 'total' }));
     return;
   }
+  // Busca sempre, a cada carregamento de página — nunca reaproveita o valor
+  // já salvo em sessionStorage. Sem isso, um gestor alterando as permissões
+  // de um perfil não tinha efeito nenhum pra quem já estava com a aba aberta
+  // (o cache antigo só era invalidado no logout, então a mudança parecia
+  // "não funcionar" até a pessoa fechar e reabrir o navegador).
   try {
     const token = localStorage.getItem('token');
     const resp = await fetch(window.location.origin + '/api/usuarios/minhas-permissoes', {
@@ -111,10 +115,11 @@ async function carregarPermissoes() {
       const data = await resp.json();
       sessionStorage.setItem('permissoes', JSON.stringify(data));
     }
-    // Se a API retornar erro (ex: 404 por servidor não reiniciado), não armazena nada —
-    // buildSidebar verá null e não vai filtrar nem redirecionar (usuário não fica travado)
+    // Se a API retornar erro (ex: 404 por servidor não reiniciado) e não houver
+    // cache anterior, não armazena nada — buildSidebar verá null e não vai
+    // filtrar nem redirecionar (usuário não fica travado)
   } catch(e) {
-    // Erro de rede — mesma lógica: não armazena, não trava
+    // Erro de rede — mesma lógica: se não houver cache anterior, não trava
   }
 }
 
@@ -132,7 +137,12 @@ function buildSidebar() {
     if (moduloAtual) {
       const nivel = permissoes[moduloAtual] || 'sem_acesso';
       if (nivel === 'sem_acesso') {
-        window.location.href = 'dashboard.html';
+        // Manda pra primeira página que a pessoa realmente tem acesso — mandar
+        // sempre pra dashboard.html quebrava (loop de redirecionamento) quando o
+        // próprio módulo "dashboard" também estava sem acesso pro perfil dela
+        const destino = Object.entries(MODULO_MAP)
+          .find(([, mod]) => (permissoes[mod] || 'sem_acesso') !== 'sem_acesso')?.[0];
+        if (destino && destino !== paginaAtual) window.location.href = destino;
         return;
       }
     }
