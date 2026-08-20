@@ -693,6 +693,15 @@ router.post('/lancamentos/:id/avancar-fase', async (req, res) => {
     if (lanc.parcela_num >= totalFases)
       return res.status(400).json({ erro: 'Este contrato já está na última fase do plano' });
 
+    // A fase 1 nunca deixa de mostrar o botão "Avançar Fase" (nada nela muda depois
+    // de avançar), então clicar de novo sem recarregar a página criaria uma fase
+    // seguinte duplicada. Verifica se essa fase já foi avançada antes de criar outra.
+    const jaAvancou = await db.get(
+      `SELECT id FROM lancamentos WHERE grupo_parcela_id=$1 AND parcela_num > $2 LIMIT 1`,
+      [lanc.grupo_parcela_id, lanc.parcela_num]
+    );
+    if (jaAvancou) return res.status(409).json({ erro: 'Este contrato já foi avançado para uma fase seguinte — atualize a página' });
+
     const proximaFase = lanc.parcela_num + 1;
     const etapa = plano.etapas[proximaFase - 1];
     const valorFase = calcularValorFase(+lanc.valor_projeto_total, plano.etapas, proximaFase - 1);
