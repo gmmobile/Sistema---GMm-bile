@@ -1401,7 +1401,7 @@ function renderTabelaLanc(elId, dados, fullCols) {
     return `<tr${trStyle}>
       <td>
         <div style="max-width:240px">
-          <div style="font-size:13px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          <div style="font-size:13px;font-weight:500;color:var(--text);white-space:normal;word-break:break-word;line-height:1.35">
             ${escapeHtml(l.descricao||'')} ${parcelaBadge}
           </div>
           ${l.cliente_nome?`<div style="font-size:11.5px;color:var(--text-dim)">${escapeHtml(l.cliente_nome)}</div>`:''}
