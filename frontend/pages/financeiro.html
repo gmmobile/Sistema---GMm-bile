@@ -441,7 +441,7 @@
                 <option value="">Todos status</option>
                 <option value="pendente">Pendente</option>
                 <option value="pago">Pago</option>
-                <option value="atrasado">Vencido</option>
+                <option value="vencido">Vencido</option>
               </select>
               <div class="fin-search">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -485,7 +485,7 @@
                 <option value="">Todos status</option>
                 <option value="pendente">Pendente</option>
                 <option value="pago">Pago</option>
-                <option value="atrasado">Vencido</option>
+                <option value="vencido">Vencido</option>
               </select>
               <div class="fin-search">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -688,7 +688,7 @@
             <input type="number" id="lParcelaInicial" min="1" value="1" oninput="atualizarPreviewParcelas()">
           </div>
           <div class="form-group" style="display:flex;align-items:center">
-            <div style="font-size:11px;color:var(--text-dim)">Use isso para cadastrar um contrato já em andamento — as parcelas anteriores (já pagas fora do sistema) não são criadas. Se o contrato já está 100% quitado, coloque o número de parcelas + 1 (ex: 9 num contrato de 8x) e a entrada + todas as parcelas ficam de fora</div>
+            <div style="font-size:11px;color:var(--text-dim)">Use isso para cadastrar um contrato já em andamento — a entrada e as parcelas anteriores já são lançadas como <strong>pagas</strong> (editáveis depois, caso a data real seja diferente), e as demais ficam pendentes normalmente. Se o contrato já está 100% quitado, coloque o número de parcelas + 1 (ex: 9 num contrato de 8x) e nada é criado</div>
           </div>
         </div>
 
@@ -708,7 +708,7 @@
         <div class="form-group">
           <label>Fase atual do projeto</label>
           <select id="lEtapaInicial" onchange="renderEtapasPlano()"></select>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Só a fase escolhida é lançada, em aberto e sem vencimento — quando o cliente pagar, dê baixa normalmente; quando a obra avançar, use "Avançar Fase" na lista pra abrir a próxima pendência</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:4px">A fase escolhida é lançada em aberto, sem vencimento — quando o cliente pagar, dê baixa normalmente; quando a obra avançar, use "Avançar Fase" na lista pra abrir a próxima pendência. Fases anteriores (já pagas fora do sistema) são lançadas junto como já pagas, editáveis depois</div>
         </div>
         <div class="parcelas-preview" id="lEtapasLista" style="margin-top:8px"></div>
       </div>
@@ -907,6 +907,7 @@ lucide.createIcons();
    ESTADO GLOBAL
    ════════════════════════════════════════════════════════════════ */
 let _categorias = [], _contas = [], _clientes = [];
+let _lancCache = {}; // guarda os lançamentos já renderizados, pra ações rápidas (ex: cobrar via WhatsApp) sem precisar buscar de novo
 let _chartRec, _chartDonut;
 const hoje = new Date();
 const hojeStr  = hoje.toISOString().split('T')[0];
@@ -917,6 +918,11 @@ const fimMes    = `${mesStr}-31`;
 // (parcelas futuras de contratos longos), não só o mês atual — senão o valor
 // que aparece no card "A Receber" do dashboard nunca bate com a lista.
 const fimFuturo = (() => { const d = new Date(hoje); d.setFullYear(d.getFullYear()+3); return d.toISOString().split('T')[0]; })();
+// Mesma lógica pro início: um título vencido é, por definição, de uma data no
+// passado — se o filtro padrão começasse no mês atual, todo boleto atrasado de
+// meses anteriores sumiria da lista principal (só aparecia na barra de alertas,
+// sem link nenhum pra abrir). Por isso o padrão também olha bem pra trás.
+const inicioPassado = (() => { const d = new Date(hoje); d.setFullYear(d.getFullYear()-3); return d.toISOString().split('T')[0]; })();
 
 /* ── Debounce helper ── */
 function debounce(fn, ms) {
@@ -991,8 +997,9 @@ async function init() {
     if (selCliente) _clientes.forEach(c => selCliente.innerHTML += `<option value="${c.id}">${escapeHtml(c.nome)}</option>`);
 
     // Datas padrão
-    ['recInicio','pagInicio','fluxoInicio'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.value = inicioMes;
+    document.getElementById('fluxoInicio') && (document.getElementById('fluxoInicio').value = inicioMes);
+    ['recInicio','pagInicio'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = inicioPassado;
     });
     document.getElementById('fluxoFim') && (document.getElementById('fluxoFim').value = fimMes);
     ['recFim','pagFim'].forEach(id => {
@@ -1079,7 +1086,7 @@ async function carregarDashboard() {
       { label:`Recebido ${periodoLbl}`,   val:d.recebido_mes,        icon:_ico.check,    bg:'rgba(99,102,241,.12)', cor:'#818cf8', aba:'receber', varPct: d.variacao?.recebido_mes },
       { label:`Pago ${periodoLbl}`,       val:d.pago_mes,            icon:_ico.card,     bg:'rgba(245,158,11,.12)', cor:'#fbbf24', aba:'pagar',   varPct: d.variacao?.pago_mes },
       { label:`Lucro ${periodoLbl}`,      val:d.lucro_mes,           icon:_ico.trending, bg:'rgba(34,197,94,.12)',  cor:'#4ade80', aba:null,      varPct: d.variacao?.lucro_mes },
-      { label:'Vencidos',                 val:d.vencidos_valor,      icon:_ico.alert,    bg:'rgba(239,68,68,.12)',  cor:'#f87171', aba:'receber', sub:`${d.vencidos_qtd} título(s)` },
+      { label:'Vencidos',                 val:d.vencidos_valor,      icon:_ico.alert,    bg:'rgba(239,68,68,.12)',  cor:'#f87171', aba:'receber', vencidos:true, sub:`${d.vencidos_qtd} título(s)` },
       { label:'Receitas Previstas',       val:d.receitas_previstas,  icon:_ico.calendar, bg:'rgba(99,102,241,.08)', cor:'#818cf8', aba:null },
     ];
 
@@ -1101,7 +1108,7 @@ async function carregarDashboard() {
           <div class="kpi-valor" style="color:${k.cor}">${moeda(k.val)}</div>
           <div class="kpi-bottom">
             ${varHtml}
-            ${k.aba ? `<button class="kpi-link" onclick="trocarAba('${k.aba}',document.querySelectorAll('.fin-tab')[${abaIdx}])" title="Ver detalhes">
+            ${k.aba ? `<button class="kpi-link" onclick="${k.vencidos ? `abrirVencidos('receita')` : `trocarAba('${k.aba}',document.querySelectorAll('.fin-tab')[${abaIdx}])`}" title="Ver detalhes">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
             </button>` : ''}
           </div>
@@ -1205,7 +1212,7 @@ function renderAlertas(elId, lista, cor) {
   const el = document.getElementById(elId);
   if (!lista?.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-dim)">Nenhum</div>'; return; }
   el.innerHTML = lista.slice(0,5).map(l => `
-    <div class="alerta-item">
+    <div class="alerta-item" style="cursor:pointer" onclick="editarLanc(${l.id})" title="Clique para abrir este lançamento">
       <div class="alerta-dot" style="background:${cor}"></div>
       <div class="alerta-desc">
         <strong>${escapeHtml(l.descricao||'').slice(0,40)}</strong>
@@ -1213,6 +1220,17 @@ function renderAlertas(elId, lista, cor) {
       </div>
       <span class="alerta-val" style="color:${l.tipo==='receita'?'#4ade80':'#f87171'}">${moeda(l.valor)}</span>
     </div>`).join('');
+}
+
+// Card "Vencidos" do Dashboard e itens da barra lateral levam pra cá — aplica
+// de fato o filtro de vencido (antes só trocava de aba, sem filtrar nada).
+function abrirVencidos(tipo) {
+  const abas = ['dashboard','receber','pagar','fluxo','contas','relatorios'];
+  const aba = tipo === 'despesa' ? 'pagar' : 'receber';
+  trocarAba(aba, document.querySelectorAll('.fin-tab')[abas.indexOf(aba)]);
+  const selStatus = document.getElementById(aba === 'receber' ? 'recStatus' : 'pagStatus');
+  selStatus.value = 'vencido';
+  if (aba === 'receber') carregarReceber(); else carregarPagar();
 }
 
 /* ── Filtros rápidos de período (Contas a Receber/Pagar) ── */
@@ -1253,13 +1271,16 @@ const LOADING_HTML = `<div class="empty-state" style="padding:40px">
 let _recReqId = 0;
 async function carregarReceber() {
   const meuId = ++_recReqId;
-  const inicio = document.getElementById('recInicio')?.value || inicioMes;
+  const inicio = document.getElementById('recInicio')?.value || inicioPassado;
   const fim    = document.getElementById('recFim')?.value    || fimFuturo;
   const status = document.getElementById('recStatus')?.value || '';
   const busca  = document.getElementById('recBusca')?.value  || '';
+  // "Vencido" não é um status salvo no banco (é calculado por data) — o back-end
+  // espera vencido=1 pra esse caso, não status=vencido
+  const filtroExtra = status === 'vencido' ? '&vencido=1' : `&status=${encodeURIComponent(status)}`;
   document.getElementById('tabelaReceber').innerHTML = LOADING_HTML;
   try {
-    const dados = await Api.get(`/financeiro/lancamentos?tipo=receita&inicio=${inicio}&fim=${fim}&status=${encodeURIComponent(status)}&busca=${encodeURIComponent(busca)}`);
+    const dados = await Api.get(`/financeiro/lancamentos?tipo=receita&inicio=${inicio}&fim=${fim}${filtroExtra}&busca=${encodeURIComponent(busca)}`);
     if (meuId !== _recReqId) return; // resposta desatualizada, um filtro mais novo já foi aplicado
     const totalValor = dados.reduce((s,l)=>s+(+l.valor||0), 0);
     document.getElementById('totalReceber').textContent = `${dados.length} lançamento(s) · ${moeda(totalValor)}`;
@@ -1273,13 +1294,14 @@ async function carregarReceber() {
 let _pagReqId = 0;
 async function carregarPagar() {
   const meuId = ++_pagReqId;
-  const inicio = document.getElementById('pagInicio')?.value || inicioMes;
+  const inicio = document.getElementById('pagInicio')?.value || inicioPassado;
   const fim    = document.getElementById('pagFim')?.value    || fimFuturo;
   const status = document.getElementById('pagStatus')?.value || '';
   const busca  = document.getElementById('pagBusca')?.value  || '';
+  const filtroExtra = status === 'vencido' ? '&vencido=1' : `&status=${encodeURIComponent(status)}`;
   document.getElementById('tabelaPagar').innerHTML = LOADING_HTML;
   try {
-    const dados = await Api.get(`/financeiro/lancamentos?tipo=despesa&inicio=${inicio}&fim=${fim}&status=${encodeURIComponent(status)}&busca=${encodeURIComponent(busca)}`);
+    const dados = await Api.get(`/financeiro/lancamentos?tipo=despesa&inicio=${inicio}&fim=${fim}${filtroExtra}&busca=${encodeURIComponent(busca)}`);
     if (meuId !== _pagReqId) return;
     const totalValor = dados.reduce((s,l)=>s+(+l.valor||0), 0);
     document.getElementById('totalPagar').textContent = `${dados.length} lançamento(s) · ${moeda(totalValor)}`;
@@ -1302,18 +1324,29 @@ function renderTabelaLanc(elId, dados, fullCols) {
   const STATUS = { pendente:'pendente', pago:'pago', atrasado:'atrasado', cancelado:'cancelado' };
   const STATUS_LABEL = { pendente:'Pendente', pago:'Pago', atrasado:'Vencido', cancelado:'Cancelado' };
 
+  dados.forEach(l => { _lancCache[l.id] = l; });
+
   const rows = dados.map(l => {
     const parcelaBadge = l.parcela_total > 1
       ? `<span class="pill pill-parcela">${l.parcela_num}/${l.parcela_total}</span>` : '';
     const catDot = l.categoria_cor ? `<span class="cat-dot" style="background:${escapeHtml(l.categoria_cor)}"></span>` : '';
     const vencCel = l.data_vencimento ? formatarData(l.data_vencimento)
       : l.plano_pagamento_chave ? '<span style="color:var(--text-dim)">Aguardando</span>' : formatarData(l.data_vencimento);
+    const vencido = l.status==='pendente' && l.data_vencimento && l.data_vencimento < hojeStr;
+    const statusPillHtml = vencido
+      ? `<span class="pill pill-atrasado" style="background:rgba(239,68,68,.18);color:#f87171">Vencido</span>`
+      : `<span class="pill pill-${STATUS[l.status]||'pendente'}">${STATUS_LABEL[l.status]||l.status}</span>`;
+    const waNum = (l.cliente_whatsapp || l.cliente_telefone || '').replace(/\D/g,'');
 
     const acoesHtml = `
       <div style="display:flex;gap:4px;align-items:center">
         ${l.status==='pendente'?`
           <button class="acao-btn ok" onclick="abrirPagar(${l.id},'${escapeHtml(l.descricao||'').replace(/'/g,"\\'")}',${l.valor})" title="Marcar como pago">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>`:''}
+        ${vencido && waNum?`
+          <button class="acao-btn" style="color:#4ade80" onclick="cobrarVencidoWhatsApp(${l.id})" title="Cobrar atraso via WhatsApp">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
           </button>`:''}
         ${l.plano_pagamento_chave && l.parcela_num < l.parcela_total?`
           <button class="acao-btn" onclick="avancarFase(${l.id})" title="Avançar para a próxima fase">
@@ -1332,9 +1365,11 @@ function renderTabelaLanc(elId, dados, fullCols) {
           </button>`:''}
       </div>`;
 
+    const trStyle = vencido ? ' style="background:rgba(239,68,68,.06);box-shadow:inset 3px 0 0 #f87171"' : '';
+
     if (!fullCols) {
       // Tabela compacta (recentes)
-      return `<tr>
+      return `<tr${trStyle}>
         <td><span class="pill pill-${l.tipo}">${l.tipo==='receita'?'Receita':'Despesa'}</span></td>
         <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
           ${escapeHtml(l.descricao||'')} ${parcelaBadge}
@@ -1342,12 +1377,12 @@ function renderTabelaLanc(elId, dados, fullCols) {
         </td>
         <td style="font-weight:600;color:${l.tipo==='receita'?'#4ade80':'#f87171'}">${l.tipo==='receita'?'+':'−'} ${moeda(l.valor)}</td>
         <td style="font-size:12px;color:var(--text-dim)">${vencCel}</td>
-        <td><span class="pill pill-${STATUS[l.status]||'pendente'}">${STATUS_LABEL[l.status]||l.status}</span></td>
+        <td>${statusPillHtml}</td>
         <td>${acoesHtml}</td>
       </tr>`;
     }
 
-    return `<tr>
+    return `<tr${trStyle}>
       <td>
         <div style="max-width:240px">
           <div style="font-size:13px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
@@ -1362,7 +1397,7 @@ function renderTabelaLanc(elId, dados, fullCols) {
       </td>
       <td style="font-size:12.5px;color:var(--text-muted);white-space:nowrap">${vencCel}</td>
       <td>${l.forma_pagamento?`<span style="font-size:12px;color:var(--text-dim)">${escapeHtml(l.forma_pagamento)}</span>`:'<span style="color:var(--text-dim)">—</span>'}</td>
-      <td><span class="pill pill-${STATUS[l.status]||'pendente'}">${STATUS_LABEL[l.status]||l.status}</span></td>
+      <td>${statusPillHtml}</td>
       <td>${acoesHtml}</td>
     </tr>`;
   }).join('');
@@ -1679,13 +1714,23 @@ function renderEtapasPlano() {
     return;
   }
 
+  let html = '';
+  for (let f = 1; f < fase; f++) {
+    const ant = etapas[f - 1];
+    const valorAnt = calcularValorFase(total, etapas, f - 1);
+    html += `<div class="parcela-row" style="color:#4ade80">
+      <span>Fase ${f} — ${escapeHtml(ant.label)} (${ant.pct}%) (paga)</span>
+      <span>${moeda(valorAnt)}</span>
+    </div>`;
+  }
   const e = etapas[fase - 1];
   const valorFase = calcularValorFase(total, etapas, fase - 1);
-  box.innerHTML = `<div class="parcela-row">
+  html += `<div class="parcela-row">
     <span>Fase ${fase} — ${escapeHtml(e.label)} (${e.pct}%)</span>
     <span style="font-weight:700">${moeda(valorFase)}</span>
   </div>
-  <div style="font-size:11px;color:var(--text-dim);margin-top:6px">Fica em aberto sem data — só some da lista de pendências quando você marcar como pago</div>`;
+  <div style="font-size:11px;color:var(--text-dim);margin-top:6px">${fase>1?'As fases anteriores entram como já pagas (editável depois). A fase atual ':'A fase atual '}fica em aberto sem data — só some da lista de pendências quando você marcar como pago</div>`;
+  box.innerHTML = html;
 }
 
 function atualizarPreviewParcelas() {
@@ -1698,19 +1743,23 @@ function atualizarPreviewParcelas() {
 
   if (n <= 1 && entr === 0) { prev.style.display='none'; return; }
 
+  const totalmenteQuitado = inicial > n;
   const restante   = total - entr;
   const valParc    = n > 0 ? +(restante/n).toFixed(2) : 0;
   const dataBase   = new Date((document.getElementById('lVencimento').value||hojeStr)+'T12:00:00');
 
   let html = '';
-  if (entr > 0 && inicial <= 1) {
-    html += `<div class="parcela-row"><span>Entrada</span><span>${moeda(entr)}</span><span>${formatarData(hojeStr)}</span></div>`;
+  if (entr > 0 && !totalmenteQuitado) {
+    const pagaEntrada = inicial > 1;
+    html += `<div class="parcela-row"${pagaEntrada?' style="color:#4ade80"':''}><span>Entrada${pagaEntrada?' (paga)':''}</span><span>${moeda(entr)}</span><span>${formatarData(hojeStr)}</span></div>`;
   }
-  for (let p=inicial; p<=n; p++) {
-    const d = new Date(dataBase); d.setMonth(d.getMonth()+(p-inicial));
-    html += `<div class="parcela-row"><span>${p}/${n}</span><span>${moeda(valParc)}</span><span>${d.toLocaleDateString('pt-BR')}</span></div>`;
-  }
-  if (!html) {
+  if (!totalmenteQuitado) {
+    for (let p=1; p<=n; p++) {
+      const d = new Date(dataBase); d.setMonth(d.getMonth()+(p-inicial));
+      const paga = p < inicial;
+      html += `<div class="parcela-row"${paga?' style="color:#4ade80"':''}><span>${p}/${n}${paga?' (paga)':''}</span><span>${moeda(valParc)}</span><span>${d.toLocaleDateString('pt-BR')}</span></div>`;
+    }
+  } else {
     html = `<div class="parcela-row" style="color:#4ade80"><span>Contrato já 100% quitado — nenhuma parcela pendente será criada</span></div>`;
   }
 
@@ -1792,6 +1841,23 @@ async function avancarFase(id) {
     if (abaAtiva) abaAtiva.click();
     carregarAlertas();
   } catch(e) { toast(e.message||'Erro ao avançar fase','error'); }
+}
+
+function cobrarVencidoWhatsApp(id) {
+  const l = _lancCache[id];
+  if (!l) { toast('Recarregue a lista e tente de novo','warning'); return; }
+  const waNum = (l.cliente_whatsapp || l.cliente_telefone || '').replace(/\D/g,'');
+  if (!waNum) { toast('Cliente sem WhatsApp/telefone cadastrado','warning'); return; }
+
+  const dias = Math.round((new Date(hojeStr+'T00:00:00') - new Date(l.data_vencimento+'T00:00:00')) / 86400000);
+  const primeiroNome = (l.cliente_nome || '').trim().split(' ')[0] || 'tudo bem';
+  const msg = encodeURIComponent(
+    `Olá ${primeiroNome}! 👋\n\n` +
+    `Identificamos que o pagamento referente a *${l.descricao}*, no valor de *${moeda(l.valor)}*, está em atraso desde ${formatarData(l.data_vencimento)} (${dias} dia${dias===1?'':'s'}).\n\n` +
+    `Poderia regularizar o quanto antes? Qualquer dúvida sobre a forma de pagamento, estamos à disposição!\n\n` +
+    `— GM MÓBILE`
+  );
+  window.open(`https://wa.me/55${waNum}?text=${msg}`, '_blank');
 }
 
 /* ════════════════════════════════════════════════════════════════

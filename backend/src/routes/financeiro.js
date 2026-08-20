@@ -65,8 +65,8 @@ router.get('/dashboard', async (req, res) => {
           AND COALESCE(data_pagamento,'') BETWEEN '${inicio}' AND '${fim}' THEN valor END),0)       AS pago_mes,
         COALESCE(SUM(CASE WHEN status='pago' AND COALESCE(data_vencimento,data_pagamento) BETWEEN '${inicio}' AND '${fim}'
           THEN CASE WHEN tipo='receita' THEN valor ELSE -valor END END),0)                         AS lucro_mes,
-        COUNT(CASE WHEN status='pendente' AND data_vencimento < '${hojeStr}' THEN 1 END)           AS vencidos_qtd,
-        COALESCE(SUM(CASE WHEN status='pendente' AND data_vencimento < '${hojeStr}' THEN valor END),0) AS vencidos_valor,
+        COUNT(CASE WHEN tipo='receita' AND status='pendente' AND data_vencimento < '${hojeStr}' THEN 1 END)           AS vencidos_qtd,
+        COALESCE(SUM(CASE WHEN tipo='receita' AND status='pendente' AND data_vencimento < '${hojeStr}' THEN valor END),0) AS vencidos_valor,
         COALESCE(SUM(CASE WHEN tipo='receita' AND status='pendente'
           AND data_vencimento BETWEEN '${inicioFuturo}' AND '${fim}' THEN valor END),0)            AS receitas_previstas,
         COALESCE(SUM(CASE WHEN tipo='despesa' AND status='pendente'
@@ -408,7 +408,7 @@ router.get('/lancamentos', async (req, res) => {
       SELECT l.*,
              cat.nome  AS categoria_nome, cat.cor AS categoria_cor,
              cc.nome   AS conta_nome,
-             cli.nome  AS cliente_nome,
+             cli.nome  AS cliente_nome, cli.telefone AS cliente_telefone, cli.whatsapp AS cliente_whatsapp,
              forn.nome AS fornecedor_nome,
              fcc.nome  AS centro_custo_nome
       FROM lancamentos l
@@ -539,26 +539,37 @@ router.post('/lancamentos', async (req, res) => {
           mensagem: 'Contrato já estava 100% quitado — nenhuma parcela pendente foi criada' });
       }
 
-      const etapa = plano.etapas[fase - 1];
-      const valorFase = calcularValorFase(valorNum, plano.etapas, fase - 1);
       const grupoIdPlano = uuid();
-      const descFinal = `${descricao} — ${etapa.label} (${etapa.pct}%)`;
+      const hojeIso = new Date().toISOString().split('T')[0];
+      let idFaseAtual = null, valorFaseAtual = null;
 
-      const novoId = await db.insert(
-        `INSERT INTO lancamentos
-          (tipo, descricao, descricao_base, valor, status, data_vencimento, forma_pagamento, conta_id,
-           categoria_id, observacoes, cliente_id, fornecedor_id, orcamento_id, pedido_id, centro_custo_id,
-           num_documento, origem, recorrencia, parcela_num, parcela_total, grupo_parcela_id,
-           plano_pagamento_chave, valor_projeto_total)
-         VALUES ($1,$2,$3,$4,'pendente',NULL,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
-        [tipo, descFinal, descricao, valorFase,
-         forma_pagamento||null, conta_id||null, categoria_id||null,
-         observacoes||null, cliente_id||null, fornecedor_id||null,
-         orcamento_id||null, pedido_id||null, centro_custo_id||null,
-         num_documento||null, origem, recorrencia, fase, totalFases, grupoIdPlano,
-         plano_pagamento.chave, valorNum]
-      );
-      return res.status(201).json({ id: novoId, grupo_parcela_id: grupoIdPlano, fase, total_fases: totalFases, valor: valorFase });
+      // Fases anteriores à selecionada já aconteceram fora do sistema (contrato já
+      // em andamento) — em vez de simplesmente não existirem, ficam registradas como
+      // pagas (data de hoje, editável depois) pra não sumir do histórico do cliente.
+      for (let f = 1; f <= fase; f++) {
+        const etapa = plano.etapas[f - 1];
+        const valorFase = calcularValorFase(valorNum, plano.etapas, f - 1);
+        const descFinal = `${descricao} — ${etapa.label} (${etapa.pct}%)`;
+        const isAtual = f === fase;
+
+        const novoId = await db.insert(
+          `INSERT INTO lancamentos
+            (tipo, descricao, descricao_base, valor, status, data_vencimento, data_pagamento, forma_pagamento, conta_id,
+             categoria_id, observacoes, cliente_id, fornecedor_id, orcamento_id, pedido_id, centro_custo_id,
+             num_documento, origem, recorrencia, parcela_num, parcela_total, grupo_parcela_id,
+             plano_pagamento_chave, valor_projeto_total)
+           VALUES ($1,$2,$3,$4,$5,NULL,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`,
+          [tipo, descFinal, descricao, valorFase, isAtual ? 'pendente' : 'pago',
+           isAtual ? null : hojeIso,
+           forma_pagamento||null, conta_id||null, categoria_id||null,
+           observacoes||null, cliente_id||null, fornecedor_id||null,
+           orcamento_id||null, pedido_id||null, centro_custo_id||null,
+           num_documento||null, origem, recorrencia, f, totalFases, grupoIdPlano,
+           plano_pagamento.chave, valorNum]
+        );
+        if (isAtual) { idFaseAtual = novoId; valorFaseAtual = valorFase; }
+      }
+      return res.status(201).json({ id: idFaseAtual, grupo_parcela_id: grupoIdPlano, fase, total_fases: totalFases, valor: valorFaseAtual });
     }
 
     if (numParcelas <= 1 && entradaNum === 0) {
@@ -588,31 +599,46 @@ router.post('/lancamentos', async (req, res) => {
       parcelaNum, parcelaTotal, grupoId,
     ];
 
-    // Entrada só é lançada como pendente se ainda não tiver acontecido (parcelaInicial<=1).
-    // Se o contrato já está em andamento (parcelaInicial>1), a entrada já foi paga fora
-    // do sistema — lançá-la aqui criaria uma pendência falsa.
+    const inserirPago = (vals, dataPagamento) => db.run(
+      `INSERT INTO lancamentos
+        (tipo, descricao, valor, data_vencimento, forma_pagamento, conta_id,
+         categoria_id, observacoes, cliente_id, fornecedor_id, orcamento_id,
+         pedido_id, centro_custo_id, num_documento, origem, recorrencia,
+         parcela_num, parcela_total, grupo_parcela_id, status, data_pagamento)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,'pago',$20)`,
+      [...vals, dataPagamento]
+    );
+
+    // Quando parcelaInicial === numParcelas+1 (sentinela "já 100% quitado"), não
+    // cria nada — nem entrada nem parcelas. Nos demais casos, TODAS as parcelas
+    // (1..numParcelas) são criadas: as anteriores à parcela_inicial já aconteceram
+    // fora do sistema, então entram como 'pago' (editável depois, com a data que
+    // realmente venceriam) em vez de simplesmente não existir e sumir da lista.
     let linhasCriadas = 0;
-    if (entradaNum > 0 && parcelaInicial <= 1) {
-      await inserir(montarValores(`${descricao} (Entrada)`, entradaNum, data_vencimento, 0, numParcelas + 1));
-      linhasCriadas++;
-    }
+    const totalmenteQuitado = parcelaInicial > numParcelas;
 
-    // parcela_inicial permite cadastrar um contrato já em andamento (ex: parcelas
-    // 1-3 já pagas fora do sistema) começando a gerar a partir da parcela informada
-    // — o vencimento digitado é o da PRIMEIRA parcela que está sendo criada agora.
-    // Quando parcelaInicial === numParcelas+1, o contrato já está 100% quitado e o
-    // laço abaixo não roda — nenhuma parcela pendente é criada.
-    const valorRest = valorNum - entradaNum;
-    const valorParc = +(valorRest / numParcelas).toFixed(2);
-    const dataBase  = new Date(data_vencimento + 'T12:00:00');
+    if (!totalmenteQuitado) {
+      if (entradaNum > 0) {
+        const valsEntrada = montarValores(`${descricao} (Entrada)`, entradaNum, data_vencimento, 0, numParcelas + 1);
+        if (parcelaInicial <= 1) await inserir(valsEntrada);
+        else await inserirPago(valsEntrada, data_vencimento);
+        linhasCriadas++;
+      }
 
-    for (let parcelaNum = parcelaInicial; parcelaNum <= numParcelas; parcelaNum++) {
-      const dataVenc = new Date(dataBase);
-      dataVenc.setMonth(dataVenc.getMonth() + (parcelaNum - parcelaInicial));
-      const vencStr = dataVenc.toISOString().split('T')[0];
-      const descParcela = numParcelas > 1 ? `${descricao} (${parcelaNum}/${numParcelas})` : descricao;
-      await inserir(montarValores(descParcela, valorParc, vencStr, parcelaNum, numParcelas));
-      linhasCriadas++;
+      const valorRest = valorNum - entradaNum;
+      const valorParc = +(valorRest / numParcelas).toFixed(2);
+      const dataBase  = new Date(data_vencimento + 'T12:00:00');
+
+      for (let parcelaNum = 1; parcelaNum <= numParcelas; parcelaNum++) {
+        const dataVenc = new Date(dataBase);
+        dataVenc.setMonth(dataVenc.getMonth() + (parcelaNum - parcelaInicial));
+        const vencStr = dataVenc.toISOString().split('T')[0];
+        const descParcela = numParcelas > 1 ? `${descricao} (${parcelaNum}/${numParcelas})` : descricao;
+        const vals = montarValores(descParcela, valorParc, vencStr, parcelaNum, numParcelas);
+        if (parcelaNum < parcelaInicial) await inserirPago(vals, vencStr);
+        else await inserir(vals);
+        linhasCriadas++;
+      }
     }
 
     if (linhasCriadas === 0) {
